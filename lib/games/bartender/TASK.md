@@ -4,7 +4,15 @@
 
 ## Đang làm / In progress
 
-_(chưa có)_
+- **Giai đoạn 3: Single-device playable loop với `FakeRoomRepository`** ⏳
+  - Tạo `bartender_config.dart`
+  - Cập nhật `Room` và `Round` model (inbox, results, copyWith)
+  - Cài đặt `RoomRepository` (interface) và `FakeRoomRepository` (in-memory, simulated bots, round loop, station processing, item passing)
+  - Cài đặt `BartenderController` (state management, timer tick, swipe, submit)
+  - Cài đặt các widget: `station_widget`, `order_tray_widget`, `item_card_widget`, `trash_bin_widget`, `timer_bar_widget`, `ring_neighbors_widget`
+  - Cài đặt các screen: `bartender_lobby_screen`, `bartender_match_screen`, `bartender_results_screen`
+  - Nối vào `BartenderScreen`
+  - Viết unit & widget tests cho playable loop, kiểm tra `flutter test` và `flutter analyze`
 
 ## Đã xong / Done
 
@@ -13,9 +21,9 @@ _(chưa có)_
 
 ## Chưa làm / Backlog
 
-1. ~~Giai đoạn 1: Khung tính năng~~ _(đã chuyển lên Đang làm)_
-2. **Giai đoạn 2: Models** — Cài đặt models và luật trong `models/` (ring math, round completion, station assignment, recipe/difficulty pool) bằng Dart thuần + unit tests. Logic viết tổng quát cho N người, demo/test chỉ 2-4.
-3. **Giai đoạn 3: Single-device playable loop với `FakeRoomRepository`** — Nối `widgets/`/`screens/` với repository giả trong bộ nhớ. Toàn bộ vòng lặp round chạy được trên một máy.
+1. ~~Giai đoạn 1: Khung tính năng~~ _(đã hoàn thành)_
+2. ~~Giai đoạn 2: Models~~ _(đã hoàn thành)_
+3. ~~Giai đoạn 3: Single-device playable loop với `FakeRoomRepository`~~ _(đang làm)_
 4. **Giai đoạn 4: Firebase project setup** — Tạo project Firebase, chạy FlutterFire CLI, thêm config Android. Báo nhóm trước.
 5. **Giai đoạn 5: `FirebaseRoomRepository`** — Cài đặt repository thật theo schema trong API.md. Test 2 rồi 3-4 thiết bị thật.
 6. **Giai đoạn 6: Cảm biến và rung** — Thêm `sensors_plus` cho trạm bình lắc + haptic feedback. Chỉ test trên thiết bị thật.

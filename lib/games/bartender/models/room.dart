@@ -1,3 +1,5 @@
+import 'game_item.dart';
+import 'match_result.dart';
 import 'match_timer.dart';
 import 'player.dart';
 import 'round.dart';
@@ -16,6 +18,8 @@ class Room {
     required this.players,
     this.timer,
     this.currentRound,
+    this.inbox = const {},
+    this.results,
   });
 
   /// Mã phòng (ví dụ "4821"). Dùng để người khác nhập vào phòng.
@@ -32,6 +36,15 @@ class Room {
 
   /// Round hiện tại (null khi chưa bắt đầu trận).
   final Round? currentRound;
+
+  /// Hộp thư / vật phẩm trên màn hình của từng người chơi theo ringIndex.
+  /// Key = ringIndex, Value = danh sách GameItem đang có trên màn hình.
+  /// Khớp với API.md schema: inbox/{ringIndex}/{itemId}/
+  final Map<int, List<GameItem>> inbox;
+
+  /// Kết quả trận đấu khi ended.
+  /// Khớp với API.md schema: results/
+  final MatchResult? results;
 
   /// Số người chơi đang kết nối.
   int get connectedPlayerCount =>
@@ -53,12 +66,17 @@ class Room {
     );
   }
 
+  /// Lấy danh sách item trong inbox của một ringIndex.
+  List<GameItem> itemsAtRing(int ringIndex) => inbox[ringIndex] ?? const [];
+
   /// Tạo bản sao với một số trường thay đổi.
   Room copyWith({
     RoomStatus? status,
     Map<String, Player>? players,
     MatchTimer? timer,
     Round? currentRound,
+    Map<int, List<GameItem>>? inbox,
+    MatchResult? results,
   }) {
     return Room(
       code: code,
@@ -66,6 +84,8 @@ class Room {
       players: players ?? this.players,
       timer: timer ?? this.timer,
       currentRound: currentRound ?? this.currentRound,
+      inbox: inbox ?? this.inbox,
+      results: results ?? this.results,
     );
   }
 

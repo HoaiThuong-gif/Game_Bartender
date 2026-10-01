@@ -57,6 +57,21 @@ class Round {
     return orders.where((o) => o.isCompleted).length;
   }
 
+  /// Tạo bản sao với một số trường thay đổi.
+  Round copyWith({
+    int? number,
+    int? ordersPerPlayer,
+    Map<int, StationType?>? stationAssignment,
+    Map<String, List<Order>>? playerOrders,
+  }) {
+    return Round(
+      number: number ?? this.number,
+      ordersPerPlayer: ordersPerPlayer ?? this.ordersPerPlayer,
+      stationAssignment: stationAssignment ?? this.stationAssignment,
+      playerOrders: playerOrders ?? this.playerOrders,
+    );
+  }
+
   @override
   String toString() =>
       'Round(#$number, ordersPerPlayer=$ordersPerPlayer, '
