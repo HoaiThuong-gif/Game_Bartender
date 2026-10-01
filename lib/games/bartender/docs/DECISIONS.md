@@ -2,8 +2,6 @@
 
 Each entry records a locked decision, why it was made, and what was considered instead. Entries are dated by when they were locked during planning (2026-09-30 session). If a requirement or architecture assumption changes later, the affected entry must be revisited and the dependent docs (`PROJECT_SPEC.md`, `ARCHITECTURE.md`) updated accordingly.
 
-## English
-
 ### D1 — Backend: Firebase Realtime Database
 **Decision:** Use Firebase Realtime Database (RTDB) for room state, item passing, and the shared timer.
 **Rationale:** No server to host or maintain; free tier (Spark plan) comfortably covers the expected load of a 2–4 player match; strong Flutter support via FlutterFire; developer has no backend experience and does not want to gain deep Flutter/Dart expertise either, so avoiding a self-hosted server reduces total surface area to learn.
@@ -59,59 +57,12 @@ Each entry records a locked decision, why it was made, and what was considered i
 **Rationale:** Explicit developer preference — familiarity with, and reliance on, this specific documentation structure for working with a coding agent outweighs matching the existing repo's documentation style for this one feature.
 **Alternatives considered:** Match the team's single-narrative-file style (would have been easier to review alongside existing docs, but rejected by explicit request); a hybrid of both styles (not chosen).
 
-## Tiếng Việt
+### D12 — Visual assets: free pixel-art packs, style mismatch with lobby accepted
+**Decision:** Use free, pre-made pixel-art (16x16) asset packs for all ingredients, stations, drinks/items, UI chrome, and background — no custom-drawn art. Specific packs and licenses are listed in `ARCHITECTURE.md`. Accept that this visual style differs from the hand-drawn style of the existing lobby screen, rather than spending time sourcing or commissioning matching art.
+**Rationale:** A free, matching hand-drawn asset set was not readily available, and searching further for one risked significant time for an uncertain result. Since the Bartender game is a separate screen entered via `Navigator.push` (the player fully leaves the lobby scene), a style mismatch between features is a cosmetic, non-blocking issue — consistent with this project's overall MVP-first approach. The team lead should be informed of this choice; revisiting it for visual consistency is left as a possible later polish item if time allows.
+**Alternatives considered:** Searching further for a free hand-drawn pack matching the lobby's style (deferred — not pursued now by explicit developer decision, may be revisited later); commissioning or hand-drawing custom art (rejected — too costly for a student project); using only Flutter-native icons/emoji (rejected earlier in favor of asset packs once the developer decided to use real art).
 
-### D1 — Backend: Firebase Realtime Database
-**Quyết định:** Dùng Firebase Realtime Database (RTDB) cho trạng thái phòng, chuyền vật phẩm, và đồng hồ chung.
-**Lý do:** Không cần host hay bảo trì server; gói miễn phí (Spark) đủ sức cho tải dự kiến của một trận 2-4 người; hỗ trợ Flutter tốt qua FlutterFire; người phát triển chưa có kinh nghiệm backend và cũng không muốn học sâu Flutter/Dart, nên tránh tự host server giúp giảm bớt thứ phải học.
-**Phương án khác đã xét:** Server WebSocket tự host bằng Dart (loại bỏ: cần host, các gói host miễn phí thường ngủ sau thời gian không hoạt động — rủi ro cho ngày demo); Cloud Firestore (loại bỏ cho trường hợp này: mô hình tính phí theo thao tác không hợp với game cập nhật nhỏ và liên tục bằng RTDB); Supabase Realtime (loại bỏ: khả thi, nhưng project miễn phí có thể tự tạm dừng sau thời gian không hoạt động, cũng là rủi ro ngày demo, và không có lợi thế rõ ràng so với RTDB cho phạm vi này).
-
-### D2 — Chiến lược iOS: ưu tiên Android trước
-**Quyết định:** Build và kiểm chứng trên Android trước; chỉ thử build iOS sau nếu còn thời gian.
-**Lý do:** Người dùng iOS trong nhóm không có Mac, mà build iOS native cần macOS/Xcode (hoặc dịch vụ build cloud trả phí). Việc chặn tiến độ MVP để giải quyết vấn đề truy cập iOS được đánh giá là không đáng.
-**Phương án khác đã xét:** Apple Developer Program trả phí + CI cloud (Codemagic) để build có ký (có thể làm sau, tốn tiền và thời gian cài đặt); sideload miễn phí bằng Apple ID thường (chữ ký 7 ngày, phải cài lại hàng tuần — để dành làm phương án cộng thêm); chạy game dạng web trên Safari (để dành sau: hỗ trợ cảm biến chuyển động và rung trên Safari di động khá hạn chế, nhiều khả năng phải đánh đổi thêm).
-
-### D3 — Mô hình phòng & lobby
-**Quyết định:** Một người tạo phòng và nhận mã được sinh ra (ví dụ 4 số); người khác vào bằng cách nhập mã. Trận bắt đầu khi có từ 2 người trở lên (không bắt buộc đủ 4). Nếu một người thoát giữa trận, trận tiếp tục với những người còn lại.
-**Lý do:** Khớp với cách nhóm thực tế sẽ test (tối đa 4 điện thoại, không phải lúc nào cũng có đủ) và giữ logic phòng đơn giản — không cần xử lý các trường hợp "chờ đúng N người".
-**Phương án khác đã xét:** Vào phòng bằng quét QR (không cần thiết cho một nhóm nhỏ test trực tiếp); bắt buộc đúng 4 người mới bắt đầu (loại bỏ: quá gò bó khi test lặp lại nhiều lần).
-
-### D4 — Mô hình round tách rời khỏi đồng hồ chung
-**Quyết định:** Đồng hồ chung của trận (60 giây, +5 giây mỗi đơn hoàn thành) chỉ dùng để quyết định khi nào toàn trận kết thúc. Riêng biệt, một "round" kết thúc khi **tất cả** người chơi đã hoàn thành một số lượng đơn cố định (mục tiêu: 3) của round đó; khi round kết thúc sẽ kích hoạt phân lại trạm và bắt đầu round mới.
-**Lý do:** Do leader nhóm yêu cầu cụ thể, để các bản cập nhật sau có thể mở rộng hoặc cân bằng lại độ khó theo round mà không phải đụng vào logic kết thúc trận.
-**Phương án khác đã xét:** Mô hình liên tục đơn giản, người chơi chỉ liên tục nhận đơn mới cho đến khi hết giờ, không có ranh giới round, khớp sát nhất với mô tả gốc trong file Word (loại bỏ theo chỉ đạo rõ ràng của leader); round theo khung thời gian cố định (ví dụ 30 giây/round bất kể đã xong hay chưa) (loại bỏ, chọn kích hoạt theo "tất cả đã xong" thay vào).
-
-### D5 — Trạm: từ 4 trở lên, phân lại ngẫu nhiên mỗi round, có thể thiếu/trùng
-**Quyết định:** Có ít nhất 4 trạm chế biến. Mỗi round, trạm được phân (lại) ngẫu nhiên cho người chơi; chấp nhận việc hai người cùng loại trạm hoặc một người không có trạm nào, kể cả khi chỉ 2-4 người.
-**Lý do:** Giữ lại áp lực phối hợp cốt lõi của thiết kế gốc (có thể bạn không có trạm mình cần và phải dựa vào đồng đội) thay vì đơn giản hoá thành ánh xạ 1-1 gọn gàng làm mất đi áp lực đó.
-**Phương án khác đã xét:** Ánh xạ trạm-người chơi chặt chẽ 1-1 khi số người ít (loại bỏ — rõ ràng không mong muốn).
-
-### D6 — Dùng cảm biến: chủ yếu chạm/kéo thả, một trạm dùng lắc
-**Quyết định:** Hầu hết các trạm dùng thao tác chạm/kéo thả. Đúng một trạm (bình lắc) dùng cảm biến lắc điện thoại qua `sensors_plus`. Thao tác nghiêng nằm ngoài phạm vi MVP.
-**Lý do:** Giữ code liên quan đến cảm biến ở mức tối thiểu (một API nhỏ, tài liệu đầy đủ) cho người phát triển không muốn học sâu Flutter, trong khi vẫn giữ được một thao tác "đặc trưng của điện thoại" từ ý tưởng gốc. Loại bỏ nghiêng vì khó kiểm chứng trên giả lập và hoạt động không nhất quán giữa các dòng máy Android.
-**Phương án khác đã xét:** Không dùng cảm biến nào (loại bỏ: sẽ mất đi phần đặc trưng của ý tưởng gốc); nhiều trạm dùng cảm biến như hình dung ban đầu — dao/thớt bằng vuốt, máy xay bằng lắc ngang, máy ép bằng chụm hai ngón, bình lắc bằng lắc dọc, rót đồ bằng nghiêng (để dành làm mục tiêu cộng thêm sau MVP).
-
-### D7 — Công thức & độ khó: 3-5 công thức, tăng dần theo round
-**Quyết định:** Một tập cố định gồm 3-5 công thức với độ phức tạp khác nhau (1 nguyên liệu/công đoạn đến nhiều nguyên liệu/nhiều trạm). Round đầu chỉ rút từ công thức dễ; round sau rút từ tập bao gồm cả công thức khó hơn.
-**Lý do:** Khớp với ý định thiết kế gốc (bắt đầu dễ, khó dần về sau) trong khi vẫn đơn giản để cài đặt — một tập cố định có thứ tự/điều kiện mở khoá, không phải thuật toán scale động.
-**Phương án khác đã xét:** Rút ngẫu nhiên hoàn toàn từ cả tập bất kể round nào (loại bỏ — không đảm bảo được sự khởi đầu dễ); thuật toán tăng độ khó động (loại bỏ vì thừa phức tạp cho MVP).
-
-### D8 — Chuyền vật phẩm và nộp đơn
-**Quyết định:** Vật phẩm được chuyền bằng cách vuốt trái/phải cho người liền kề trong vòng tròn. Đơn được nộp thủ công bằng cách kéo sản phẩm hoàn thành vào khung "nộp đơn" trên màn hình của chính chủ đơn.
-**Lý do:** Khớp với mô hình tương tác cốt lõi của ý tưởng gốc; nộp thủ công (thay vì tự động khi nhận) cho người chơi một thao tác rõ ràng, có chủ đích, và tránh nộp nhầm khi vật phẩm chỉ đang đi qua.
-**Phương án khác đã xét:** Tự động nộp khi đúng sản phẩm đến tay chủ đơn (loại bỏ — làm mất quyền chủ động của người chơi và dễ nộp nhầm).
-
-### D9 — Ngôn ngữ tài liệu: song ngữ Anh - Việt
-**Quyết định:** Toàn bộ tài liệu dự án cho package này viết song ngữ (phần tiếng Anh trước, phần tiếng Việt sau), thuật ngữ kỹ thuật giữ tiếng Anh ở cả hai phần.
-**Lý do:** Yêu cầu riêng cho dự án này, ghi đè lên quy ước mặc định chỉ dùng tiếng Anh, vì tài liệu này sẽ được đồng đội nói tiếng Việt và có thể cả giảng viên đọc/review.
-**Phương án khác đã xét:** Chỉ tiếng Anh (mặc định chung) — không dùng cho dự án này theo yêu cầu rõ ràng.
-
-### D10 — Cấu trúc repo & tích hợp: chuyển sang repo phẳng `Game_Bartender` của leader
-**Quyết định:** Xây dựng tính năng này trong `github.com/HoaiThuong-gif/Game_Bartender`, đặt tại `lib/games/bartender/`, theo đúng quy ước phẳng mà `lib/games/rubik/` đã dùng — không theo kế hoạch `packages/` monorepo với interface `MiniGame` trước đó. Tích hợp với phần còn lại của app là một điểm vào duy nhất `BartenderScreen`, nối vào callback `onBartenderTap` đã có sẵn trong `lib/screens/home/lobby_screen.dart`.
-**Lý do:** Nhóm quyết định dùng repo thật của leader thay vì repo tạm trước đó. Repo đó đã có sẵn tính năng Rubik hoạt động đáng kể, xây trên cấu trúc phẳng `lib/games/<name>/` không có interface plugin, và lobby đã có sẵn điểm chạm tạm cho Bartender — theo đúng quy ước có sẵn này ít công sức hơn nhiều và dễ cho leader review hơn so với đưa thêm một hệ thống monorepo/package mới vào một app đã phát triển.
-**Phương án khác đã xét:** Giữ kế hoạch `packages/` + `game_api`/`MiniGame` gốc và yêu cầu nhóm cấu trúc lại repo thật cho khớp (loại bỏ — repo thật đã xây quanh một quy ước khác, đang hoạt động; cấu trúc lại sẽ gây xáo trộn và không phải quyết định một người có thể tự đưa ra).
-
-### D11 — Format tài liệu: giữ quy ước cá nhân thay vì kiểu tường thuật của nhóm
-**Quyết định:** Tài liệu của tính năng này vẫn giữ theo cách chia README/PROJECT_SPEC/ARCHITECTURE/DECISIONS/API/DEVELOPMENT của người phát triển, dù phần còn lại của repo ghi tài liệu theo kiểu một file tường thuật dài cho mỗi tính năng (ví dụ `docs/rubik-foundation.md`, `docs/lobby.md`).
-**Lý do:** Yêu cầu rõ ràng từ người phát triển — sự quen thuộc và phụ thuộc vào đúng cấu trúc tài liệu này khi làm việc với coding agent quan trọng hơn việc khớp theo style tài liệu có sẵn của repo cho riêng tính năng này.
-**Phương án khác đã xét:** Theo kiểu một file tường thuật như nhóm (dễ review cùng các docs có sẵn hơn, nhưng bị loại bỏ theo yêu cầu rõ ràng); kết hợp cả hai kiểu (không chọn).
+### D12 — Visual assets: free CC0 16x16 pixel-art sprite packs
+**Decision:** Use free, CC0/commercial-permitted 16x16 pixel-art sprite packs for ingredients, stations, UI, and background, rather than hand-drawn or paid art: `infpixel` Free Pixel Fruits & Vegetables for ingredients; Kenney "Generic Items", "Roguelike Indoor pack", "UI Pack Adventure", and "Background elements" (all CC0) for stations/items/UI/background. Accepted that this gives the Bartender screen a different visual style from the existing hand-drawn lobby and Rubik screens.
+**Rationale:** Finding free, ready-made hand-drawn art matching the lobby's detailed style across fruits/stations/bottles/UI was judged unlikely to succeed and not worth the search time — that style is typically paid or custom-commissioned, not freely available as a matching set. Pixel art packs from a consistent source (mostly Kenney, CC0) are readily available, match each other, and need no attribution. The style mismatch is low-risk because the Bartender screen is a separate full-screen destination reached via `Navigator.push`, never shown alongside the lobby or Rubik screens at the same time. Matches the project's overall MVP-first approach (same reasoning as D6's sensor scope and D5's simplified station assignment): ship something working first, revisit polish later if time allows.
+**Alternatives considered:** Search further for hand-drawn-style free assets matching the lobby (deferred — may revisit later if time allows, per developer's explicit request); emoji/Material Icons only, no sprite packs (rejected — developer chose real sprite assets over icons for this feature); commissioning or hand-drawing custom art (rejected — too much effort for a free, pass-the-course student project).

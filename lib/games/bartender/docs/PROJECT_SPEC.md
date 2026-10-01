@@ -1,7 +1,5 @@
 # PROJECT_SPEC — game_kitchen
 
-## English
-
 ### Goals
 - Deliver a working, demoable multiplayer cooperative drink-making mini-game as one of the 4 mini-games required by the course assignment.
 - Run reliably on the team's own devices for the MVP: **2 to 4 players**, Android-first, iOS as a stretch goal.
@@ -49,6 +47,10 @@
 - Each screen has a trash bin; players can drag unwanted ingredients there to clear space.
 - Items (ingredients or partially/fully processed products) are passed by **swiping left or right**, sending the item to the adjacent player in the ring (wrap-around at the ends).
 
+**Visual assets**
+- Ingredient, station, UI, and background art uses free, CC0/commercial-use-permitted 16x16 pixel-art sprite packs (ingredients: `infpixel` Free Pixel Fruits & Vegetables; stations/items/background/UI: Kenney "Generic Items", "Roguelike Indoor pack", "UI Pack Adventure", "Background elements" — all CC0) rather than custom-made or paid art.
+- This gives this feature a different visual style from the existing lobby (hand-drawn PNG art) and Rubik screens. This is accepted for the MVP — the Bartender screen is a separate full-screen destination reached via navigation, not shown alongside the other styles — and may be revisited later if time allows.
+
 **Order submission**
 - A player submits a completed order by **dragging the finished product into a "submit" zone** on their own screen. Submission is a manual action, not automatic on receipt.
 
@@ -61,77 +63,13 @@
 - When the shared timer reaches 0, the match ends for the whole room.
 - Show a results screen: total survival time, total team orders completed, and a per-player ranking by personal completed orders.
 
+**Visual assets**
+- Ingredients, stations, drinks/items, UI chrome, and background use free, pre-made pixel-art (16x16 style) assets rather than custom-drawn art — see `ARCHITECTURE.md` for the specific packs and licenses.
+- This deliberately differs from the hand-drawn style of the existing lobby screen; the two are visually distinct (the player leaves the lobby's scene entirely when entering the Bartender game via `Navigator.push`), and this is accepted for MVP rather than spending time sourcing or commissioning matching art. The team lead should be informed of this choice.
+
 ### Constraints
 - **Team/tech constraint:** must be built as an isolated feature under `lib/games/bartender/`, integrating with the rest of the app only through the single `BartenderScreen` entry point and the `onBartenderTap` wiring in `lobby_screen.dart` — no direct dependency on `lib/games/rubik/` or other mini-games.
 - **Cost constraint:** student project, backend must run on a free tier (Firebase Realtime Database Spark plan).
 - **Platform constraint:** the team's iOS user has no Mac available; Android is the primary target, iOS build is attempted later if time allows.
 - **Developer experience constraint:** the developer is building their first mobile app and does not intend to deeply learn Dart/Flutter; implementation work is expected to be done by a coding agent following this documentation, with the developer running, testing, and reviewing on real devices.
 - **Device constraint:** sensor-based interactions (shake) must be verified on a real device — simulators/emulators cannot reliably test this.
-
-## Tiếng Việt
-
-### Mục tiêu
-- Hoàn thành một mini-game pha chế nhiều người chơi có thể chạy demo được, là một trong 4 mini-game theo yêu cầu môn học.
-- Chạy ổn định trên chính thiết bị của nhóm cho bản MVP: **2 đến 4 người chơi**, ưu tiên Android, iOS là mục tiêu cộng thêm.
-- Nằm trong repo Flutter dùng chung (`Game_Bartender`) dưới dạng một tính năng độc lập trong `lib/games/bartender/`, theo đúng quy ước phẳng mà `lib/games/rubik/` đã dùng, để các mini-game còn lại (kể cả trò giải Rubik bắt buộc) có thể phát triển độc lập.
-- Giữ độ phức tạp đủ đơn giản để một người lần đầu làm mobile app có thể hoàn thành với sự hỗ trợ của coding agent, dựa theo bộ tài liệu này.
-
-### Ngoài phạm vi (MVP)
-- Không có matchmaking ngoài việc vào phòng bằng mã.
-- Không có logic chống gian lận phía server (chấp nhận tin tưởng client cho đồ án này).
-- Không dùng thao tác nghiêng (tilt) cho trạm nào, chỉ chạm/kéo thả và một trạm dùng lắc.
-- Không kiểm thử hay đảm bảo hoạt động với hơn 4 người chơi cùng lúc (thiết kế gốc hỗ trợ đến 10 người, nhưng chỉ 2-4 người được xác nhận hoạt động).
-- Không lưu lại lịch sử trận đấu ngoài màn hình kết quả của trận hiện tại.
-- Không có đăng nhập/tài khoản — người chơi chỉ được nhận diện bằng tên hiển thị và vị trí trong vòng tròn của phòng.
-- Không có mua hàng trong ứng dụng.
-- Không tăng độ khó theo công thức/thuật toán — độ khó tăng dần bằng cách rút từ một tập công thức cố định được sắp từ dễ đến khó, không phải bằng công thức scale động.
-
-### Người dùng
-- 4 thành viên của nhóm, dùng điện thoại cá nhân (3 Android, 1 iOS) để demo cho giảng viên.
-- Phụ: giảng viên, người sẽ chơi thử hoặc xem demo.
-
-### Yêu cầu chức năng
-
-**Phòng & người chơi**
-- Một người tạo phòng và nhận được mã phòng được sinh ra (ví dụ 4 số); người khác vào phòng bằng cách nhập mã đó.
-- Người chơi được gán vị trí tuần tự (1, 2, 3, ...) tạo thành một vòng tròn.
-- Trận có thể bắt đầu khi có **từ 2 người trở lên** trong phòng (không bắt buộc đủ 4).
-- Nếu một người thoát giữa trận, trận vẫn tiếp tục với những người còn lại.
-
-**Vòng lặp trận đấu**
-- Trận có một đồng hồ đếm ngược chung, bắt đầu ở 60 giây. Đồng hồ này chỉ dùng để **kết thúc trận** khi về 0.
-- Hoàn thành bất kỳ đơn nào (bởi chủ đơn) cộng +5 giây vào đồng hồ chung, và +1 đơn cá nhân cho người đó.
-- Trận được tổ chức theo **round**, độc lập với đồng hồ chung:
-  - Mỗi round, mỗi người nhận **một số đơn cố định (mục tiêu: 3)** cần hoàn thành.
-  - Round chỉ kết thúc khi **tất cả** người chơi trong phòng đã hoàn thành hết đơn của round đó.
-  - Khi round kết thúc: các trạm chế biến được **phân lại ngẫu nhiên** giữa các người chơi, và một round mới bắt đầu với bộ đơn mới.
-- Độ khó công thức tăng theo round: round đầu chỉ rút từ công thức dễ (1 nguyên liệu / 1 công đoạn); round sau rút từ tập bao gồm cả công thức khó hơn (nhiều nguyên liệu, nhiều trạm). Tập công thức có tổng cộng **3 đến 5 công thức**.
-
-**Trạm chế biến**
-- Có ít nhất **4** trạm chế biến (tuỳ theo công thức; về mặt khái niệm gồm dao/thớt, máy xay, máy ép, bình lắc, v.v.).
-- Mỗi round, trạm được phân ngẫu nhiên cho người chơi. Khác với thiết kế gốc cho 10 người, việc thiếu hoặc trùng trạm vẫn có thể xảy ra dù chỉ 2-4 người (không bắt buộc phân theo kiểu 1-1).
-- Màn hình của mỗi người chỉ hiển thị **một trạm cố định** cho round đó (trạm được phân cho họ).
-
-**Nguyên liệu & vật phẩm**
-- Nguyên liệu xuất hiện trên màn hình người chơi theo chu kỳ (khoảng 3 giây một lần).
-- Mỗi màn hình có một thùng rác; người chơi có thể kéo nguyên liệu không cần dùng vào đó để giải phóng không gian.
-- Vật phẩm (nguyên liệu hoặc sản phẩm đã/đang chế biến) được chuyền bằng cách **vuốt trái hoặc phải**, gửi cho người liền kề trong vòng tròn (người ở đầu/cuối nối vòng với nhau).
-
-**Nộp đơn**
-- Người chơi nộp đơn đã hoàn thành bằng cách **kéo sản phẩm vào khung "nộp đơn"** trên màn hình của chính mình. Nộp đơn là thao tác thủ công, không tự động khi nhận được sản phẩm.
-
-**Cảm biến & phản hồi**
-- Hầu hết các trạm dùng thao tác chạm/kéo thả.
-- Ít nhất một trạm (bình lắc) dùng cảm biến lắc điện thoại qua `sensors_plus`.
-- Rung phản hồi (haptic) cho các sự kiện chính: nhận vật phẩm, hoàn thành công đoạn, nộp đơn, và khi sắp hết giờ.
-
-**Kết thúc trận**
-- Khi đồng hồ chung về 0, trận kết thúc cho toàn bộ phòng.
-- Hiển thị màn hình kết quả: tổng thời gian sống sót, tổng số đơn cả đội đã hoàn thành, và bảng xếp hạng cá nhân theo số đơn đã hoàn thành.
-
-### Ràng buộc
-- **Ràng buộc nhóm/kỹ thuật:** phải xây dựng như một tính năng độc lập trong `lib/games/bartender/`, chỉ tích hợp với phần còn lại của app qua điểm vào duy nhất `BartenderScreen` và việc nối `onBartenderTap` trong `lobby_screen.dart` — không phụ thuộc trực tiếp vào `lib/games/rubik/` hay mini-game khác.
-- **Ràng buộc chi phí:** đồ án sinh viên, backend phải chạy trên gói miễn phí (Firebase Realtime Database gói Spark).
-- **Ràng buộc nền tảng:** người dùng iOS trong nhóm không có Mac; Android là mục tiêu chính, build iOS thử sau nếu còn thời gian.
-- **Ràng buộc kinh nghiệm người phát triển:** đây là lần đầu làm mobile app, và không có ý định học sâu Dart/Flutter; phần code dự kiến do coding agent thực hiện dựa theo bộ tài liệu này, người phát triển chịu trách nhiệm chạy, test và review trên thiết bị thật.
-- **Ràng buộc thiết bị:** các thao tác dùng cảm biến (lắc) phải được kiểm chứng trên thiết bị thật — giả lập không test đáng tin cậy được.
