@@ -1,8 +1,4 @@
-import 'dart:io';
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nhom_bar/games/rubik/screens/rubik_screen.dart';
 import 'package:nhom_bar/main.dart';
@@ -20,6 +16,7 @@ class _Routes extends NavigatorObserver {
 }
 
 Future<void> _load(WidgetTester tester) async {
+  addTearDown(() => tester.pumpWidget(const SizedBox()));
   await tester.runAsync(() async {
     await Future<void>.delayed(const Duration(milliseconds: 400));
   });
@@ -31,17 +28,13 @@ Widget _app({
   VoidCallback? bartender,
   VoidCallback? arcade,
   NavigatorObserver? observer,
-  Key? previewKey,
 }) => MaterialApp(
   navigatorObservers: [?observer],
   builder: (context, child) => MediaQuery(
     data: MediaQuery.of(context).copyWith(disableAnimations: true),
     child: child!,
   ),
-  home: RepaintBoundary(
-    key: previewKey,
-    child: LobbyScreen(onBartenderTap: bartender, onArcadeTap: arcade),
-  ),
+  home: LobbyScreen(onBartenderTap: bartender, onArcadeTap: arcade),
 );
 
 Finder _object(String label) => find.byWidgetPredicate(
@@ -69,7 +62,6 @@ void main() {
     tester,
   ) async {
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    final previewKey = GlobalKey();
     for (final size in [
       const Size(360, 640),
       const Size(390, 844),
@@ -77,7 +69,7 @@ void main() {
       const Size(768, 1024),
     ]) {
       await tester.binding.setSurfaceSize(size);
-      await tester.pumpWidget(_app(previewKey: previewKey));
+      await tester.pumpWidget(_app());
       await _load(tester);
       final sceneScale =
           size.width / LobbyLayout.designSize.width >
@@ -107,20 +99,6 @@ void main() {
         expect((Offset.zero & size).contains(contact), isTrue);
       }
       expect(tester.takeException(), isNull);
-      {
-        final boundary =
-            previewKey.currentContext!.findRenderObject()!
-                as RenderRepaintBoundary;
-        await tester.runAsync(() async {
-          final image = await boundary.toImage(pixelRatio: 1);
-          final data = await image.toByteData(format: ui.ImageByteFormat.png);
-          await Directory('build/lobby-preview').create(recursive: true);
-          await File(
-            'build/lobby-preview/${size.width.toInt()}x${size.height.toInt()}.png',
-          ).writeAsBytes(data!.buffer.asUint8List());
-          image.dispose();
-        });
-      }
     }
   });
 

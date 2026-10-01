@@ -2,14 +2,22 @@ import 'package:flutter/material.dart';
 
 import '../../games/rubik/screens/rubik_screen.dart';
 import 'lobby_layout.dart';
+import 'lobby_cats.dart';
 import 'widgets/animated_flag.dart';
 import 'widgets/lobby_object.dart';
+import 'widgets/lobby_cat_layer.dart';
 
 class LobbyScreen extends StatelessWidget {
-  const LobbyScreen({super.key, this.onBartenderTap, this.onArcadeTap});
+  const LobbyScreen({
+    super.key,
+    this.onBartenderTap,
+    this.onArcadeTap,
+    this.catPopulation,
+  });
 
   final VoidCallback? onBartenderTap;
   final VoidCallback? onArcadeTap;
+  final CatPopulation? catPopulation;
 
   void _comingSoon(BuildContext context, String game) {
     ScaffoldMessenger.of(context)
@@ -42,43 +50,55 @@ class LobbyScreen extends StatelessWidget {
           child: SizedBox(
             width: LobbyLayout.designSize.width,
             height: LobbyLayout.designSize.height,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Positioned.fill(
-                  child: Image(
-                    image: AssetImage(LobbyLayout.backgroundAsset),
-                    fit: BoxFit.cover,
-                    excludeFromSemantics: true,
-                  ),
-                ),
-                _game(
-                  LobbyLayout.arcade,
-                  'Máy arcade',
-                  onArcadeTap ?? () => _comingSoon(context, 'Arcade'),
-                ),
-                _game(
-                  LobbyLayout.bartender,
-                  'Quầy Bartender',
-                  onBartenderTap ?? () => _comingSoon(context, 'Bartender'),
-                ),
-                _game(
-                  LobbyLayout.rubik,
-                  'Chơi Rubik',
-                  () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const RubikScreen(),
+            child: LobbyCatHost(
+              population: catPopulation,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const Positioned.fill(
+                    child: Image(
+                      image: AssetImage(LobbyLayout.backgroundAsset),
+                      fit: BoxFit.cover,
+                      excludeFromSemantics: true,
                     ),
                   ),
-                ),
-                _place(
-                  LobbyLayout.flag,
-                  AnimatedFlag(
-                    asset: LobbyLayout.flag.asset,
-                    anchorAlignment: LobbyLayout.flag.imageAnchorAlignment,
+                  const Positioned.fill(
+                    child: LobbyCatLayer(depth: CatDepth.behindGames),
                   ),
-                ),
-              ],
+                  _game(
+                    LobbyLayout.arcade,
+                    'Máy arcade',
+                    onArcadeTap ?? () => _comingSoon(context, 'Arcade'),
+                  ),
+                  _game(
+                    LobbyLayout.bartender,
+                    'Quầy Bartender',
+                    onBartenderTap ?? () => _comingSoon(context, 'Bartender'),
+                  ),
+                  const Positioned.fill(
+                    child: LobbyCatLayer(depth: CatDepth.afterBartender),
+                  ),
+                  _game(
+                    LobbyLayout.rubik,
+                    'Chơi Rubik',
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const RubikScreen(),
+                      ),
+                    ),
+                  ),
+                  _place(
+                    LobbyLayout.flag,
+                    AnimatedFlag(
+                      asset: LobbyLayout.flag.asset,
+                      anchorAlignment: LobbyLayout.flag.imageAnchorAlignment,
+                    ),
+                  ),
+                  const Positioned.fill(
+                    child: LobbyCatLayer(depth: CatDepth.foreground),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
