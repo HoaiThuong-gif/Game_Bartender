@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../controllers/bartender_controller.dart';
-import '../models/room.dart';
 import 'bartender_lobby_screen.dart';
 import 'bartender_match_screen.dart';
 import 'bartender_results_screen.dart';

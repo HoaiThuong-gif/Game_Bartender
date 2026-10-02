@@ -7,6 +7,7 @@ import '../widgets/order_tray_widget.dart';
 import '../widgets/ring_neighbors_widget.dart';
 import '../widgets/station_widget.dart';
 import '../widgets/timer_bar_widget.dart';
+import '../widgets/trash_bin_widget.dart';
 
 /// Màn hình trận đấu Bartender — vòng lặp gameplay chính.
 ///
@@ -84,7 +85,7 @@ class BartenderMatchScreen extends StatelessWidget {
                   onSubmitOrder: ctrl.submitOrder,
                 ),
 
-                // 5. Danh sách vật phẩm trên tay
+                // 5. Danh sách vật phẩm trên tay + thùng rác
                 Expanded(
                   child: ctrl.myItems.isEmpty
                       ? Center(
@@ -97,23 +98,50 @@ class BartenderMatchScreen extends StatelessWidget {
                             ),
                           ),
                         )
-                      : ListView.builder(
-                          padding: const EdgeInsets.only(top: 4, bottom: 16),
-                          itemCount: ctrl.myItems.length,
-                          itemBuilder: (context, index) {
-                            final item = ctrl.myItems[index];
-                            return ItemCardWidget(
-                              item: item,
-                              onSwipeLeft: () => ctrl.swipeItemLeft(item),
-                              onSwipeRight: () => ctrl.swipeItemRight(item),
-                              onTrash: () => ctrl.trashItem(item),
-                              onTap: () {
-                                if (ctrl.myStation != null) {
-                                  ctrl.processItemAtStation(item);
-                                }
-                              },
-                            );
-                          },
+                      : Column(
+                          children: [
+                            // Danh sách items (scrollable)
+                            Expanded(
+                              child: ListView.builder(
+                                padding: const EdgeInsets.only(top: 4, bottom: 8),
+                                itemCount: ctrl.myItems.length,
+                                itemBuilder: (context, index) {
+                                  final item = ctrl.myItems[index];
+                                  return DraggableItemWrapper(
+                                    item: item,
+                                    child: ItemCardWidget(
+                                      item: item,
+                                      onSwipeLeft: () => ctrl.swipeItemLeft(item),
+                                      onSwipeRight: () => ctrl.swipeItemRight(item),
+                                      onTrash: () => ctrl.trashItem(item),
+                                      onTap: () {
+                                        if (ctrl.myStation != null) {
+                                          ctrl.processItemAtStation(item);
+                                        }
+                                      },
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+
+                            // Thùng rác — kéo thả hoặc bấm nút trên ItemCard
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 6,
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  TrashBinWidget(
+                                    isVisible: true,
+                                    onDropped: ctrl.trashItem,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                 ),
 

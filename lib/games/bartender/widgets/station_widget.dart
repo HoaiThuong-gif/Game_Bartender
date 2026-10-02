@@ -44,10 +44,10 @@ class StationWidget extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.5), width: 1.5),
+        border: Border.all(color: Colors.deepPurpleAccent.withValues(alpha: 0.5), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.deepPurple.withOpacity(0.2),
+            color: Colors.deepPurple.withValues(alpha: 0.2),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -169,14 +169,14 @@ class StationWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF2C241E),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.orange.withOpacity(0.4), width: 1.5),
+        border: Border.all(color: Colors.orange.withValues(alpha: 0.4), width: 1.5),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.orange.shade900.withOpacity(0.5),
+              color: Colors.orange.shade900.withValues(alpha: 0.5),
               shape: BoxShape.circle,
             ),
             child: const Text('🚫', style: TextStyle(fontSize: 20)),

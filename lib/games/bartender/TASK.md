@@ -4,18 +4,11 @@
 
 ## Đang làm / In progress
 
-- **Giai đoạn 3: Single-device playable loop với `FakeRoomRepository`** ⏳
-  - Tạo `bartender_config.dart`
-  - Cập nhật `Room` và `Round` model (inbox, results, copyWith)
-  - Cài đặt `RoomRepository` (interface) và `FakeRoomRepository` (in-memory, simulated bots, round loop, station processing, item passing)
-  - Cài đặt `BartenderController` (state management, timer tick, swipe, submit)
-  - Cài đặt các widget: `station_widget`, `order_tray_widget`, `item_card_widget`, `trash_bin_widget`, `timer_bar_widget`, `ring_neighbors_widget`
-  - Cài đặt các screen: `bartender_lobby_screen`, `bartender_match_screen`, `bartender_results_screen`
-  - Nối vào `BartenderScreen`
-  - Viết unit & widget tests cho playable loop, kiểm tra `flutter test` và `flutter analyze`
+_(chưa có — đang chờ giai đoạn 4)_
 
 ## Đã xong / Done
 
+- **Giai đoạn 3: Single-device playable loop** ✅ — FakeRoomRepository (in-memory, bot simulation, round loop), BartenderController (ChangeNotifier), 6 widgets (TimerBar, RingNeighbors, OrderTray, Station, ItemCard, TrashBin), 3 screens (Lobby, Match, Results) nối qua BartenderScreen. 59 unit tests (42 model + 17 controller) pass. `flutter analyze` sạch. _(2026-10-02)_
 - **Giai đoạn 2: Models** ✅ — 10 model files trong `models/` + 42 unit tests đều pass. Ring math, round completion, station assignment, recipe pool, timer, order, player, room, match result, game item. Logic tổng quát cho N người. `flutter analyze` sạch. _(2026-10-01)_
 - **Giai đoạn 1: Khung tính năng** ✅ — Tạo thư mục `models/`, `services/`, `controllers/`, `widgets/`, `screens/` và `BartenderScreen` placeholder. `flutter analyze` sạch. Chưa đụng file dùng chung. _(2026-10-01)_
 

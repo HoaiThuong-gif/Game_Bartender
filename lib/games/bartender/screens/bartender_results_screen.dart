@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../controllers/bartender_controller.dart';
-import '../models/match_result.dart';
 
 /// Màn hình kết quả trận đấu Bartender.
 ///
