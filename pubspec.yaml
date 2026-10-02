@@ -39,6 +39,15 @@ dependencies:
   camera: ^0.12.1
   image: ^4.10.1
 
+  # --- Firebase (Giai đoạn 4 Bartender) ---
+  # Thêm vào ngày 2026-10-02. Xem DEVELOPMENT.md bước 4 và API.md.
+  # firebase_core: khởi động Firebase app.
+  # firebase_database: Realtime Database (không phải Firestore — xem DECISIONS.md D3).
+  # firebase_auth: xác thực ẩn danh — xem API.md, "mỗi client tự tạo uid ẩn danh".
+  firebase_core: ^3.13.1
+  firebase_database: ^11.3.5
+  firebase_auth: ^5.5.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

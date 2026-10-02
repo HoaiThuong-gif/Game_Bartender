@@ -46,3 +46,10 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Firebase — chứa API key, KHÔNG commit lên git
+# Mỗi thành viên nhóm cần chạy `flutterfire configure` để tạo lại,
+# hoặc nhận file này riêng qua kênh bảo mật (không qua git).
+lib/firebase_options.dart
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../bartender_config.dart';
 import '../models/game_item.dart';
 import '../models/order.dart';
 import '../models/player.dart';
@@ -9,6 +10,7 @@ import '../models/ring.dart';
 import '../models/room.dart';
 import '../models/station.dart';
 import '../services/fake_room_repository.dart';
+import '../services/firebase_room_repository.dart';
 import '../services/room_repository.dart';
 
 /// Quản lý trạng thái trận đấu Bartender và giao tiếp giữa UI và RoomRepository.
@@ -16,9 +18,16 @@ import '../services/room_repository.dart';
 /// Tuân theo mẫu ChangeNotifier của Flutter (tương tự CubeInputController bên Rubik).
 /// Xem ARCHITECTURE.md: "controllers/ Round/timer state management — reads/writes via RoomRepository,
 /// exposes state to widgets".
+///
+/// Tự động chọn repository dựa theo [BartenderConfig.useFakeRepository]:
+/// - true  → [FakeRoomRepository] (chạy offline, single-device, giai đoạn 1-4)
+/// - false → [FirebaseRoomRepository] (chạy online RTDB, giai đoạn 5+)
 class BartenderController extends ChangeNotifier {
   BartenderController({RoomRepository? repository})
-      : _repository = repository ?? FakeRoomRepository();
+      : _repository = repository ??
+            (BartenderConfig.useFakeRepository
+                ? FakeRoomRepository()
+                : FirebaseRoomRepository());
 
   final RoomRepository _repository;
 
