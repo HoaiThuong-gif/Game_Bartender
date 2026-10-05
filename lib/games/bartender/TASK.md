@@ -4,12 +4,11 @@
 
 ## Đang làm / In progress
 
-_(chưa có — đang chờ giai đoạn 6)_
+- **Giai đoạn 5: FirebaseRoomRepository** — Đã code fix 5 bug nhưng chưa test thiết bị thật. Đang làm theo DECISIONS D13–D17.
 
 
 ## Đã xong / Done
 
-- **Giai đoạn 5: FirebaseRoomRepository** ✅ — Fix 5 bug: joinRoom transaction (race-safe ringIndex), multi-room subscription tracking, submitOrder dùng RTDB transaction cho progress+timer, ServerValue.increment cho completedOrders, _checkRoundCompletion chỉ host (ringIndex==0) tạo round mới, endMatch idempotent vía transaction. BartenderController: fix myPlayerId detection (ringIndex-based), fix joinRoom player lookup, thêm endMatch trigger khi timer hết. `flutter analyze` sạch, 59 tests pass. _(2026-10-02)_
 - **Giai đoạn 4: Firebase project setup** ✅ — Project `mobile-app-project-52a1d`, RTDB `mobile-app-project-52a1d-default-rtdb`. `firebase_options.dart` + `google-services.json` tạo bởi FlutterFire CLI. Security Rules deploy OK (read/write trên `rooms/`). `BartenderScreen` wire `DefaultFirebaseOptions`. `.gitignore` cập nhật (không commit API key). `flutter analyze` sạch, 59 tests pass. _(2026-10-02)_
 - **Giai đoạn 3: Single-device playable loop** ✅ — FakeRoomRepository (in-memory, bot simulation, round loop), BartenderController (ChangeNotifier), 6 widgets (TimerBar, RingNeighbors, OrderTray, Station, ItemCard, TrashBin), 3 screens (Lobby, Match, Results) nối qua BartenderScreen. 59 unit tests (42 model + 17 controller) pass. `flutter analyze` sạch. _(2026-10-02)_
 - **Giai đoạn 2: Models** ✅ — 10 model files trong `models/` + 42 unit tests đều pass. Ring math, round completion, station assignment, recipe pool, timer, order, player, room, match result, game item. Logic tổng quát cho N người. `flutter analyze` sạch. _(2026-10-01)_
