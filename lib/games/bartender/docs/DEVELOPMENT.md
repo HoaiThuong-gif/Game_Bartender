@@ -33,11 +33,12 @@ Use a simple compile-time or runtime flag (e.g. a constant in a `bartender_confi
 2. Install the FlutterFire CLI and run `flutterfire configure` from the repo root; this generates `firebase_options.dart` and the platform config files.
 3. Add the generated Android config (`google-services.json`) under `android/app/`.
 4. For iOS, the equivalent (`GoogleService-Info.plist`) requires a Mac-connected flow — the team's iOS user has no Mac, so Android is the priority target; this step can be deferred (see `DECISIONS.md`, D2).
-5. Set Realtime Database rules as shown in `API.md`. Firebase's default "test mode" rules **expire automatically after about 30 days** — check they haven't expired before demo day.
+5. In **Authentication → Sign-in method**, enable **Anonymous**. The app signs each phone in anonymously (its `uid` is the `playerId`); without this, creating or joining a room fails.
+6. Set Realtime Database rules as shown in `API.md`. Firebase's default "test mode" rules **expire automatically after about 30 days** — check they haven't expired before demo day.
 
 ### Testing on real devices
 - **Shake detection cannot be reliably tested on an emulator/simulator.** Test on at least one real Android phone from the first moment shake logic is added.
-- **Multi-device testing:** devices just need any internet connection (Wi-Fi or mobile data) to reach Firebase — they don't need to share a network.
+- **Multi-device testing:** devices just need any internet connection (Wi-Fi or mobile data) to reach Firebase — they don't need to share a network. Besides the normal flow, also try: two phones pressing Join at the same moment, a room of exactly 2 players, a room of 3–4 players, and one phone dropping mid-match (airplane mode) to confirm the round still advances and the player is removed at the next round boundary.
 - **The existing Rubik feature already has a working Android build process** documented in `docs/rubik-foundation.md` at the repo root, including an offline Gradle fallback (`gradlew.bat --offline ...`) if dependency downloads are slow. Reuse that if you hit the same issue.
 - **iOS:** if attempted, budget extra time for provisioning/signing issues (see `DECISIONS.md`, D2).
 

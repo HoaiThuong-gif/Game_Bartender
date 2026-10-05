@@ -10,7 +10,7 @@
 - No matchmaking beyond joining by a room code.
 - No server-authoritative anti-cheat logic (client-trusted gameplay is acceptable for this project).
 - No tilt-based station interaction (only touch/drag + one shake-based station).
-- No testing or guaranteed support beyond 4 concurrent players (design supports up to 10 per the original concept, but only 2–4 is verified).
+- No testing or guaranteed support beyond 4 concurrent players: a room is capped at 4 players in the MVP (D13), even though the original concept supported up to 10.
 - No persistence of match history beyond the current match's end screen.
 - No login/accounts — players are identified only by their display name and ring position within a room.
 - No in-app purchases or monetization.
@@ -25,21 +25,22 @@
 **Room & players**
 - A player creates a room and receives a generated room code (e.g. 4 digits); other players join by entering that code.
 - Players are assigned a sequential position (1, 2, 3, ...) forming a ring.
-- A match can start once **2 or more** players are in the room (does not require all 4).
-- If a player disconnects mid-match, the match continues with the remaining players.
+- A room holds **2 to 4** players (D13). Players can only join while the room is in the lobby.
+- A match can start once **2 or more** players are in the room (does not require all 4). The ring size is fixed to the players present when the match starts.
+- If a player disconnects mid-match, the match continues with the remaining players (D14): the disconnected player does not block the current round, is removed from the ring at the next round boundary, and if fewer than 2 connected players remain the match ends.
 
 **Match loop**
 - A match has one shared countdown timer, starting at 60 seconds. It only serves to **end the match** when it reaches 0.
 - Completing any order (by its owner) adds +5 seconds to the shared timer and gives that player +1 personal completed order.
 - The match is organized into **rounds**, independent from the shared timer:
   - Each round, every player receives a **fixed number of orders (target: 3)** to complete.
-  - A round ends only when **all** players in the room have completed their round's orders.
-  - When a round ends: processing stations are **reassigned randomly** among players, and a new round begins with a fresh set of orders.
-- Recipe difficulty increases by round: early rounds draw only from easy recipes (1 ingredient / 1 step); later rounds draw from a pool that includes harder recipes (multiple ingredients, multiple stations). The recipe pool has **3 to 5 recipes** total.
+  - A round ends only when all **connected** players in the room have completed their round's orders.
+  - When a round ends: disconnected players are removed and the ring is compacted (D14), processing stations are **reassigned randomly** among the remaining players, and a new round begins with a fresh set of orders.
+- Recipe difficulty increases by round: early rounds draw only from easy recipes (1 ingredient / 1 step); later rounds draw from a pool that includes harder recipes (multiple ingredients, multiple stations). The recipe pool has **3 to 5 recipes** total, and no recipe needs more than 3 distinct stations (D16).
 
 **Stations**
 - At least **4** processing stations exist (recipe-dependent; conceptually knife/cutting board, blender, juicer, shaker, etc.).
-- Each round, stations are assigned randomly to players. Unlike the original 10-player design, duplicate or missing station assignment can still occur even at 2–4 players (assignment is not forced to be 1-to-1).
+- Each round, stations are assigned randomly to players. Unlike the original 10-player design, duplicate or missing station assignment can still occur even at 2–4 players (assignment is not forced to be 1-to-1). Every round must still be winnable: orders are only drawn from recipes whose stations are held by at least one player in that round's assignment (D15).
 - Each player's screen shows **one fixed station** for that round (the one assigned to them).
 
 **Ingredients & items**
