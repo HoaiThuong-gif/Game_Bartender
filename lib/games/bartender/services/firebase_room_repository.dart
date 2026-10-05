@@ -23,13 +23,14 @@ import 'room_repository.dart';
 /// Dùng xác thực ẩn danh (FirebaseAuth.signInAnonymously) để mỗi
 /// client có uid duy nhất, phục vụ làm playerId trong RTDB.
 ///
-/// Ghi chú thiết kế:
-/// - Tất cả write operation dùng `set` hoặc `update` không dùng
-///   `push` — key được kiểm soát bởi client để dễ debug.
-/// - Không write đồng hồ đếm ngược lên DB mỗi giây (xem API.md).
-/// - `round/progress` là nguồn sự thật cho round completion (xem API.md).
-/// - Để xoá toàn bộ Firebase: xoá file này + 3 dòng trong pubspec.yaml
-///   + google-services.json + firebase_options.dart. Code game không đổi.
+/// Thiết kế race-safe (multi-device):
+/// - joinRoom dùng RTDB runTransaction để tránh ringIndex trùng.
+/// - submitOrder dùng runTransaction để increment progress + timer atomically.
+/// - _checkRoundCompletion chỉ host (ringIndex==0) được trigger tạo round mới.
+/// - endMatch chỉ ghi nếu status còn "playing" (idempotent).
+///
+/// Để xoá Firebase: xoá file này + 3 dòng pubspec.yaml + firebase_options.dart
+/// + google-services.json. Code game (controller/widgets/screens) không đổi.
 class FirebaseRoomRepository implements RoomRepository {
   FirebaseRoomRepository({
     FirebaseDatabase? database,
@@ -43,19 +44,17 @@ class FirebaseRoomRepository implements RoomRepository {
   final FirebaseAuth _auth;
   final Random _rng;
 
-  /// UID của người chơi trên máy này (được gán sau signInAnonymously).
+  /// UID của người chơi trên máy này.
   String? _myUid;
 
-  /// Stream subscription lắng nghe thay đổi phòng từ RTDB.
-  StreamSubscription<DatabaseEvent>? _roomSubscription;
+  /// Stream subscriptions theo từng room code.
+  final Map<String, StreamSubscription<DatabaseEvent>> _subs = {};
 
-  /// Stream controller để phát Room objects đã được parse ra ngoài.
+  /// Stream controllers theo từng room code.
   final Map<String, StreamController<Room>> _streamControllers = {};
 
   // ─── Auth ───────────────────────────────────────────────────────────────────
 
-  /// Đảm bảo client đã đăng nhập ẩn danh.
-  /// Gọi trước khi bất kỳ thao tác nào cần uid.
   Future<String> _ensureAuth() async {
     if (_myUid != null) return _myUid!;
     User? user = _auth.currentUser;
@@ -69,18 +68,11 @@ class FirebaseRoomRepository implements RoomRepository {
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
-  DatabaseReference _roomRef(String code) =>
-      _db.ref('rooms/$code');
-
+  DatabaseReference _roomRef(String code) => _db.ref('rooms/$code');
   DatabaseReference _inboxRef(String code, int ring) =>
       _db.ref('rooms/$code/inbox/$ring');
-
-  DatabaseReference _roundRef(String code) =>
-      _db.ref('rooms/$code/round');
-
-  DatabaseReference _timerRef(String code) =>
-      _db.ref('rooms/$code/timer');
-
+  DatabaseReference _roundRef(String code) => _db.ref('rooms/$code/round');
+  DatabaseReference _timerRef(String code) => _db.ref('rooms/$code/timer');
   DatabaseReference _progressRef(String code) =>
       _db.ref('rooms/$code/round/progress');
 
@@ -95,37 +87,16 @@ class FirebaseRoomRepository implements RoomRepository {
     final code = (_rng.nextInt(9000) + 1000).toString();
     final now = DateTime.now().millisecondsSinceEpoch;
 
-    // Ghi thông tin host vào players/
-    final players = <String, Player>{
-      uid: Player(
-        id: uid,
-        name: hostPlayerName.trim().isEmpty ? 'Bạn' : hostPlayerName,
-        ringIndex: 0,
-        connected: true,
-        completedOrders: 0,
-      ),
-    };
+    final hostName =
+        hostPlayerName.trim().isEmpty ? 'Bạn' : hostPlayerName.trim();
 
-    // Khởi tạo inbox rỗng cho tất cả vị trí (kể cả bot chưa join)
-    final inbox = <int, List<GameItem>>{
-      for (var i = 0; i < totalPlayers; i++) i: const [],
-    };
-
-    final room = Room(
-      code: code,
-      status: RoomStatus.lobby,
-      players: players,
-      inbox: inbox,
-    );
-
-    // Ghi lên RTDB
     await _roomRef(code).set({
       'createdAt': now,
       'status': 'lobby',
-      'totalPlayers': totalPlayers, // lưu để client khác biết kích thước ring
+      'totalPlayers': totalPlayers,
       'players': {
         uid: {
-          'name': players[uid]!.name,
+          'name': hostName,
           'ringIndex': 0,
           'connected': true,
           'completedOrders': 0,
@@ -133,7 +104,20 @@ class FirebaseRoomRepository implements RoomRepository {
       },
     });
 
-    return room;
+    return Room(
+      code: code,
+      status: RoomStatus.lobby,
+      players: {
+        uid: Player(
+          id: uid,
+          name: hostName,
+          ringIndex: 0,
+          connected: true,
+          completedOrders: 0,
+        ),
+      },
+      inbox: {for (var i = 0; i < totalPlayers; i++) i: const []},
+    );
   }
 
   @override
@@ -142,27 +126,42 @@ class FirebaseRoomRepository implements RoomRepository {
     required String playerName,
   }) async {
     final uid = await _ensureAuth();
+    final name = playerName.trim().isEmpty ? 'Khách' : playerName.trim();
 
-    // Đọc danh sách players hiện tại để tìm ringIndex kế tiếp
-    final snap = await _db.ref('rooms/$code/players').get();
-    if (!snap.exists) throw StateError('Phòng $code không tồn tại');
+    // Dùng transaction để tránh race condition ringIndex trùng
+    // khi nhiều người join cùng lúc.
+    int assignedRing = -1;
 
-    final existingPlayers = _parsePlayersFromMap(
-      (snap.value as Map?) ?? {},
-    );
-    final newIndex = existingPlayers.length;
+    await _db.ref('rooms/$code/players').runTransaction((currentData) {
+      final players =
+          (currentData as Map<String, dynamic>?) ?? <String, dynamic>{};
 
-    // Thêm player mới
-    await _db.ref('rooms/$code/players/$uid').set({
-      'name': playerName,
-      'ringIndex': newIndex,
-      'connected': true,
-      'completedOrders': 0,
+      // Nếu player đã tồn tại (reconnect), giữ nguyên ringIndex
+      if (players.containsKey(uid)) {
+        players[uid] = {
+          ...Map<String, dynamic>.from(players[uid] as Map),
+          'connected': true,
+        };
+        assignedRing =
+            (players[uid] as Map)['ringIndex'] as int? ?? players.length - 1;
+        return Transaction.success(players);
+      }
+
+      // Player mới: gán ringIndex = số player hiện tại
+      assignedRing = players.length;
+      players[uid] = {
+        'name': name,
+        'ringIndex': assignedRing,
+        'connected': true,
+        'completedOrders': 0,
+      };
+      return Transaction.success(players);
     });
 
-    // Đọc lại trạng thái phòng mới nhất
-    final roomSnap = await _roomRef(code).get();
-    return _parseRoom(code, roomSnap.value as Map);
+    // Đọc lại room state mới nhất sau transaction
+    final snap = await _roomRef(code).get();
+    if (!snap.exists) throw StateError('Phòng $code không tồn tại');
+    return _parseRoom(code, snap.value as Map);
   }
 
   @override
@@ -170,8 +169,10 @@ class FirebaseRoomRepository implements RoomRepository {
     required String code,
     required String playerId,
   }) async {
-    // Giữ slot, chỉ set connected = false (API.md: "slot not removed")
-    await _db.ref('rooms/$code/players/$playerId/connected').set(false);
+    // Không xoá slot — chỉ set connected=false để giữ nguyên ringIndex
+    await _db
+        .ref('rooms/$code/players/$playerId/connected')
+        .set(false);
   }
 
   @override
@@ -180,8 +181,12 @@ class FirebaseRoomRepository implements RoomRepository {
     if (!roomSnap.exists) return;
 
     final roomData = roomSnap.value as Map;
+    // Guard: chỉ start nếu đang ở lobby
+    if ((roomData['status'] as String?) != 'lobby') return;
+
     final playersData = (roomData['players'] as Map?) ?? {};
-    final totalPlayers = (roomData['totalPlayers'] as int?) ?? playersData.length;
+    final totalPlayers =
+        (roomData['totalPlayers'] as int?) ?? playersData.length;
 
     // Phân trạm
     final assignment = StationAssigner.assign(
@@ -197,24 +202,24 @@ class FirebaseRoomRepository implements RoomRepository {
 
     for (final entry in playersData.entries) {
       final playerId = entry.key as String;
+      final playerData = entry.value as Map;
+      final ring = (playerData['ringIndex'] as int?) ?? 0;
       final playerOrders = <String, dynamic>{};
       for (var i = 0; i < BartenderConfig.ordersPerPlayer; i++) {
         final recipe = recipes[_rng.nextInt(recipes.length)];
-        final orderId = 'ord_${orderCounter++}';
-        playerOrders[orderId] = {
+        playerOrders['ord_${orderCounter++}'] = {
           'recipeId': recipe.id,
           'status': 'pending',
         };
       }
       ordersData[playerId] = playerOrders;
-      progressData['${(entry.value as Map)['ringIndex']}'] = 0;
+      progressData['$ring'] = 0;
     }
 
-    // Tạo timer 60s
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final endTime = nowMs + BartenderConfig.initialTimerSeconds * 1000;
 
-    // Ghi tất cả một lúc bằng multi-path update (atomic hơn set tuần tự)
+    // Multi-path update — atomic
     await _roomRef(code).update({
       'status': 'playing',
       'timer': {
@@ -225,21 +230,20 @@ class FirebaseRoomRepository implements RoomRepository {
         'number': 1,
         'ordersPerPlayer': BartenderConfig.ordersPerPlayer,
         'stationAssignment': {
-          for (final e in assignment.entries)
-            '${e.key}': e.value?.name ?? '',
+          for (final e in assignment.entries) '${e.key}': e.value?.name ?? '',
         },
         'progress': progressData,
       },
       'orders': ordersData,
     });
 
-    // Sinh nguyên liệu ban đầu vào inbox của mỗi người chơi
+    // Sinh nguyên liệu ban đầu
     for (var ring = 0; ring < totalPlayers; ring++) {
       final itemId = 'init_${ring}_${DateTime.now().microsecondsSinceEpoch}';
-      final ingredient = _rng.nextInt(4); // đơn giản, tránh import enum
+      final ingredients = ['orange', 'lemon', 'strawberry', 'ice'];
       await _inboxRef(code, ring).child(itemId).set({
         'type': 'ingredient',
-        'itemId': ['orange', 'lemon', 'strawberry', 'ice'][ingredient],
+        'itemId': ingredients[_rng.nextInt(ingredients.length)],
         'fromRingIndex': ring,
       });
     }
@@ -247,6 +251,7 @@ class FirebaseRoomRepository implements RoomRepository {
 
   @override
   Stream<Room> watchRoom(String code) {
+    // Trả lại stream hiện tại nếu đã có
     final existing = _streamControllers[code];
     if (existing != null && !existing.isClosed) {
       return existing.stream;
@@ -254,20 +259,22 @@ class FirebaseRoomRepository implements RoomRepository {
 
     final ctrl = StreamController<Room>.broadcast(
       onCancel: () {
-        _roomSubscription?.cancel();
-        _roomSubscription = null;
+        _subs[code]?.cancel();
+        _subs.remove(code);
       },
     );
     _streamControllers[code] = ctrl;
 
-    _roomSubscription?.cancel();
-    _roomSubscription = _roomRef(code).onValue.listen(
+    // Mỗi room có subscription riêng (fix bug cũ chỉ track 1 sub)
+    _subs[code]?.cancel();
+    _subs[code] = _roomRef(code).onValue.listen(
       (event) {
-        if (!event.snapshot.exists || ctrl.isClosed) return;
+        if (ctrl.isClosed) return;
+        if (!event.snapshot.exists) return;
         try {
           final room = _parseRoom(code, event.snapshot.value as Map);
           ctrl.add(room);
-        } catch (e) {
+        } catch (_) {
           // Dữ liệu chưa đầy đủ (vd: mới tạo phòng) — bỏ qua
         }
       },
@@ -286,14 +293,14 @@ class FirebaseRoomRepository implements RoomRepository {
     required int toRingIndex,
     required GameItem item,
   }) async {
-    // Xoá item khỏi inbox người gửi
-    await _inboxRef(code, fromRingIndex).child(item.id).remove();
-
-    // Thêm item vào inbox người nhận (với fromRingIndex mới)
-    await _inboxRef(code, toRingIndex).child(item.id).set({
-      'type': item.type.name,
-      'itemId': item.itemId,
-      'fromRingIndex': fromRingIndex,
+    // Xoá rồi ghi trong cùng một multi-path update
+    await _db.ref().update({
+      'rooms/$code/inbox/$fromRingIndex/${item.id}': null, // null = xoá
+      'rooms/$code/inbox/$toRingIndex/${item.id}': {
+        'type': item.type.name,
+        'itemId': item.itemId,
+        'fromRingIndex': fromRingIndex,
+      },
     });
   }
 
@@ -313,17 +320,13 @@ class FirebaseRoomRepository implements RoomRepository {
     required String itemId,
     required StationType station,
   }) async {
-    // Đọc item hiện tại
     final snap = await _inboxRef(code, ringIndex).child(itemId).get();
     if (!snap.exists) throw ArgumentError('Item $itemId không tồn tại');
 
     final data = snap.value as Map;
     final currentItemId = data['itemId'] as String;
-
-    // Tính kết quả chế biến (logic đồng bộ với FakeRoomRepository)
     final resultItemId = _processItem(currentItemId, station);
 
-    // Ghi lại item đã chế biến
     await _inboxRef(code, ringIndex).child(itemId).update({
       'type': 'product',
       'itemId': resultItemId,
@@ -344,81 +347,99 @@ class FirebaseRoomRepository implements RoomRepository {
     required String orderId,
     required String productId,
   }) async {
-    // Đọc thông tin người chơi (cần ringIndex)
-    final playerSnap = await _db.ref('rooms/$code/players/$playerId').get();
+    // Lấy ringIndex
+    final playerSnap =
+        await _db.ref('rooms/$code/players/$playerId').get();
     if (!playerSnap.exists) return;
+    final ringIndex =
+        (playerSnap.value as Map)['ringIndex'] as int? ?? 0;
 
-    final playerData = playerSnap.value as Map;
-    final ringIndex = playerData['ringIndex'] as int;
+    // Dùng transaction để increment progress atomically (race-safe)
+    bool roundCompleted = false;
+    int ordersPerPlayer = BartenderConfig.ordersPerPlayer;
 
-    // Đọc progress hiện tại
-    final progressSnap = await _progressRef(code).child('$ringIndex').get();
-    final currentProgress = (progressSnap.value as int?) ?? 0;
+    await _progressRef(code).runTransaction((currentData) {
+      final progress =
+          Map<String, dynamic>.from((currentData as Map?) ?? {});
+      final current = (progress['$ringIndex'] as int?) ?? 0;
+      progress['$ringIndex'] = current + 1;
 
-    // Đọc endTime hiện tại để cộng bonus
-    final timerSnap = await _timerRef(code).get();
-    final timerData = timerSnap.value as Map;
-    final currentEndTime = timerData['endTime'] as int;
-
-    // Ghi tất cả trong một multi-path update
-    await _db.ref().update({
-      // Cập nhật trạng thái đơn
-      'rooms/$code/orders/$playerId/$orderId/status': 'submitted',
-      // Cộng progress
-      'rooms/$code/round/progress/$ringIndex': currentProgress + 1,
-      // Cộng completedOrders cá nhân
-      'rooms/$code/players/$playerId/completedOrders':
-          ((playerData['completedOrders'] as int?) ?? 0) + 1,
-      // Cộng +5s vào timer
-      'rooms/$code/timer/endTime':
-          currentEndTime + BartenderConfig.orderCompletionBonusSeconds * 1000,
+      // Kiểm tra tất cả ring xong chưa (cần biết totalPlayers)
+      // Không thể đọc DB bên trong transaction — sẽ check sau
+      return Transaction.success(progress);
     });
 
-    // Xoá item đã nộp khỏi inbox
+    // Cộng timer bonus + cập nhật order status + completedOrders
+    // Dùng transaction trên timer để atomic increment endTime
+    await _timerRef(code).child('endTime').runTransaction((currentData) {
+      final current = (currentData as int?) ?? 0;
+      return Transaction.success(
+          current + BartenderConfig.orderCompletionBonusSeconds * 1000);
+    });
+
+    // Cập nhật order status và completedOrders cá nhân
+    await _db.ref().update({
+      'rooms/$code/orders/$playerId/$orderId/status': 'submitted',
+      'rooms/$code/players/$playerId/completedOrders':
+          ServerValue.increment(1),
+    });
+
+    // Xoá product đã nộp khỏi inbox
     await _inboxRef(code, ringIndex).child(productId).remove();
 
-    // Kiểm tra round hoàn thành: đọc tất cả progress
-    await _checkRoundCompletion(code);
-  }
-
-  /// Kiểm tra xem tất cả người chơi đã hoàn thành đủ đơn của round chưa.
-  /// Nếu đúng, tạo round mới (hoặc kết thúc trận nếu hết giờ).
-  Future<void> _checkRoundCompletion(String code) async {
+    // Đọc round info để kiểm tra round completion
     final roundSnap = await _roundRef(code).get();
     if (!roundSnap.exists) return;
-
     final roundData = roundSnap.value as Map;
-    final ordersPerPlayer = (roundData['ordersPerPlayer'] as int?) ??
+    ordersPerPlayer = (roundData['ordersPerPlayer'] as int?) ??
         BartenderConfig.ordersPerPlayer;
-    final progressData = (roundData['progress'] as Map?) ?? {};
 
-    // Lấy số người chơi (connected)
+    // Đọc progress sau transaction
+    final progressSnap = await _progressRef(code).get();
+    final progressData = (progressSnap.value as Map?) ?? {};
+
+    // Lấy totalPlayers
     final roomSnap = await _roomRef(code).get();
+    if (!roomSnap.exists) return;
     final roomData = roomSnap.value as Map;
     final playersData = (roomData['players'] as Map?) ?? {};
     final totalPlayers =
         (roomData['totalPlayers'] as int?) ?? playersData.length;
 
-    // Kiểm tra từng ring đã đạt ordersPerPlayer chưa
-    bool allDone = true;
+    // Kiểm tra tất cả done
+    roundCompleted = true;
     for (var i = 0; i < totalPlayers; i++) {
-      final progress = (progressData['$i'] as int?) ?? 0;
-      if (progress < ordersPerPlayer) {
-        allDone = false;
+      if (((progressData['$i'] as int?) ?? 0) < ordersPerPlayer) {
+        roundCompleted = false;
         break;
       }
     }
 
-    if (!allDone) return;
+    // Chỉ host (ringIndex==0) mới được tạo round mới để tránh duplicate writes
+    if (roundCompleted && ringIndex == 0) {
+      await _startNextRound(
+        code: code,
+        currentRound: (roundData['number'] as int?) ?? 1,
+        ordersPerPlayer: ordersPerPlayer,
+        playersData: playersData,
+        totalPlayers: totalPlayers,
+      );
+    }
+  }
 
-    // Tất cả done → tạo round mới
-    final currentRoundNumber = (roundData['number'] as int?) ?? 1;
-    final nextRound = currentRoundNumber + 1;
+  /// Tạo round tiếp theo — chỉ được gọi bởi host (ringIndex==0).
+  Future<void> _startNextRound({
+    required String code,
+    required int currentRound,
+    required int ordersPerPlayer,
+    required Map playersData,
+    required int totalPlayers,
+  }) async {
+    final nextRound = currentRound + 1;
     final newAssignment = StationAssigner.assign(
       playerCount: totalPlayers,
       random: _rng,
     );
-
     final nextRecipes = RecipePool.recipesForRound(nextRound);
     final newOrders = <String, dynamic>{};
     final newProgress = <String, dynamic>{};
@@ -427,7 +448,7 @@ class FirebaseRoomRepository implements RoomRepository {
     for (final entry in playersData.entries) {
       final pId = entry.key as String;
       final pData = entry.value as Map;
-      final ring = pData['ringIndex'] as int;
+      final ring = (pData['ringIndex'] as int?) ?? 0;
       final pOrders = <String, dynamic>{};
       for (var i = 0; i < ordersPerPlayer; i++) {
         final recipe = nextRecipes[_rng.nextInt(nextRecipes.length)];
@@ -443,32 +464,53 @@ class FirebaseRoomRepository implements RoomRepository {
     await _db.ref().update({
       'rooms/$code/round/number': nextRound,
       'rooms/$code/round/stationAssignment': {
-        for (final e in newAssignment.entries)
-          '${e.key}': e.value?.name ?? '',
+        for (final e in newAssignment.entries) '${e.key}': e.value?.name ?? '',
       },
       'rooms/$code/round/progress': newProgress,
       'rooms/$code/orders': newOrders,
     });
+
+    // Sinh nguyên liệu mới cho round mới
+    for (var ring = 0; ring < totalPlayers; ring++) {
+      final itemId =
+          'r${nextRound}_${ring}_${DateTime.now().microsecondsSinceEpoch}';
+      final ingredients = ['orange', 'lemon', 'strawberry', 'ice'];
+      await _inboxRef(code, ring).child(itemId).set({
+        'type': 'ingredient',
+        'itemId': ingredients[_rng.nextInt(ingredients.length)],
+        'fromRingIndex': ring,
+      });
+    }
   }
 
   /// Kết thúc trận — ghi results và set status = ended.
-  /// Thường được gọi từ client nào phát hiện timer hết (race-safe vì RTDB
-  /// transaction sẽ bảo vệ, nhưng với MVP chấp nhận write tuần tự).
+  /// Idempotent: không ghi lại nếu đã ended.
+  /// Gọi từ BartenderController khi timer hết.
   Future<void> endMatch(String code) async {
+    // Dùng transaction để chỉ 1 client thực sự ghi ended
+    bool shouldWrite = false;
+    await _roomRef(code).child('status').runTransaction((currentData) {
+      if (currentData == 'playing') {
+        shouldWrite = true;
+        return Transaction.success('ended');
+      }
+      return Transaction.abort(); // đã ended hoặc không đang play
+    });
+
+    if (!shouldWrite) return;
+
     final roomSnap = await _roomRef(code).get();
     if (!roomSnap.exists) return;
-
     final roomData = roomSnap.value as Map;
-    final status = roomData['status'] as String?;
-    if (status == 'ended') return; // đã kết thúc rồi
-
     final playersData = (roomData['players'] as Map?) ?? {};
     final timerData = (roomData['timer'] as Map?) ?? {};
     final startedAt = (timerData['startedAt'] as int?) ?? 0;
     final now = DateTime.now().millisecondsSinceEpoch;
-    final survivalSec = ((now - startedAt) / 1000).round();
+    final survivalSec = ((now - startedAt) / 1000).round().clamp(
+          0,
+          BartenderConfig.initialTimerSeconds * 10,
+        );
 
-    // Build ranking
     final ranking = playersData.entries.map((e) {
       final d = e.value as Map;
       return {
@@ -476,27 +518,23 @@ class FirebaseRoomRepository implements RoomRepository {
         'completedOrders': (d['completedOrders'] as int?) ?? 0,
       };
     }).toList()
-      ..sort((a, b) => (b['completedOrders'] as int)
-          .compareTo(a['completedOrders'] as int));
+      ..sort((a, b) =>
+          (b['completedOrders'] as int).compareTo(a['completedOrders'] as int));
 
     final totalOrders = ranking.fold<int>(
       0,
       (sum, r) => sum + (r['completedOrders'] as int),
     );
 
-    await _db.ref().update({
-      'rooms/$code/status': 'ended',
-      'rooms/$code/results': {
-        'totalSurvivalSeconds': survivalSec,
-        'totalTeamOrders': totalOrders,
-        'ranking': ranking,
-      },
+    await _db.ref('rooms/$code/results').set({
+      'totalSurvivalSeconds': survivalSec,
+      'totalTeamOrders': totalOrders,
+      'ranking': ranking,
     });
   }
 
   // ─── Parsing ────────────────────────────────────────────────────────────────
 
-  /// Parse dữ liệu thô từ RTDB thành [Room] model.
   Room _parseRoom(String code, Map data) {
     final statusStr = (data['status'] as String?) ?? 'lobby';
     final status = RoomStatus.values.firstWhere(
@@ -528,7 +566,7 @@ class FirebaseRoomRepository implements RoomRepository {
 
     // Timer
     MatchTimer? timer;
-    final timerData = (data['timer'] as Map?);
+    final timerData = data['timer'] as Map?;
     if (timerData != null) {
       timer = MatchTimer(
         endTime: (timerData['endTime'] as int?) ?? 0,
@@ -538,17 +576,16 @@ class FirebaseRoomRepository implements RoomRepository {
 
     // Round
     Round? currentRound;
-    final roundData = (data['round'] as Map?);
+    final roundData = data['round'] as Map?;
     if (roundData != null) {
       final stationData = (roundData['stationAssignment'] as Map?) ?? {};
       final assignment = <int, StationType?>{};
       for (final e in stationData.entries) {
         final ring = int.tryParse(e.key.toString()) ?? 0;
         final stName = (e.value as String?) ?? '';
-        assignment[ring] = StationType.values.cast<StationType?>().firstWhere(
-              (s) => s?.name == stName,
-              orElse: () => null,
-            );
+        assignment[ring] = StationType.values
+            .cast<StationType?>()
+            .firstWhere((s) => s?.name == stName, orElse: () => null);
       }
 
       final ordersData = (data['orders'] as Map?) ?? {};
@@ -579,7 +616,7 @@ class FirebaseRoomRepository implements RoomRepository {
 
     // Results
     MatchResult? results;
-    final resultsData = (data['results'] as Map?);
+    final resultsData = data['results'] as Map?;
     if (resultsData != null) {
       final rankingData = (resultsData['ranking'] as List?) ?? [];
       final ranking = rankingData.map((r) {
@@ -629,7 +666,7 @@ class FirebaseRoomRepository implements RoomRepository {
     return result;
   }
 
-  /// Tính kết quả chế biến — phải đồng bộ với FakeRoomRepository.
+  /// Logic chế biến — phải đồng bộ với FakeRoomRepository.
   String _processItem(String itemId, StationType station) {
     switch (station) {
       case StationType.juicer:
@@ -653,7 +690,10 @@ class FirebaseRoomRepository implements RoomRepository {
 
   @override
   void dispose() {
-    _roomSubscription?.cancel();
+    for (final sub in _subs.values) {
+      sub.cancel();
+    }
+    _subs.clear();
     for (final ctrl in _streamControllers.values) {
       ctrl.close();
     }

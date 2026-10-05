@@ -126,7 +126,15 @@ class BartenderController extends ChangeNotifier {
         hostPlayerName: playerName,
         totalPlayers: totalPlayers,
       );
-      _myPlayerId = 'p_0';
+      // FakeRoomRepository đặt playerId dạng 'p_0'.
+      // FirebaseRoomRepository dùng uid từ FirebaseAuth —
+      // cả hai đều đặt host ở ringIndex==0, nên tìm theo ringIndex.
+      _myPlayerId = room.players.entries
+          .firstWhere(
+            (e) => e.value.ringIndex == 0,
+            orElse: () => room.players.entries.first,
+          )
+          .key;
       _subscribeToRoom(room.code);
       _room = room;
       _showNotice('Đã tạo phòng #${room.code}!');
@@ -149,9 +157,16 @@ class BartenderController extends ChangeNotifier {
         code: code,
         playerName: playerName,
       );
+      // FirebaseRoomRepository trả về room sau khi uid đã được ghi vào DB.
+      // Tìm uid của mình bằng cách so khớp tên + ringIndex mới nhất.
+      // Với FakeRoomRepository, players là 'p_0', 'p_1', ... —
+      // ringIndex cao nhất = player mới nhất.
+      final maxRingIndex = room.players.values
+          .map((p) => p.ringIndex)
+          .fold(0, (a, b) => a > b ? a : b);
       _myPlayerId = room.players.entries
           .firstWhere(
-            (e) => e.value.name == playerName,
+            (e) => e.value.ringIndex == maxRingIndex,
             orElse: () => room.players.entries.last,
           )
           .key;
@@ -343,8 +358,24 @@ class BartenderController extends ChangeNotifier {
     _countdownTicker?.cancel();
     _countdownTicker =
         Timer.periodic(const Duration(milliseconds: 250), (_) {
-      if (_room?.status == RoomStatus.playing) {
-        notifyListeners();
+      if (_room?.status != RoomStatus.playing) return;
+
+      final timeUp = remainingSeconds <= 0;
+      notifyListeners();
+
+      // Khi timer hết: controller kích hoạt kết thúc trận.
+      // Dùng FirebaseRoomRepository: endMatch dùng transaction nên
+      // chỉ 1 client sẽ ghi được, các client khác sẽ nhận status=ended
+      // qua watchRoom stream.
+      if (timeUp) {
+        _stopTicker();
+        final code = _room?.code;
+        if (code != null) {
+          if (_repository is FirebaseRoomRepository) {
+            _repository.endMatch(code);
+          }
+          // FakeRoomRepository tự xử lý timer bên trong.
+        }
       }
     });
   }
