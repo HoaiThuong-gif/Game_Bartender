@@ -11,6 +11,11 @@ import '../models/station.dart';
 /// - [FakeRoomRepository]: in-memory, dùng cho local dev và single-device loop.
 /// - [FirebaseRoomRepository]: RTDB thật cho multi-device play (giai đoạn 5).
 abstract interface class RoomRepository {
+  /// ID của người chơi trên máy này.
+  /// Fake: 'p_0' khi tạo phòng, id được gán khi join.
+  /// Firebase: uid từ FirebaseAuth (anonymous).
+  String get localPlayerId;
+
   /// Tạo phòng mới với tên người tạo (host).
   /// [totalPlayers]: tổng số người chơi (mặc định 3 cho single-device loop).
   Future<Room> createRoom({
@@ -69,6 +74,11 @@ abstract interface class RoomRepository {
     required String orderId,
     required String productId,
   });
+
+  /// Kết thúc trận đấu. Ghi results và đặt status = ended.
+  /// Idempotent: nếu trận đã kết thúc thì không làm gì.
+  /// Fake: gọi _endMatch nội bộ. Firebase: dùng transaction (D17).
+  Future<void> endMatch(String code);
 
   /// Giải phóng tài nguyên / stream controllers.
   void dispose();

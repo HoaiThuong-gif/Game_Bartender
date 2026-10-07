@@ -44,8 +44,8 @@ void main() {
         totalPlayers: 4,
       );
 
-      final ringIndices =
-          room.players.values.map((p) => p.ringIndex).toList()..sort();
+      final ringIndices = room.players.values.map((p) => p.ringIndex).toList()
+        ..sort();
       expect(ringIndices, [0, 1, 2, 3]);
 
       repo.dispose();
@@ -95,7 +95,9 @@ void main() {
       });
 
       await repo.startMatch(code: created.code);
-      final playing = await completer.future.timeout(const Duration(seconds: 2));
+      final playing = await completer.future.timeout(
+        const Duration(seconds: 2),
+      );
 
       final assignment = playing.currentRound!.stationAssignment;
       // 3 người chơi → 3 entries trong map
@@ -122,7 +124,9 @@ void main() {
       });
 
       await repo.startMatch(code: created.code);
-      final playing = await completer.future.timeout(const Duration(seconds: 2));
+      final playing = await completer.future.timeout(
+        const Duration(seconds: 2),
+      );
 
       // Mỗi người chơi có ít nhất 1 item ban đầu
       expect(playing.inbox.length, 2);
@@ -147,8 +151,9 @@ void main() {
         }
       });
       await repo.startMatch(code: created.code);
-      final playing =
-          await playingCompleter.future.timeout(const Duration(seconds: 2));
+      final playing = await playingCompleter.future.timeout(
+        const Duration(seconds: 2),
+      );
 
       final item = playing.inbox[0]!.first;
 
@@ -165,8 +170,9 @@ void main() {
         item: item,
       );
 
-      final updated =
-          await sentCompleter.future.timeout(const Duration(seconds: 2));
+      final updated = await sentCompleter.future.timeout(
+        const Duration(seconds: 2),
+      );
 
       // Item phải không còn ở ring 0, và phải có ở ring 1
       final ring0Items = updated.inbox[0] ?? [];
@@ -192,8 +198,9 @@ void main() {
         }
       });
       await repo.startMatch(code: created.code);
-      final playing =
-          await playingCompleter.future.timeout(const Duration(seconds: 2));
+      final playing = await playingCompleter.future.timeout(
+        const Duration(seconds: 2),
+      );
 
       final item = playing.inbox[0]!.first;
 
@@ -202,81 +209,86 @@ void main() {
         if (!trashedCompleter.isCompleted) trashedCompleter.complete(r);
       });
 
-      await repo.trashItem(
-        code: created.code,
-        ringIndex: 0,
-        itemId: item.id,
-      );
+      await repo.trashItem(code: created.code, ringIndex: 0, itemId: item.id);
 
-      final updated =
-          await trashedCompleter.future.timeout(const Duration(seconds: 2));
+      final updated = await trashedCompleter.future.timeout(
+        const Duration(seconds: 2),
+      );
       final ring0After = updated.inbox[0] ?? [];
       expect(ring0After.any((i) => i.id == item.id), isFalse);
 
       repo.dispose();
     });
 
-    test('submitOrder increments completedOrders and adds bonus time', () async {
-      final repo = FakeRoomRepository(rng: Random(99));
-      final created = await repo.createRoom(
-        hostPlayerName: 'Host',
-        totalPlayers: 2,
-      );
+    test(
+      'submitOrder increments completedOrders and adds bonus time',
+      () async {
+        final repo = FakeRoomRepository(rng: Random(99));
+        final created = await repo.createRoom(
+          hostPlayerName: 'Host',
+          totalPlayers: 2,
+        );
 
-      Room? playingRoom;
-      final playingCompleter = Completer<Room>();
-      repo.watchRoom(created.code).listen((r) {
-        if (r.status == RoomStatus.playing && !playingCompleter.isCompleted) {
-          playingRoom = r;
-          playingCompleter.complete(r);
-        }
-      });
-      await repo.startMatch(code: created.code);
-      await playingCompleter.future.timeout(const Duration(seconds: 2));
+        Room? playingRoom;
+        final playingCompleter = Completer<Room>();
+        repo.watchRoom(created.code).listen((r) {
+          if (r.status == RoomStatus.playing && !playingCompleter.isCompleted) {
+            playingRoom = r;
+            playingCompleter.complete(r);
+          }
+        });
+        await repo.startMatch(code: created.code);
+        await playingCompleter.future.timeout(const Duration(seconds: 2));
 
-      final round = playingRoom!.currentRound!;
-      final hostId = playingRoom!.players.entries
-          .firstWhere((e) => e.value.ringIndex == 0)
-          .key;
-      final order = round.playerOrders[hostId]!.first;
+        final round = playingRoom!.currentRound!;
+        final hostId = playingRoom!.players.entries
+            .firstWhere((e) => e.value.ringIndex == 0)
+            .key;
+        final order = round.playerOrders[hostId]!.first;
 
-      // Thêm một product vào inbox để simulate đã chế biến xong
-      final product = GameItem(
-        id: 'fake_product',
-        type: GameItemType.product,
-        itemId: order.recipeId, // đơn giản dùng recipeId để match
-        fromRingIndex: 0,
-      );
+        // Thêm một product vào inbox để simulate đã chế biến xong
+        final product = GameItem(
+          id: 'fake_product',
+          type: GameItemType.product,
+          itemId: order.recipeId, // đơn giản dùng recipeId để match
+          fromRingIndex: 0,
+        );
 
-      // Chèn product vào inbox giả bằng sendItem từ ring 0 → 0
-      // (Thực tế sẽ dùng processItemAtStation, nhưng ở đây test submitOrder)
+        // Chèn product vào inbox giả bằng sendItem từ ring 0 → 0
+        // (Thực tế sẽ dùng processItemAtStation, nhưng ở đây test submitOrder)
 
-      final submitCompleter = Completer<Room>();
-      repo.watchRoom(created.code).listen((r) {
-        if (!submitCompleter.isCompleted &&
-            r.players[hostId]!.completedOrders > 0) {
-          submitCompleter.complete(r);
-        }
-      });
+        final submitCompleter = Completer<Room>();
+        repo.watchRoom(created.code).listen((r) {
+          if (!submitCompleter.isCompleted &&
+              r.players[hostId]!.completedOrders > 0) {
+            submitCompleter.complete(r);
+          }
+        });
 
-      await repo.submitOrder(
-        code: created.code,
-        playerId: hostId,
-        orderId: order.id,
-        productId: product.itemId,
-      );
+        await repo.submitOrder(
+          code: created.code,
+          playerId: hostId,
+          orderId: order.id,
+          productId: product.itemId,
+        );
 
-      final submitted =
-          await submitCompleter.future.timeout(const Duration(seconds: 2));
+        final submitted = await submitCompleter.future.timeout(
+          const Duration(seconds: 2),
+        );
 
-      expect(submitted.players[hostId]!.completedOrders, 1);
-      // Timer phải được cộng thêm bonus
-      final originalEnd = playingRoom!.timer!.endTime;
-      expect(submitted.timer!.endTime,
-          greaterThanOrEqualTo(originalEnd + BartenderConfig.orderCompletionBonusSeconds * 1000));
+        expect(submitted.players[hostId]!.completedOrders, 1);
+        // Timer phải được cộng thêm bonus
+        final originalEnd = playingRoom!.timer!.endTime;
+        expect(
+          submitted.timer!.endTime,
+          greaterThanOrEqualTo(
+            originalEnd + BartenderConfig.orderCompletionBonusSeconds * 1000,
+          ),
+        );
 
-      repo.dispose();
-    });
+        repo.dispose();
+      },
+    );
   });
 
   group('BartenderController', () {
@@ -284,7 +296,9 @@ void main() {
       final ctrl = BartenderController();
       expect(ctrl.room, isNull);
       expect(ctrl.isBusy, isFalse);
-      expect(ctrl.myPlayerId, isNull);
+      // localPlayerId từ FakeRoomRepository luôn có giá trị mặc định 'p_0'
+      // (khác với Firebase sẽ throw khi chưa auth)
+      expect(ctrl.myPlayerId, isNotNull);
       ctrl.dispose();
     });
 
@@ -296,6 +310,7 @@ void main() {
       await ctrl.createRoom(playerName: 'Tester', totalPlayers: 2);
 
       expect(ctrl.room, isNotNull);
+      // localPlayerId từ FakeRoomRepository là 'p_0' cho host
       expect(ctrl.myPlayerId, 'p_0');
       expect(ctrl.room!.status, RoomStatus.lobby);
       expect(ctrl.isInLobby, isTrue);
@@ -372,8 +387,10 @@ void main() {
       await ctrl.startMatch();
       await completer.future.timeout(const Duration(seconds: 3));
 
-      expect(ctrl.remainingSeconds,
-          lessThanOrEqualTo(BartenderConfig.initialTimerSeconds));
+      expect(
+        ctrl.remainingSeconds,
+        lessThanOrEqualTo(BartenderConfig.initialTimerSeconds),
+      );
       expect(ctrl.remainingSeconds, greaterThan(0));
 
       ctrl.dispose();
@@ -406,7 +423,8 @@ void main() {
 
       await ctrl.leaveRoom();
       expect(ctrl.room, isNull);
-      expect(ctrl.myPlayerId, isNull);
+      // localPlayerId vẫn là 'p_0' vì đó là property của repo, không reset khi rời phòng
+      expect(ctrl.myPlayerId, 'p_0');
 
       ctrl.dispose();
     });
@@ -432,6 +450,55 @@ void main() {
       expect(ctrl.myOrders.length, BartenderConfig.ordersPerPlayer);
 
       ctrl.dispose();
+    });
+
+    test('localPlayerId is set after createRoom', () async {
+      final repo = FakeRoomRepository(rng: Random(20));
+      final ctrl = BartenderController(repository: repo);
+
+      // Trước createRoom, myPlayerId có thể là 'p_0' (default)
+      // Sau createRoom, chắc chắn là 'p_0'
+      await ctrl.createRoom(playerName: 'Test', totalPlayers: 2);
+      expect(ctrl.myPlayerId, 'p_0');
+      expect(repo.localPlayerId, 'p_0');
+
+      ctrl.dispose();
+    });
+
+    test('endMatch via repository ends the match', () async {
+      final repo = FakeRoomRepository(rng: Random(21));
+      final created = await repo.createRoom(
+        hostPlayerName: 'Host',
+        totalPlayers: 2,
+      );
+
+      final playingCompleter = Completer<Room>();
+      repo.watchRoom(created.code).listen((r) {
+        if (r.status == RoomStatus.playing && !playingCompleter.isCompleted) {
+          playingCompleter.complete(r);
+        }
+      });
+      await repo.startMatch(code: created.code);
+      await playingCompleter.future.timeout(const Duration(seconds: 2));
+
+      // Gọi endMatch qua interface
+      await repo.endMatch(created.code);
+
+      // Đợi stream phát room ended
+      final endedCompleter = Completer<Room>();
+      repo.watchRoom(created.code).listen((r) {
+        if (r.status == RoomStatus.ended && !endedCompleter.isCompleted) {
+          endedCompleter.complete(r);
+        }
+      });
+
+      final ended = await endedCompleter.future.timeout(
+        const Duration(seconds: 2),
+      );
+      expect(ended.status, RoomStatus.ended);
+      expect(ended.results, isNotNull);
+
+      repo.dispose();
     });
   });
 }

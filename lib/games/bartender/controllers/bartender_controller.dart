@@ -32,7 +32,6 @@ class BartenderController extends ChangeNotifier {
   final RoomRepository _repository;
 
   Room? _room;
-  String? _myPlayerId;
   String? _noticeMessage;
   String? _errorMessage;
   bool _isBusy = false;
@@ -45,14 +44,25 @@ class BartenderController extends ChangeNotifier {
   // ─── Getters ──────────────────────────────────────────────────
 
   Room? get room => _room;
-  String? get myPlayerId => _myPlayerId;
+
+  /// ID người chơi trên máy này — lấy từ repository (không đoán).
+  String? get myPlayerId {
+    try {
+      return _repository.localPlayerId;
+    } catch (_) {
+      return null;
+    }
+  }
+
   String? get noticeMessage => _noticeMessage;
   String? get errorMessage => _errorMessage;
   bool get isBusy => _isBusy;
 
   /// Thông tin người chơi hiện tại trên máy này.
-  Player? get me =>
-      _myPlayerId == null ? null : _room?.players[_myPlayerId];
+  Player? get me {
+    final pid = myPlayerId;
+    return pid == null ? null : _room?.players[pid];
+  }
 
   /// Vị trí của người chơi hiện tại trong vòng tròn.
   int get myRingIndex => me?.ringIndex ?? 0;
@@ -63,10 +73,12 @@ class BartenderController extends ChangeNotifier {
       _room?.currentRound?.stationAssignment[myRingIndex];
 
   /// Danh sách đơn hàng cần làm của người chơi hiện tại trong round này.
-  List<Order> get myOrders =>
-      _myPlayerId == null
-          ? const []
-          : (_room?.currentRound?.playerOrders[_myPlayerId] ?? const []);
+  List<Order> get myOrders {
+    final pid = myPlayerId;
+    return pid == null
+        ? const []
+        : (_room?.currentRound?.playerOrders[pid] ?? const []);
+  }
 
   /// Danh sách các vật phẩm hiện có trên màn hình của người chơi.
   List<GameItem> get myItems =>
@@ -126,15 +138,7 @@ class BartenderController extends ChangeNotifier {
         hostPlayerName: playerName,
         totalPlayers: totalPlayers,
       );
-      // FakeRoomRepository đặt playerId dạng 'p_0'.
-      // FirebaseRoomRepository dùng uid từ FirebaseAuth —
-      // cả hai đều đặt host ở ringIndex==0, nên tìm theo ringIndex.
-      _myPlayerId = room.players.entries
-          .firstWhere(
-            (e) => e.value.ringIndex == 0,
-            orElse: () => room.players.entries.first,
-          )
-          .key;
+      // localPlayerId đã được repository gán trong createRoom.
       _subscribeToRoom(room.code);
       _room = room;
       _showNotice('Đã tạo phòng #${room.code}!');
@@ -157,19 +161,7 @@ class BartenderController extends ChangeNotifier {
         code: code,
         playerName: playerName,
       );
-      // FirebaseRoomRepository trả về room sau khi uid đã được ghi vào DB.
-      // Tìm uid của mình bằng cách so khớp tên + ringIndex mới nhất.
-      // Với FakeRoomRepository, players là 'p_0', 'p_1', ... —
-      // ringIndex cao nhất = player mới nhất.
-      final maxRingIndex = room.players.values
-          .map((p) => p.ringIndex)
-          .fold(0, (a, b) => a > b ? a : b);
-      _myPlayerId = room.players.entries
-          .firstWhere(
-            (e) => e.value.ringIndex == maxRingIndex,
-            orElse: () => room.players.entries.last,
-          )
-          .key;
+      // localPlayerId đã được repository gán trong joinRoom.
       _subscribeToRoom(room.code);
       _room = room;
       _showNotice('Đã vào phòng #${room.code}!');
@@ -287,7 +279,7 @@ class BartenderController extends ChangeNotifier {
   /// Cộng +5s vào đồng hồ chung và +1 đơn cho cá nhân.
   Future<void> submitOrder(Order order, GameItem product) async {
     final code = _room?.code;
-    final pId = _myPlayerId;
+    final pId = myPlayerId;
     if (code == null || pId == null || _room?.status != RoomStatus.playing) {
       return;
     }
@@ -319,7 +311,7 @@ class BartenderController extends ChangeNotifier {
   /// Rời phòng hiện tại.
   Future<void> leaveRoom() async {
     final code = _room?.code;
-    final pId = _myPlayerId;
+    final pId = myPlayerId;
     if (code != null && pId != null) {
       await _repository.leaveRoom(code: code, playerId: pId);
     }
@@ -363,18 +355,13 @@ class BartenderController extends ChangeNotifier {
       final timeUp = remainingSeconds <= 0;
       notifyListeners();
 
-      // Khi timer hết: controller kích hoạt kết thúc trận.
-      // Dùng FirebaseRoomRepository: endMatch dùng transaction nên
-      // chỉ 1 client sẽ ghi được, các client khác sẽ nhận status=ended
-      // qua watchRoom stream.
+      // Khi timer hết: gọi endMatch qua interface (không cần biết impl).
+      // Fake: _endMatch nội bộ. Firebase: transaction trên results (D17).
       if (timeUp) {
         _stopTicker();
         final code = _room?.code;
         if (code != null) {
-          if (_repository is FirebaseRoomRepository) {
-            _repository.endMatch(code);
-          }
-          // FakeRoomRepository tự xử lý timer bên trong.
+          _repository.endMatch(code);
         }
       }
     });
@@ -410,7 +397,6 @@ class BartenderController extends ChangeNotifier {
     _roomSubscription?.cancel();
     _roomSubscription = null;
     _room = null;
-    _myPlayerId = null;
     _clearMessages();
     notifyListeners();
   }

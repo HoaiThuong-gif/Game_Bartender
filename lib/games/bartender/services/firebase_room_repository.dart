@@ -17,6 +17,7 @@ import '../models/round.dart';
 import '../models/station.dart';
 import '../models/station_assigner.dart';
 import 'room_repository.dart';
+import 'rtdb_utils.dart';
 
 /// Triển khai [RoomRepository] trên Firebase Realtime Database.
 ///
@@ -54,6 +55,17 @@ class FirebaseRoomRepository implements RoomRepository {
   /// Stream controllers theo từng room code.
   final Map<String, StreamController<Room>> _streamControllers = {};
 
+  @override
+  String get localPlayerId {
+    final uid = _myUid;
+    if (uid == null) {
+      throw StateError(
+        'localPlayerId chưa có — phải gọi createRoom hoặc joinRoom trước.',
+      );
+    }
+    return uid;
+  }
+
   // ─── Auth ───────────────────────────────────────────────────────────────────
 
   Future<String> _ensureAuth() async {
@@ -77,30 +89,7 @@ class FirebaseRoomRepository implements RoomRepository {
   DatabaseReference _progressRef(String code) =>
       _db.ref('rooms/$code/round/progress');
 
-  /// Xử lý dữ liệu trả về từ RTDB, vì RTDB có thể trả về Map hoặc List
-  /// tuỳ theo key (vd: "0", "1", "2" sẽ thành List). Bỏ qua phần tử null.
-  Map<String, dynamic> _asMap(Object? data) {
-    if (data == null) return <String, dynamic>{};
-    if (data is Map) {
-      final res = <String, dynamic>{};
-      for (final e in data.entries) {
-        if (e.value != null) {
-          res[e.key.toString()] = e.value;
-        }
-      }
-      return res;
-    }
-    if (data is List) {
-      final res = <String, dynamic>{};
-      for (var i = 0; i < data.length; i++) {
-        if (data[i] != null) {
-          res[i.toString()] = data[i];
-        }
-      }
-      return res;
-    }
-    return <String, dynamic>{};
-  }
+  // _asMap đã được tách ra rtdb_utils.dart → dùng asMap() cấp cao nhất.
 
   // ─── RoomRepository impl ────────────────────────────────────────────────────
 
@@ -116,9 +105,10 @@ class FirebaseRoomRepository implements RoomRepository {
 
     String code = '';
     bool created = false;
+    const maxAttempts = 20; // Giới hạn số lần thử tạo mã phòng
 
     // Dùng transaction để không ghi đè phòng đang tồn tại (thử mã khác nếu trùng)
-    while (!created) {
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
       code = (_rng.nextInt(9000) + 1000).toString();
       final tr = await _roomRef(code).runTransaction((currentData) {
         if (currentData != null) {
@@ -140,7 +130,13 @@ class FirebaseRoomRepository implements RoomRepository {
       });
       if (tr.committed) {
         created = true;
+        break;
       }
+    }
+    if (!created) {
+      throw StateError(
+        'Không thể tạo phòng sau $maxAttempts lần thử — tất cả mã đều đã được dùng.',
+      );
     }
 
     return Room(
@@ -172,7 +168,7 @@ class FirebaseRoomRepository implements RoomRepository {
     if (!roomSnap.exists) {
       throw StateError('Phòng #$code không tồn tại.');
     }
-    final roomData = _asMap(roomSnap.value);
+    final roomData = asMap(roomSnap.value);
     if (roomData['status'] != 'lobby') {
       throw StateError('Phòng #$code đã bắt đầu hoặc kết thúc, không thể tham gia.');
     }
@@ -181,15 +177,15 @@ class FirebaseRoomRepository implements RoomRepository {
     int assignedRing = -1;
 
     final tr = await _db.ref('rooms/$code/players').runTransaction((currentData) {
-      final players = _asMap(currentData);
+      final players = asMap(currentData);
 
       // Nếu player đã tồn tại (reconnect), giữ nguyên ringIndex
       if (players.containsKey(uid)) {
         players[uid] = {
-          ..._asMap(players[uid]),
+          ...asMap(players[uid]),
           'connected': true,
         };
-        assignedRing = _asMap(players[uid])['ringIndex'] as int? ?? players.length - 1;
+        assignedRing = asMap(players[uid])['ringIndex'] as int? ?? players.length - 1;
         return Transaction.success(players);
       }
 
@@ -201,7 +197,7 @@ class FirebaseRoomRepository implements RoomRepository {
       // Tìm ringIndex lớn nhất hiện tại
       int maxRing = -1;
       for (final p in players.values) {
-        final r = _asMap(p)['ringIndex'] as int? ?? -1;
+        final r = asMap(p)['ringIndex'] as int? ?? -1;
         if (r > maxRing) maxRing = r;
       }
       assignedRing = maxRing + 1;
@@ -216,7 +212,7 @@ class FirebaseRoomRepository implements RoomRepository {
     });
 
     if (!tr.committed) {
-      final players = _asMap(tr.snapshot.value);
+      final players = asMap(tr.snapshot.value);
       if (!players.containsKey(uid) && players.length >= BartenderConfig.maxPlayers) {
         throw StateError('Phòng #$code đã đầy (${BartenderConfig.maxPlayers} người).');
       }
@@ -226,7 +222,7 @@ class FirebaseRoomRepository implements RoomRepository {
     // Đọc lại room state mới nhất sau transaction
     final snap = await _roomRef(code).get();
     if (!snap.exists) throw StateError('Phòng $code không tồn tại');
-    return _parseRoom(code, _asMap(snap.value));
+    return _parseRoom(code, asMap(snap.value));
   }
 
   @override
@@ -245,11 +241,11 @@ class FirebaseRoomRepository implements RoomRepository {
     final roomSnap = await _roomRef(code).get();
     if (!roomSnap.exists) return;
 
-    final roomData = _asMap(roomSnap.value);
+    final roomData = asMap(roomSnap.value);
     // Guard: chỉ start nếu đang ở lobby
     if (roomData['status'] != 'lobby') return;
 
-    final playersData = _asMap(roomData['players']);
+    final playersData = asMap(roomData['players']);
     final totalPlayers =
         (roomData['totalPlayers'] as int?) ?? playersData.length;
 
@@ -267,7 +263,7 @@ class FirebaseRoomRepository implements RoomRepository {
 
     for (final entry in playersData.entries) {
       final playerId = entry.key.toString();
-      final playerData = _asMap(entry.value);
+      final playerData = asMap(entry.value);
       final ring = (playerData['ringIndex'] as int?) ?? 0;
       final playerOrders = <String, dynamic>{};
       for (var i = 0; i < BartenderConfig.ordersPerPlayer; i++) {
@@ -339,7 +335,7 @@ class FirebaseRoomRepository implements RoomRepository {
         if (ctrl.isClosed) return;
         if (!event.snapshot.exists) return;
         try {
-          final room = _parseRoom(code, _asMap(event.snapshot.value));
+          final room = _parseRoom(code, asMap(event.snapshot.value));
           ctrl.add(room);
         } catch (e, st) {
           debugPrint('Lỗi parse room $code: $e\n$st');
@@ -390,7 +386,7 @@ class FirebaseRoomRepository implements RoomRepository {
     final snap = await _inboxRef(code, ringIndex).child(itemId).get();
     if (!snap.exists) throw ArgumentError('Item $itemId không tồn tại');
 
-    final data = _asMap(snap.value);
+    final data = asMap(snap.value);
     final currentItemId = data['itemId'] as String;
     final resultItemId = _processItem(currentItemId, station);
 
@@ -419,7 +415,7 @@ class FirebaseRoomRepository implements RoomRepository {
         await _db.ref('rooms/$code/players/$playerId').get();
     if (!playerSnap.exists) return;
     final ringIndex =
-        _asMap(playerSnap.value)['ringIndex'] as int? ?? 0;
+        asMap(playerSnap.value)['ringIndex'] as int? ?? 0;
 
     // Dùng transaction để increment progress atomically (race-safe)
     bool roundCompleted = false;
@@ -427,7 +423,7 @@ class FirebaseRoomRepository implements RoomRepository {
 
     await _progressRef(code).runTransaction((currentData) {
       final progress =
-          Map<String, dynamic>.from(_asMap(currentData));
+          Map<String, dynamic>.from(asMap(currentData));
       final current = (progress['$ringIndex'] as int?) ?? 0;
       progress['$ringIndex'] = current + 1;
 
@@ -457,19 +453,19 @@ class FirebaseRoomRepository implements RoomRepository {
     // Đọc round info để kiểm tra round completion
     final roundSnap = await _roundRef(code).get();
     if (!roundSnap.exists) return;
-    final roundData = _asMap(roundSnap.value);
+    final roundData = asMap(roundSnap.value);
     ordersPerPlayer = (roundData['ordersPerPlayer'] as int?) ??
         BartenderConfig.ordersPerPlayer;
 
     // Đọc progress sau transaction
     final progressSnap = await _progressRef(code).get();
-    final progressData = _asMap(progressSnap.value);
+    final progressData = asMap(progressSnap.value);
 
     // Lấy totalPlayers
     final roomSnap = await _roomRef(code).get();
     if (!roomSnap.exists) return;
-    final roomData = _asMap(roomSnap.value);
-    final playersData = _asMap(roomData['players']);
+    final roomData = asMap(roomSnap.value);
+    final playersData = asMap(roomData['players']);
     final totalPlayers =
         (roomData['totalPlayers'] as int?) ?? playersData.length;
 
@@ -514,7 +510,7 @@ class FirebaseRoomRepository implements RoomRepository {
 
     for (final entry in playersData.entries) {
       final pId = entry.key;
-      final pData = _asMap(entry.value);
+      final pData = asMap(entry.value);
       final ring = (pData['ringIndex'] as int?) ?? 0;
       final pOrders = <String, dynamic>{};
       for (var i = 0; i < ordersPerPlayer; i++) {
@@ -553,6 +549,7 @@ class FirebaseRoomRepository implements RoomRepository {
   /// Kết thúc trận — ghi results và set status = ended.
   /// Idempotent: không ghi lại nếu đã ended.
   /// Gọi từ BartenderController khi timer hết.
+  @override
   Future<void> endMatch(String code) async {
     // Dùng transaction để chỉ 1 client thực sự ghi ended
     bool shouldWrite = false;
@@ -568,9 +565,9 @@ class FirebaseRoomRepository implements RoomRepository {
 
     final roomSnap = await _roomRef(code).get();
     if (!roomSnap.exists) return;
-    final roomData = _asMap(roomSnap.value);
-    final playersData = _asMap(roomData['players']);
-    final timerData = _asMap(roomData['timer']);
+    final roomData = asMap(roomSnap.value);
+    final playersData = asMap(roomData['players']);
+    final timerData = asMap(roomData['timer']);
     final startedAt = (timerData['startedAt'] as int?) ?? 0;
     final now = DateTime.now().millisecondsSinceEpoch;
     final survivalSec = ((now - startedAt) / 1000).round().clamp(
@@ -579,7 +576,7 @@ class FirebaseRoomRepository implements RoomRepository {
         );
 
     final ranking = playersData.entries.map((e) {
-      final d = _asMap(e.value);
+      final d = asMap(e.value);
       return {
         'playerId': e.key,
         'completedOrders': (d['completedOrders'] as int?) ?? 0,
@@ -609,17 +606,17 @@ class FirebaseRoomRepository implements RoomRepository {
       orElse: () => RoomStatus.lobby,
     );
 
-    final playersData = _asMap(data['players']);
+    final playersData = asMap(data['players']);
     final players = _parsePlayersFromMap(playersData);
 
     // Inbox
-    final inboxData = _asMap(data['inbox']);
+    final inboxData = asMap(data['inbox']);
     final inbox = <int, List<GameItem>>{};
     for (final entry in inboxData.entries) {
       final ring = int.tryParse(entry.key.toString()) ?? 0;
-      final itemsMap = _asMap(entry.value);
+      final itemsMap = asMap(entry.value);
       inbox[ring] = itemsMap.entries.map((e) {
-        final d = _asMap(e.value);
+        final d = asMap(e.value);
         return GameItem(
           id: e.key.toString(),
           type: (d['type'] as String?) == 'product'
@@ -633,7 +630,7 @@ class FirebaseRoomRepository implements RoomRepository {
 
     // Timer
     MatchTimer? timer;
-    final timerData = _asMap(data['timer']);
+    final timerData = asMap(data['timer']);
     if (timerData.isNotEmpty) {
       timer = MatchTimer(
         endTime: (timerData['endTime'] as int?) ?? 0,
@@ -643,9 +640,9 @@ class FirebaseRoomRepository implements RoomRepository {
 
     // Round
     Round? currentRound;
-    final roundData = _asMap(data['round']);
+    final roundData = asMap(data['round']);
     if (roundData.isNotEmpty) {
-      final stationData = _asMap(roundData['stationAssignment']);
+      final stationData = asMap(roundData['stationAssignment']);
       final assignment = <int, StationType?>{};
       for (final e in stationData.entries) {
         final ring = int.tryParse(e.key.toString()) ?? 0;
@@ -655,13 +652,13 @@ class FirebaseRoomRepository implements RoomRepository {
             .firstWhere((s) => s?.name == stName, orElse: () => null);
       }
 
-      final ordersData = _asMap(data['orders']);
+      final ordersData = asMap(data['orders']);
       final playerOrders = <String, List<Order>>{};
       for (final pEntry in ordersData.entries) {
         final pId = pEntry.key.toString();
-        final pOrdersMap = _asMap(pEntry.value);
+        final pOrdersMap = asMap(pEntry.value);
         playerOrders[pId] = pOrdersMap.entries.map((e) {
-          final d = _asMap(e.value);
+          final d = asMap(e.value);
           return Order(
             id: e.key.toString(),
             recipeId: (d['recipeId'] as String?) ?? '',
@@ -683,12 +680,12 @@ class FirebaseRoomRepository implements RoomRepository {
 
     // Results
     MatchResult? results;
-    final resultsData = _asMap(data['results']);
+    final resultsData = asMap(data['results']);
     if (resultsData.isNotEmpty) {
       final rankingField = resultsData['ranking'];
-      final rankingIterable = rankingField is List ? rankingField : _asMap(rankingField).values;
+      final rankingIterable = rankingField is List ? rankingField : asMap(rankingField).values;
       final ranking = rankingIterable.map((r) {
-        final d = _asMap(r);
+        final d = asMap(r);
         final pId = (d['playerId'] as String?) ?? '';
         return players[pId] ??
             Player(
@@ -722,7 +719,7 @@ class FirebaseRoomRepository implements RoomRepository {
     final result = <String, Player>{};
     for (final entry in data.entries) {
       final id = entry.key.toString();
-      final d = _asMap(entry.value);
+      final d = asMap(entry.value);
       result[id] = Player(
         id: id,
         name: (d['name'] as String?) ?? id,
