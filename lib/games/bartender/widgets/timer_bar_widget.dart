@@ -41,21 +41,24 @@ class TimerBarWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
         ],
         border: Border.all(
-          color: isLowTime ? timerColor.withOpacity(0.6) : Colors.white12,
+          color: isLowTime ? timerColor.withValues(alpha: 0.6) : Colors.white12,
           width: isLowTime ? 2 : 1,
         ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 4,
             children: [
               // Badge Round
               Container(

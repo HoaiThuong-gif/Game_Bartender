@@ -29,25 +29,27 @@ class StationWidget extends StatelessWidget {
     }
 
     // Lọc ra các item có thể chế biến tại trạm này
-    final processableItems = items.where((item) => _canProcess(item, station!)).toList();
+    final processableItems = items
+        .where((item) => _canProcess(item, station!))
+        .toList();
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            const Color(0xFF2C2540),
-            const Color(0xFF1F1D30),
-          ],
+          colors: [const Color(0xFF2C2540), const Color(0xFF1F1D30)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.5), width: 1.5),
+        border: Border.all(
+          color: Colors.deepPurpleAccent.withValues(alpha: 0.5),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.deepPurple.withOpacity(0.2),
+            color: Colors.deepPurple.withValues(alpha: 0.2),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -61,42 +63,46 @@ class StationWidget extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.deepPurple.shade800,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Text(
-                      station!.iconEmoji,
-                      style: const TextStyle(fontSize: 22),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        station!.displayName.toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          letterSpacing: 0.5,
-                        ),
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.deepPurple.shade800,
+                        shape: BoxShape.circle,
                       ),
-                      Text(
-                        'Thao tác: ${station!.actionVerb}',
-                        style: const TextStyle(
-                          color: Colors.white54,
-                          fontSize: 11,
-                        ),
+                      child: Text(
+                        station!.iconEmoji,
+                        style: const TextStyle(fontSize: 22),
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            station!.displayName.toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          Text(
+                            'Thao tác: ${station!.actionVerb}',
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
               if (isBusy)
                 const SizedBox(
@@ -104,7 +110,9 @@ class StationWidget extends StatelessWidget {
                   height: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.amberAccent),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Colors.amberAccent,
+                    ),
                   ),
                 ),
             ],
@@ -131,7 +139,11 @@ class StationWidget extends StatelessWidget {
           else ...[
             Text(
               'Có ${processableItems.length} món có thể ${station!.actionVerb.toLowerCase()}:',
-              style: const TextStyle(color: Colors.amberAccent, fontSize: 11, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                color: Colors.amberAccent,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 6),
             Wrap(
@@ -151,7 +163,10 @@ class StationWidget extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
                   ),
                 );
               }).toList(),
@@ -169,14 +184,17 @@ class StationWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF2C241E),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.orange.withOpacity(0.4), width: 1.5),
+        border: Border.all(
+          color: Colors.orange.withValues(alpha: 0.4),
+          width: 1.5,
+        ),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.orange.shade900.withOpacity(0.5),
+              color: Colors.orange.shade900.withValues(alpha: 0.5),
               shape: BoxShape.circle,
             ),
             child: const Text('🚫', style: TextStyle(fontSize: 20)),

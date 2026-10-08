@@ -43,10 +43,13 @@ class OrderTrayWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: 8,
+            runSpacing: 4,
             children: [
               const Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.receipt_long, size: 16, color: Colors.amberAccent),
                   SizedBox(width: 6),
@@ -137,14 +140,14 @@ class _OrderCard extends StatelessWidget {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: order.isCompleted
-            ? Colors.green.shade900.withOpacity(0.3)
+            ? Colors.green.shade900.withValues(alpha: 0.3)
             : isReadyToSubmit
-                ? Colors.amber.shade900.withOpacity(0.35)
+                ? Colors.amber.shade900.withValues(alpha: 0.35)
                 : const Color(0xFF2C2C40),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: order.isCompleted
-              ? Colors.greenAccent.withOpacity(0.6)
+              ? Colors.greenAccent.withValues(alpha: 0.6)
               : isReadyToSubmit
                   ? Colors.amberAccent
                   : Colors.white12,
@@ -220,7 +223,7 @@ class _OrderCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 4),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: Colors.green.shade800.withOpacity(0.5),
+                color: Colors.green.shade800.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: const Text(
@@ -262,7 +265,7 @@ class _OrderCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 4),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: const Text(

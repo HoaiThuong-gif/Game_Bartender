@@ -23,7 +23,7 @@ abstract final class LobbyCats {
     CatSpawn(
       'arcadeArea',
       x: 710,
-      y: 1270,
+      y: 1195,
       size: 108,
       scale: 2.3,
       depth: CatDepth.behindGames,
@@ -82,21 +82,23 @@ abstract final class LobbyCats {
       x: 618,
       y: 1408,
       size: 150,
+      scale: 1.8,
       allowedPoses: seated,
       depth: CatDepth.afterBartender,
     ),
     CatSpawn(
       'foregroundRedStool',
-      x: 795,
-      y: 1482,
+      x: 815,
+      y: 1510,
       size: 156,
+      scale: 1.5,
       allowedPoses: seated,
-      // The larger cat sits behind the cube on the table.
+      // Keep the cat below the tabletop cube, with its feet on the stool seat.
       depth: CatDepth.afterBartender,
     ),
     CatSpawn(
       'rubikTable',
-      x: 660,
+      x: 650,
       y: 1315,
       size: 80,
       scale: 2.45,

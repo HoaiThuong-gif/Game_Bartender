@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../games/bartender/screens/bartender_screen.dart';
 import '../../games/rubik/screens/rubik_screen.dart';
 import 'lobby_layout.dart';
 import 'lobby_cats.dart';
@@ -73,7 +74,12 @@ class LobbyScreen extends StatelessWidget {
                   _game(
                     LobbyLayout.bartender,
                     'Quầy Bartender',
-                    onBartenderTap ?? () => _comingSoon(context, 'Bartender'),
+                    onBartenderTap ??
+                        () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const BartenderScreen(),
+                          ),
+                        ),
                   ),
                   const Positioned.fill(
                     child: LobbyCatLayer(depth: CatDepth.afterBartender),

@@ -1,0 +1,5 @@
++  functions: Loaded functions definitions from source: rubikCommand, rubikMaintenance. {"metadata":{"emulator":{"name":"functions"},"message":"Loaded functions definitions from source: rubikCommand, rubikMaintenance."}}
++  functions[us-central1-rubikCommand]: database function initialized. {"metadata":{"emulator":{"name":"functions"},"message":"database function initialized."}}
+i  functions[us-central1-rubikMaintenance]: function ignored because the pubsub emulator does not exist or is not running. {"metadata":{"emulator":{"name":"functions"},"message":"function ignored because the pubsub emulator does not exist or is not running."}}
+PASS: two authenticated clients, shared scramble/start, finish/reward, rematch, capacity and security rules.
++  Script exited successfully (code 0) 

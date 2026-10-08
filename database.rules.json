@@ -1,0 +1,36 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rubikRooms": {
+      "$code": { ".read": "auth != null && data.child('players').child(auth.uid).exists()" }
+    },
+    "rubikCommands": {
+      "$uid": {
+        "$id": {
+          ".write": "auth != null && auth.uid === $uid && !data.exists()",
+          ".validate": "newData.hasChildren(['action','code','round','at','name'])",
+          "at": { ".validate": "newData.val() === now" },
+          "code": { ".validate": "newData.isString() && newData.val().matches(/^[A-Z2-9]{6}$/)" },
+          "round": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+          "name": { ".validate": "newData.isString() && newData.val().length <= 24" },
+          "action": { ".validate": "newData.isString() && newData.val().matches(/^(create|join|ready|loaded|finish|tick|leave|rematch)$/)" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+    "rubikResponses": { "$uid": { ".read": "auth != null && auth.uid === $uid" } },
+    "rubikRewards": { "$uid": { ".read": "auth != null && auth.uid === $uid" } },
+    "rubikPresence": {
+      "$code": {
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid && root.child('rubikRooms').child($code).child('players').child($uid).exists()",
+          ".validate": "newData.hasChildren(['online','at'])",
+          "online": { ".validate": "newData.isBoolean()" },
+          "at": { ".validate": "newData.val() === now" },
+          "$other": { ".validate": false }
+        }
+      }
+    }
+  }
+}

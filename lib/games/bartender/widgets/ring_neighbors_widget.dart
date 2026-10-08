@@ -56,34 +56,45 @@ class RingNeighborsWidget extends StatelessWidget {
           const SizedBox(width: 8),
 
           // Bạn ở giữa
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.deepPurple.withOpacity(0.4),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.5)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  myPlayer?.name ?? 'Bạn',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.deepPurple.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: Colors.deepPurpleAccent.withValues(alpha: 0.5),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  myStation == null ? 'Không trạm' : '${myStation!.iconEmoji} ${myStation!.displayName}',
-                  style: TextStyle(
-                    color: myStation == null ? Colors.grey : Colors.amberAccent,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    myPlayer?.name ?? 'Bạn',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 2),
+                  Text(
+                    myStation == null
+                        ? 'Không trạm'
+                        : '${myStation!.iconEmoji} ${myStation!.displayName}',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: myStation == null
+                          ? Colors.grey
+                          : Colors.amberAccent,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -125,12 +136,13 @@ class _NeighborCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
-        crossAxisAlignment:
-            isLeft ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+        crossAxisAlignment: isLeft
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.end,
         children: [
           Row(
             mainAxisSize: MainAxisSize.min,
@@ -138,22 +150,30 @@ class _NeighborCard extends StatelessWidget {
                 ? [
                     Icon(directionIcon, size: 12, color: Colors.cyanAccent),
                     const SizedBox(width: 4),
-                    Text(
-                      directionLabel,
-                      style: const TextStyle(
-                        color: Colors.cyanAccent,
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
+                    Flexible(
+                      child: Text(
+                        directionLabel,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.cyanAccent,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ]
                 : [
-                    Text(
-                      directionLabel,
-                      style: const TextStyle(
-                        color: Colors.cyanAccent,
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
+                    Flexible(
+                      child: Text(
+                        directionLabel,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.cyanAccent,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 4),
@@ -172,7 +192,9 @@ class _NeighborCard extends StatelessWidget {
             ),
           ),
           Text(
-            station == null ? '🚫 Không trạm' : '${station!.iconEmoji} ${station!.displayName}',
+            station == null
+                ? '🚫 Không trạm'
+                : '${station!.iconEmoji} ${station!.displayName}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(

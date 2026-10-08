@@ -111,12 +111,11 @@ void main() {
         expect(spawn.allowedPoses, isNot(contains(CatPose.standing)));
       }
       for (final spawn in LobbyCats.spawns) {
-        if (spawn.depth == CatDepth.foreground) {
-          expect(
-            spawn.visualRect.overlaps(LobbyLayout.rubik.visualRect),
-            isFalse,
-          );
-        }
+        expect(
+          spawn.visualRect.overlaps(LobbyLayout.rubik.visualRect.inflate(12)),
+          isFalse,
+          reason: '${spawn.name} must leave space around the tabletop cube',
+        );
       }
       for (final type in CatType.values) {
         for (final pose in CatPose.values) {

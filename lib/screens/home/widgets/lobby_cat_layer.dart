@@ -4,6 +4,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../lobby_cats.dart';
+import '../non_la_fit.dart';
+import '../../../games/gacha/services/cat_equipment.dart';
 
 enum _CatStage { idle, leaving, empty, arriving }
 
@@ -44,6 +46,7 @@ class _LobbyCatHostState extends State<LobbyCatHost>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(CatEquipment.instance.load());
     final state = WidgetsBinding.instance.lifecycleState;
     _resumed = state == null || state == AppLifecycleState.resumed;
   }
@@ -207,48 +210,91 @@ class CatSprite extends StatelessWidget {
     super.key,
     required this.cat,
     this.anchor = const Offset(0.5, LobbyCats.groundAnchor),
+    this.wearHead,
   });
   final LobbyCat cat;
   final Offset anchor;
+
+  /// Explicit value for wardrobe previews; lobby follows persisted equipment.
+  final bool? wearHead;
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final size = constraints.maxWidth;
-      final source = cat.sourceRect;
-      final rotated = cat.quarterTurns.isOdd;
-      final width = rotated ? source.height : source.width;
-      final height = rotated ? source.width : source.height;
-      final scale = min(size * 0.82 / width, size * 0.8 / height);
-      return Stack(
-        children: [
-          Positioned(
-            left: size * anchor.dx - width * scale / 2,
-            top: size * anchor.dy - height * scale,
-            width: width * scale,
-            height: height * scale,
-            child: RotatedBox(
-              quarterTurns: cat.quarterTurns,
-              child: ClipRect(
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: CatEquipment.instance,
+    builder: (context, _) => LayoutBuilder(
+      builder: (context, constraints) {
+        final size = constraints.maxWidth;
+        final source = cat.sourceRect;
+        final rotated = cat.quarterTurns.isOdd;
+        final width = rotated ? source.height : source.width;
+        final height = rotated ? source.width : source.height;
+        final scale = min(size * 0.82 / width, size * 0.8 / height);
+        final hatSource = NonLaFit.artwork[cat.pose.index];
+        final hatTarget = NonLaFit.target(cat);
+        final hatScale = hatTarget.width / hatSource.width;
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              left: size * anchor.dx - width * scale / 2,
+              top: size * anchor.dy - height * scale,
+              width: width * scale,
+              height: height * scale,
+              child: RotatedBox(
+                quarterTurns: cat.quarterTurns,
                 child: Stack(
+                  clipBehavior: Clip.none,
                   children: [
-                    Positioned(
-                      left: -source.left * scale,
-                      top: -source.top * scale,
-                      width: LobbyCat.atlasSize * scale,
-                      height: LobbyCat.atlasSize * scale,
-                      child: Image.asset(
-                        cat.asset,
-                        fit: BoxFit.fill,
-                        excludeFromSemantics: true,
+                    Positioned.fill(
+                      child: ClipRect(
+                        child: Stack(
+                          children: [
+                            Positioned(
+                              left: -source.left * scale,
+                              top: -source.top * scale,
+                              width: LobbyCat.atlasSize * scale,
+                              height: LobbyCat.atlasSize * scale,
+                              child: Image.asset(
+                                cat.asset,
+                                fit: BoxFit.fill,
+                                excludeFromSemantics: true,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
+                    if (wearHead ??
+                        CatEquipment.instance.head == CatEquipment.nonLa)
+                      Positioned(
+                        left: (hatTarget.left - source.left) * scale,
+                        top: (hatTarget.top - source.top) * scale,
+                        width: hatTarget.width * scale,
+                        height: hatTarget.height * scale,
+                        child: ClipRect(
+                          child: Stack(
+                            children: [
+                              Positioned(
+                                left: -hatSource.left * hatScale * scale,
+                                top: -hatSource.top * hatScale * scale,
+                                width: LobbyCat.atlasSize * hatScale * scale,
+                                height: LobbyCat.atlasSize * hatScale * scale,
+                                child: Image.asset(
+                                  NonLaFit.asset(cat.pose),
+                                  fit: BoxFit.fill,
+                                  excludeFromSemantics: true,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
             ),
-          ),
-        ],
-      );
-    },
+          ],
+        );
+      },
+    ),
   );
 }

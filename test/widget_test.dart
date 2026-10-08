@@ -142,7 +142,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('unfinished games show a clear placeholder', (tester) async {
+  testWidgets('arcade shows a clear placeholder', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(_app());
@@ -150,9 +150,6 @@ void main() {
     await tester.tap(_object('Máy arcade'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Arcade đang được phát triển.'), findsOneWidget);
-    await tester.tap(_object('Quầy Bartender'));
-    await tester.pump(const Duration(milliseconds: 600));
-    expect(find.text('Bartender đang được phát triển.'), findsOneWidget);
   });
 
   testWidgets('press feedback keeps the object contact point fixed', (

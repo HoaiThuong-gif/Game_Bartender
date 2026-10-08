@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "553908178273",
+    "project_id": "nhom-bar",
+    "storage_bucket": "nhom-bar.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:553908178273:android:67b495b360b67ca73b0920",
+        "android_client_info": {
+          "package_name": "com.example.nhom_bar"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyApKW074su8xObyeOfyEjVZyuzLJJPDLmQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
