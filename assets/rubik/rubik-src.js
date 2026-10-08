@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import rubikGlbBase64 from './rubik.glb'; // inlined as base64 by esbuild
 
 const scene = new THREE.Scene();
 
@@ -46,114 +48,128 @@ document.body.style.background = '#111';
 
 document.body.appendChild(renderer.domElement);
 
-// Tạo Rubik
+// ---------------------------------------------------------------------------
+// Rubik model: loaded from a glTF Binary (GLB) asset made in Blender
+// (tools/blender/make_rubik.py -> assets/rubik/rubik.glb).
+// The GLB is inlined by esbuild (--loader:.glb=base64), so no network/file
+// fetch is needed inside the Flutter WebView.
+//
+// Node naming contract (see make_rubik.py):
+//   cubie_<ix><iy><iz>  (ix,iy,iz in 0..2 = game coordinate + 1)
+//     body_<ix><iy><iz>          black plastic
+//     sticker_<F>_<ix><iy><iz>   F in U R F D L B (outer faces only)
+// Lookups are prefix-based because GLTFLoader may append _1, _2... to names.
+// ---------------------------------------------------------------------------
 const rubik = new THREE.Group();
 scene.add(rubik);
 
-const geometry = new THREE.BoxGeometry(
-  0.92,
-  0.92,
-  0.92
-);
+// Lights (Lambert shading so the bevels of the Blender model are visible).
+// Tune these two numbers if colors look too dark / too washed out.
+const AMBIENT_INTENSITY = 1.9;
+const KEY_LIGHT_INTENSITY = 1.2;
+scene.add(new THREE.AmbientLight(0xffffff, AMBIENT_INTENSITY));
+const keyLight = new THREE.DirectionalLight(0xffffff, KEY_LIGHT_INTENSITY);
+keyLight.position.set(3, 5, 6);
+scene.add(keyLight);
 
-const black = new THREE.MeshBasicMaterial({
-  color: 0x111111
-});
+const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0x111111 });
+const stickerMaterials = {
+  U: new THREE.MeshLambertMaterial({ color: 0xffffff }),
+  R: new THREE.MeshLambertMaterial({ color: 0xe53935 }),
+  F: new THREE.MeshLambertMaterial({ color: 0x2eaa4f }),
+  D: new THREE.MeshLambertMaterial({ color: 0xffe600 }),
+  L: new THREE.MeshLambertMaterial({ color: 0xff8c00 }),
+  B: new THREE.MeshLambertMaterial({ color: 0x1565c0 }),
+  '?': new THREE.MeshLambertMaterial({ color: 0xcbd3df }),
+};
 
-const white = new THREE.MeshBasicMaterial({
-  color: 0xffffff
-});
+// "x,y,z" (game coords, -1..1) -> { U: Mesh, R: Mesh, ... }
+const stickersByPosition = new Map();
+// 54 sticker meshes in the facelet order U R F D L B (row-major); filled after load.
+let stickerTargets = null;
+let pendingState = null;
 
-const yellow = new THREE.MeshBasicMaterial({
-  color: 0xffe600
-});
-
-const red = new THREE.MeshBasicMaterial({
-  color: 0xe53935
-});
-
-const orange = new THREE.MeshBasicMaterial({
-  color: 0xff8c00
-});
-
-const blue = new THREE.MeshBasicMaterial({
-  color: 0x1565c0
-});
-
-const green = new THREE.MeshBasicMaterial({
-  color: 0x2eaa4f
-});
-
-const unknown = new THREE.MeshBasicMaterial({ color: 0xcbd3df });
-const stickerMaterials = { U: white, R: red, F: green, D: yellow, L: orange, B: blue, '?': unknown };
-const cubiesByPosition = new Map();
-
-function createCubie(x, y, z) {
-  const materials = [
-    x === 1 ? red : black,
-    x === -1 ? orange : black,
-    y === 1 ? white : black,
-    y === -1 ? yellow : black,
-    z === 1 ? green : black,
-    z === -1 ? blue : black
-  ];
-
-  const cubie = new THREE.Mesh(
-    geometry,
-    materials
-  );
-
-  cubie.position.set(x, y, z);
-
-  cubie.userData.x = x;
-  cubie.userData.y = y;
-  cubie.userData.z = z;
-
-  rubik.add(cubie);
-  cubiesByPosition.set(`${x},${y},${z}`, cubie);
-}
-
-for (let x = -1; x <= 1; x++) {
-  for (let y = -1; y <= 1; y++) {
-    for (let z = -1; z <= 1; z++) {
-      createCubie(x, y, z);
-    }
-  }
+function base64ToArrayBuffer(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
 }
 
 // Same external, row-major facelet net as cuber: U R F D L B.
-// Axes: +x=R, +y=U, +z=F. BoxGeometry materials: +x,-x,+y,-y,+z,-z.
-// In particular B columns and D rows run opposite to F/U in world space.
+// Axes: +x=R, +y=U, +z=F. B columns and D rows run opposite to F/U in world space.
 const faceletLayout = [
-  { face: 'U', material: 2, position: (r, c) => [c - 1, 1, r - 1] },
-  { face: 'R', material: 0, position: (r, c) => [1, 1 - r, 1 - c] },
-  { face: 'F', material: 4, position: (r, c) => [c - 1, 1 - r, 1] },
-  { face: 'D', material: 3, position: (r, c) => [c - 1, -1, 1 - r] },
-  { face: 'L', material: 1, position: (r, c) => [-1, 1 - r, c - 1] },
-  { face: 'B', material: 5, position: (r, c) => [1 - c, 1 - r, -1] },
+  { face: 'U', position: (r, c) => [c - 1, 1, r - 1] },
+  { face: 'R', position: (r, c) => [1, 1 - r, 1 - c] },
+  { face: 'F', position: (r, c) => [c - 1, 1 - r, 1] },
+  { face: 'D', position: (r, c) => [c - 1, -1, 1 - r] },
+  { face: 'L', position: (r, c) => [-1, 1 - r, c - 1] },
+  { face: 'B', position: (r, c) => [1 - c, 1 - r, -1] },
 ];
-const stickerTargets = faceletLayout.flatMap(({ material, position }) =>
-  Array.from({ length: 9 }, (_, i) => ({
-    cubie: cubiesByPosition.get(position(Math.floor(i / 3), i % 3).join(',')),
-    material,
-  }))
+
+function onModelLoaded(gltf) {
+  gltf.scene.traverse((node) => {
+    if (!node.isMesh) return;
+    if (/^body(?:_|$)/.test(node.name)) {
+      node.material = bodyMaterial;
+      return;
+    }
+    const match = /^sticker_([URFDLB])(?:_|$)/.exec(node.name);
+    const cubie = node.parent && /^cubie_(\d)(\d)(\d)$/.exec(node.parent.name);
+    if (!match || !cubie) return;
+    const key = [cubie[1], cubie[2], cubie[3]].map((n) => Number(n) - 1).join(',');
+    node.material = stickerMaterials[match[1]]; // solved colors by default
+    if (!stickersByPosition.has(key)) stickersByPosition.set(key, {});
+    stickersByPosition.get(key)[match[1]] = node;
+  });
+  rubik.add(gltf.scene);
+
+  stickerTargets = faceletLayout.flatMap(({ face, position }) =>
+    Array.from({ length: 9 }, (_, i) => {
+      const key = position(Math.floor(i / 3), i % 3).join(',');
+      return stickersByPosition.get(key)[face];
+    })
+  );
+
+  if (pendingState) applyCubeState(pendingState);
+  requestRender();
+}
+
+new GLTFLoader().parse(
+  base64ToArrayBuffer(rubikGlbBase64),
+  '',
+  onModelLoaded,
+  (error) => console.error('Failed to parse rubik.glb', error)
 );
 
-// 54 bytes per update. Reuse all meshes/materials and coalesce to one RAF.
-// '?' represents a sticker not yet entered. Reject malformed payload atomically.
-window.setCubeState = (definition) => {
-  if (typeof definition !== 'string' || !/^[URFDLB?]{54}$/.test(definition)) return false;
+function applyCubeState(definition) {
+  if (!stickerTargets) return;
   let changed = false;
   for (let i = 0; i < 54; i++) {
-    const target = stickerTargets[i];
     const material = stickerMaterials[definition[i]];
-    if (target.cubie.material[target.material] !== material) {
-      target.cubie.material[target.material] = material;
+    if (stickerTargets[i].material !== material) {
+      stickerTargets[i].material = material;
       changed = true;
     }
   }
   if (changed) requestRender();
+}
+
+// 54 chars per update. '?' represents a sticker not yet entered.
+// Reject malformed payload atomically. If the GLB is not parsed yet,
+// the latest valid state is kept and applied as soon as it is ready.
+window.setCubeState = (definition) => {
+  if (typeof definition !== 'string' || !/^[URFDLB?]{54}$/.test(definition)) return false;
+  pendingState = definition;
+  applyCubeState(definition);
   return true;
+};
+
+// Demo helper (used by assets/rubik/demo.html): show the polygon mesh.
+window.setRubikWireframe = (on) => {
+  bodyMaterial.wireframe = !!on;
+  for (const material of Object.values(stickerMaterials)) material.wireframe = !!on;
+  requestRender();
 };
 
 // Xoay góc nhìn

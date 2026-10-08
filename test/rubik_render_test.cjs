@@ -3,9 +3,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const three = require('three');
+const { GLTFLoader } = require('three/examples/jsm/loaders/GLTFLoader.js');
+const rubikGlbBase64 = fs.readFileSync('assets/rubik/rubik.glb').toString('base64');
 
 // Exercise the production gesture/scheduler code without requiring a GPU.
-function harness() {
+async function harness() {
   const events = () => ({
     handlers: {},
     addEventListener(name, handler) { this.handlers[name] = handler; },
@@ -25,13 +27,20 @@ function harness() {
       setSize() {}
       render() { renders++; }
     } },
-    window, document,
+    window, document, GLTFLoader, rubikGlbBase64, console,
+    atob: (text) => Buffer.from(text, 'base64').toString('binary'),
+    AbortController, Headers, Request, Response, fetch, ArrayBuffer, Uint8Array, // same realm as GLTFLoader
     requestAnimationFrame(callback) { frames.set(++nextId, callback); return nextId; },
     cancelAnimationFrame(id) { frames.delete(id); },
   });
   const source = fs.readFileSync('assets/rubik/rubik-src.js', 'utf8')
-    .replace("import * as THREE from 'three';", '');
+    .replace(/^import .*$/gm, '');
   vm.runInContext(source, context);
+  // The GLB is parsed asynchronously; wait until the 54 sticker meshes exist.
+  for (let i = 0; i < 400 && !vm.runInContext('stickerTargets', context); i++) {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  assert.ok(vm.runInContext('stickerTargets', context), 'rubik.glb failed to load');
   return {
     canvas, window, document, frames,
     get renders() { return renders; },
@@ -45,8 +54,8 @@ function harness() {
   };
 }
 
-test('stationary drag is idle; drag follows next display frame', () => {
-  const h = harness();
+test('stationary drag is idle; drag follows next display frame', async () => {
+  const h = await harness();
   h.frame();
   assert.equal(h.frames.size, 0);
   h.canvas.fire('pointerdown', { pointerType: 'mouse', pointerId: 1, clientX: 0, clientY: 0 });
@@ -61,8 +70,8 @@ test('stationary drag is idle; drag follows next display frame', () => {
   assert.equal(h.renders, 102);
 });
 
-test('pinch held still is idle; wheel converges; lifecycle cancels frames', () => {
-  const h = harness();
+test('pinch held still is idle; wheel converges; lifecycle cancels frames', async () => {
+  const h = await harness();
   const touch = (identifier, x) => ({ identifier, clientX: x, clientY: 10 });
   h.canvas.fire('touchstart', { changedTouches: [touch(1, 10), touch(2, 100)] });
   h.frame();
@@ -82,8 +91,8 @@ test('pinch held still is idle; wheel converges; lifecycle cancels frames', () =
   assert.equal(h.frames.size, 1);
 });
 
-test('resize fits the narrow dimension and preserves relative zoom', () => {
-  const h = harness();
+test('resize fits the narrow dimension and preserves relative zoom', async () => {
+  const h = await harness();
   h.frame();
   const portraitDistance = h.read('zoom');
   h.window.innerWidth = 720;
@@ -94,11 +103,11 @@ test('resize fits the narrow dimension and preserves relative zoom', () => {
   assert.equal(h.read('zoom / baseZoom'), 1);
 });
 
-test('54 unique targets agree with cuber corner/edge net, including B and D', () => {
-  const h = harness();
+test('54 unique targets agree with cuber corner/edge net, including B and D', async () => {
+  const h = await harness();
   const position = (facelet) => {
     const index = 'URFDLB'.indexOf(facelet[0]) * 9 + Number(facelet.slice(1)) - 1;
-    return h.read(`stickerTargets[${index}].cubie.position.toArray().join(',')`);
+    return h.read(`stickerTargets[${index}].parent.position.toArray().join(',')`);
   };
   const corners = [
     ['U9','R1','F3'], ['U7','F1','L3'], ['U1','L1','B3'], ['U3','B1','R3'],
@@ -116,15 +125,15 @@ test('54 unique targets agree with cuber corner/edge net, including B and D', ()
   assert.equal(position('F1'), '-1,1,1');
   assert.equal(position('D1'), '-1,-1,1');
   assert.equal(position('B1'), '1,1,-1');
-  assert.equal(h.read('new Set(stickerTargets.map(t => t.cubie.id + ":" + t.material)).size'), 54);
+  assert.equal(h.read('new Set(stickerTargets.map(t => t.id)).size'), 54);
 });
 
-test('partial cube, single sticker, reset: reuse scene and render only on changes', () => {
-  const h = harness();
+test('partial cube, single sticker, reset: reuse scene and render only on changes', async () => {
+  const h = await harness();
   const empty = [...'URFDLB'].map(f => '????' + f + '????').join('');
   h.window.setCubeState(empty);
   h.frame();
-  assert.equal(h.read('stickerTargets.filter(t => t.cubie.material[t.material] === unknown).length'), 48);
+  assert.equal(h.read("stickerTargets.filter(t => t.material === stickerMaterials['?']).length"), 48);
   const ids = h.read('rubik.children.map(c => c.id).join()');
   for (let index = 0; index < 54; index++) {
     const next = [...empty];
@@ -133,7 +142,7 @@ test('partial cube, single sticker, reset: reuse scene and render only on change
     h.window.setCubeState(next.join(''));
     assert.ok(h.frames.size <= 1);
     h.frame();
-    assert.equal(h.read(`stickerTargets[${index}].cubie.material[stickerTargets[${index}].material] === red`), true);
+    assert.equal(h.read(`stickerTargets[${index}].material === stickerMaterials.R`), true);
     assert.equal(h.frames.size, 0);
     assert.ok(h.renders <= before + 1);
     h.window.setCubeState(next.join(''));

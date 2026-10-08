@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "build:rubik": "esbuild assets/rubik/rubik-src.js --bundle --minify --format=iife --outfile=assets/rubik/rubik.js"
+    "build:rubik": "esbuild assets/rubik/rubik-src.js --bundle --minify --format=iife --loader:.glb=base64 --outfile=assets/rubik/rubik.js"
   },
   "dependencies": {
     "esbuild": "^0.28.2",
