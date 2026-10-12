@@ -1,5 +1,7 @@
 {
   "scripts": {
+    "build:rubik-toy": "esbuild assets/rubik/interactive-src.js --bundle --minify --format=iife --outfile=assets/rubik/interactive.js",
+    "build:gacha": "esbuild assets/gacha3d/cinematic-src.js --bundle --minify --format=iife --outfile=assets/gacha3d/cinematic.js",
     "build:rubik": "esbuild assets/rubik/rubik-src.js --bundle --minify --format=iife --outfile=assets/rubik/rubik.js"
   },
   "dependencies": {

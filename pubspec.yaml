@@ -1,4 +1,5 @@
 name: nhom_bar
+
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -38,17 +39,22 @@ dependencies:
   webview_flutter: ^4.14.1
   camera: ^0.12.1
   image: ^4.10.1
+  model_viewer_plus: 1.10.0
+  shared_preferences: ^2.5.5
+  audioplayers: ^6.8.1
+  firebase_core: ^4.15.0
+  firebase_database: ^12.6.0
+  firebase_auth: ^6.7.0
 
   # --- Firebase (Giai đoạn 4 Bartender) ---
   # Thêm vào ngày 2026-10-02. Xem DEVELOPMENT.md bước 4 và API.md.
   # firebase_core: khởi động Firebase app.
   # firebase_database: Realtime Database (không phải Firestore — xem DECISIONS.md D3).
   # firebase_auth: xác thực ẩn danh — xem API.md, "mỗi client tự tạo uid ẩn danh".
-  firebase_core: ^3.13.1
-  firebase_database: ^11.3.5
-  firebase_auth: ^5.5.2
 
 dev_dependencies:
+  integration_test:
+    sdk: flutter
   flutter_test:
     sdk: flutter
 
@@ -58,6 +64,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  shared_preferences_platform_interface: ^2.4.2
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -71,8 +78,15 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/gacha3d/
     - assets/rubik/
     - assets/images/lobby/
+    - assets/images/character/lobby/
+    - assets/models/gacha/
+    - assets/audio/gacha/
+    - assets/images/gacha/icons/
+    - assets/images/gacha/ui/
+    - assets/images/gacha/cat_wearables/non_la/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
