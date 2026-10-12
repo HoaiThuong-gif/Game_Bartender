@@ -14,6 +14,7 @@ class TrashBinWidget extends StatefulWidget {
     super.key,
     required this.onDropped,
     this.isVisible = true,
+    this.size = 64.0,
   });
 
   /// Callback khi một vật phẩm được thả vào thùng rác.
@@ -21,6 +22,9 @@ class TrashBinWidget extends StatefulWidget {
 
   /// Ẩn/hiện widget (ẩn khi không có vật phẩm để bỏ).
   final bool isVisible;
+
+  /// Kích thước cạnh vuông (width & height). Mặc định là 64.
+  final double size;
 
   @override
   State<TrashBinWidget> createState() => _TrashBinWidgetState();
@@ -91,13 +95,13 @@ class _TrashBinWidgetState extends State<TrashBinWidget>
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeInOut,
-            width: 64,
-            height: 64,
+            width: widget.size,
+            height: widget.size,
             decoration: BoxDecoration(
               color: isAccepting || _isHovering
                   ? Colors.red.withValues(alpha: 0.3)
                   : const Color(0xFF1E1E2C),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(widget.size * 0.25),
               border: Border.all(
                 color: isAccepting || _isHovering
                     ? Colors.redAccent
@@ -120,16 +124,18 @@ class _TrashBinWidgetState extends State<TrashBinWidget>
                 AnimatedDefaultTextStyle(
                   duration: const Duration(milliseconds: 200),
                   style: TextStyle(
-                    fontSize: isAccepting ? 28 : 22,
+                    fontSize: isAccepting
+                        ? (widget.size * 0.44)
+                        : (widget.size * 0.35),
                   ),
                   child: const Text('🗑️'),
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: widget.size < 56 ? 1 : 2),
                 Text(
                   isAccepting ? 'THẢ VÀO' : 'RÁC',
                   style: TextStyle(
                     color: isAccepting ? Colors.redAccent : Colors.white24,
-                    fontSize: 8,
+                    fontSize: widget.size < 56 ? 7 : 8,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,
                   ),

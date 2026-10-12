@@ -8,6 +8,7 @@
 
 ## Đã xong / Done
 
+- **Sửa tràn bố cục màn hình trận Bartender trên 360×640 (2026-10-12):** nguyên nhân do Column phần dưới (chứa Expanded ListView và TrashBinWidget cố định 76px) bị thiếu chiều cao khi các widget phía trên chiếm ~530px; cách sửa: dùng LayoutBuilder cho phần giữa (đồng đội, trạm, đơn hàng) cuộn được trong SingleChildScrollView/Expanded khi màn hình thấp (<720) và thu gọn TrashBinWidget (size 48) cùng padding, giữ nguyên tính năng kéo thả và giao diện.
 - **Giai đoạn 5, Bước 1: Durability cho RTDB reads/writes** ✅ — Thêm `_asMap` helper (→ `rtdb_utils.dart`), `createRoom` dùng transaction tránh ghi đè, `joinRoom` chặn phòng full/đã bắt đầu + tìm ringIndex an toàn, `watchRoom` cleanup đầy đủ, `maxPlayers = 4`. _(2026-10-05)_
 - **Giai đoạn 4: Firebase project setup** ✅ — Project `mobile-app-project-52a1d`, RTDB `mobile-app-project-52a1d-default-rtdb`. `firebase_options.dart` + `google-services.json` tạo bởi FlutterFire CLI. Security Rules deploy OK (read/write trên `rooms/`). `BartenderScreen` wire `DefaultFirebaseOptions`. `.gitignore` cập nhật (không commit API key). `flutter analyze` sạch, 59 tests pass. _(2026-10-02)_
 - **Giai đoạn 3: Single-device playable loop** ✅ — FakeRoomRepository (in-memory, bot simulation, round loop), BartenderController (ChangeNotifier), 6 widgets (TimerBar, RingNeighbors, OrderTray, Station, ItemCard, TrashBin), 3 screens (Lobby, Match, Results) nối qua BartenderScreen. 59 unit tests (42 model + 17 controller) pass. `flutter analyze` sạch. _(2026-10-02)_
