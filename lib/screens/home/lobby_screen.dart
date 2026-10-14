@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../games/bartender/screens/bartender_screen.dart';
 import '../../games/rubik/screens/rubik_screen.dart';
+import '../../games/song_cu/screens/song_cu_screen.dart';
 import 'lobby_layout.dart';
 import 'lobby_cats.dart';
 import 'widgets/animated_flag.dart';
@@ -67,8 +68,17 @@ class LobbyScreen extends StatelessWidget {
                     child: LobbyCatLayer(depth: CatDepth.behindGames),
                   ),
                   _game(
+                    LobbyLayout.tv,
+                    'Tivi thùng bí ẩn',
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const SongCuScreen(),
+                      ),
+                    ),
+                  ),
+                  _game(
                     LobbyLayout.arcade,
-                    'Máy arcade',
+                    'Chơi Giải Mã Cổ Vật',
                     onArcadeTap ?? () => _comingSoon(context, 'Arcade'),
                   ),
                   _game(

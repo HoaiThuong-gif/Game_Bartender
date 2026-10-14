@@ -87,14 +87,14 @@ cho tính năng khác, merge rules của chúng trước khi deploy, không mở
 ## Thưởng và giới hạn prototype
 
 Backend phát receipt bất biến theo creationId + round; client chỉ đọc receipt đó.
-`RubikRewardService` chuyển receipt vào ví Gacha hiện tại qua API dùng chung.
-Ví v2 lưu balance + danh sách receipt trong **một JSON value**, serialize cả spend/credit,
+`RubikRewardService` chuyển receipt vào ví cá dùng chung qua API dùng chung.
+Ví v2 lưu balance + danh sách receipt trong **một JSON value**, serialize các lần nhận thưởng,
 migrate số dư v1; mở lại kết quả hoặc khởi động lại không nhận trùng.
 Thưởng chưa nhận được tự thử lại khi kết quả mở, và đồng bộ lại khi vào challenge online.
 
-Ví Gacha vẫn là local SharedPreferences: người chỉnh dữ liệu máy vẫn sửa được số dư,
+Ví cá dùng chung vẫn là local SharedPreferences: người chỉnh dữ liệu máy vẫn sửa được số dư,
 xóa dữ liệu/cài lại có thể nhận lại receipt cùng tài khoản. Đây chưa phải ví chống gian lận
-production. TODO chuyển **toàn bộ balance/spending** sang backend dùng ledger transaction.
+production. TODO chuyển **toàn bộ balance** sang backend dùng ledger transaction.
 UI solved check cũng không chứng minh người dùng đã giải cho server; client sửa đổi có thể
 gửi finish sau GO. Prototype không gửi move/state; không quảng bá như hệ anti-cheat hoàn chỉnh.
 Race với timeout khi Function xử lý command bị trì hoãn quá lâu cần authority queue/ordered
@@ -124,8 +124,8 @@ chờ ready mới và sinh đề mới. Command round cũ bị từ chối.
 - `screens/rubik_screen.dart`: thay placeholder bằng lobby.
 - `widgets/rubik_interactive_preview.dart`, `assets/rubik/interactive-src.js`,
   `interactive-cube.mjs`, `interactive.js`: reuse engine, scramble/lock/solved bridge.
-- `lib/games/gacha/services/gacha_wallet.dart`: API receipt và lưu atomically.
-  Không thay Gacha UI, solver, scan hoặc tutorial.
+- `lib/shared/services/fish_wallet.dart`: API receipt và lưu atomically.
+  Không thay solver, scan hoặc tutorial.
 - `pubspec.yaml`, `pubspec.lock`: Firebase Auth.
 - `functions/`: backend, dependency lock, unit tests, emulator check.
 - `database.rules.json`, `firebase.json`, `firebase.emulator.json`: rules và cấu hình.

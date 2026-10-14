@@ -49,7 +49,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(const NhomBarApp());
     await _load(tester);
-    expect(find.byType(LobbyObject), findsNWidgets(3));
+    expect(find.byType(LobbyObject), findsNWidgets(4));
     expect(find.byType(AnimatedFlag), findsOneWidget);
     for (final title in ['BARTENDER', 'RUBIK', 'GAME 3', 'GAME 4']) {
       expect(find.text(title), findsNothing);

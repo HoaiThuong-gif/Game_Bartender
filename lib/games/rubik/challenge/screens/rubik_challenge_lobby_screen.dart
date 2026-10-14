@@ -49,7 +49,14 @@ class _LobbyState extends State<RubikChallengeLobbyScreen> {
         ),
       );
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) {
+        final message = e.toString();
+        setState(
+          () => _error = message.contains('RUBIK_DATABASE_URL')
+              ? 'Thách đấu online chưa được cấu hình trên bản ứng dụng này.'
+              : 'Không thể vào phòng. Kiểm tra mã phòng và kết nối mạng rồi thử lại.',
+        );
+      }
     } finally {
       await repository?.dispose();
       if (mounted) setState(() => _busy = false);
@@ -66,7 +73,19 @@ class _LobbyState extends State<RubikChallengeLobbyScreen> {
   @override
   Widget build(BuildContext context) => RubikTheme(
     child: Scaffold(
-      appBar: AppBar(title: const Text('THÁCH ĐẤU RUBIK 1V1')),
+      appBar: AppBar(
+        title: const Text('THÁCH ĐẤU RUBIK 1V1'),
+        actions: [
+          IconButton(
+            tooltip: 'Cách sử dụng',
+            icon: const Icon(Icons.help_outline),
+            onPressed: () => showRubikHelp(
+              context,
+              'Nhập tên rồi Tạo phòng; gửi mã sáu ký tự cho người thứ hai. Người tham gia nhập mã rồi Tham gia phòng.\n\nOnline cần máy chủ đã cấu hình và kết nối mạng. Chế độ Thử một máy trong bản phát triển dùng đối thủ mô phỏng, không kiểm chứng kết nối hai thiết bị và không cộng thưởng thật.',
+            ),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(24),

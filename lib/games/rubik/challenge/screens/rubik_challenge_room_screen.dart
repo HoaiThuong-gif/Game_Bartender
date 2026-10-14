@@ -79,6 +79,14 @@ class _RoomState extends State<RubikChallengeRoomScreen>
           ),
           actions: [
             IconButton(
+              tooltip: 'Cách sử dụng',
+              icon: const Icon(Icons.help_outline),
+              onPressed: () => showRubikHelp(
+                context,
+                'Sao chép mã phòng để mời người chơi thứ hai. Cả hai bấm Sẵn sàng để nhận cùng đề trộn.\n\nKéo vùng trống để xoay góc nhìn, kéo ô để xoay tầng. Hoàn thành chỉ bật khi khối đã giải xong. Giới hạn năm phút; rời trận được tính bỏ cuộc.\n\nĐồng hồ trận vẫn chạy khi mở hướng dẫn. Chơi lại cần cả hai đồng ý.',
+              ),
+            ),
+            IconButton(
               tooltip: 'Sao chép mã phòng',
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: widget.code));
@@ -141,7 +149,7 @@ class _RoomState extends State<RubikChallengeRoomScreen>
                             const SizedBox(height: 16),
                             Text(
                               room.status == ChallengeStatus.waiting
-                                  ? 'Gửi mã ${room.code} cho bạn của bạn'
+                                  ? 'Chờ người chơi thứ hai'
                                   : 'Cả hai sẵn sàng để bắt đầu',
                             ),
                           ],
@@ -262,14 +270,6 @@ class _RoomState extends State<RubikChallengeRoomScreen>
                             ),
                     ),
                   ),
-                  if (c.playing && c.me?.finished != true)
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        'Giải xong cube để bật Hoàn thành • Tối đa 5 phút',
-                        style: TextStyle(fontSize: 12),
-                      ),
-                    ),
                 ],
               );
             },
@@ -344,7 +344,7 @@ class _RoomState extends State<RubikChallengeRoomScreen>
         ),
         if (!widget.repository.demo)
           Text(
-            c.rewardSynced ? 'Đã nhận vào ví Gacha' : 'Đang chờ nhận thưởng',
+            c.rewardSynced ? 'Đã nhận vào ví cá' : 'Đang chờ nhận thưởng',
             textAlign: TextAlign.center,
           ),
         if (!c.rewardSynced && !widget.repository.demo)

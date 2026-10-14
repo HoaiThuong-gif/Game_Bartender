@@ -250,7 +250,19 @@ class _RubikScanScreenState extends State<RubikScanScreen>
   @override
   Widget build(BuildContext context) => RubikTheme(
     child: Scaffold(
-      appBar: AppBar(title: const Text('Quét Rubik')),
+      appBar: AppBar(
+        title: const Text('Quét Rubik'),
+        actions: [
+          IconButton(
+            tooltip: 'Cách sử dụng',
+            icon: const Icon(Icons.help_outline),
+            onPressed: () => showRubikHelp(
+              context,
+              'Giữ điện thoại dọc. Căn mặt Rubik thẳng, khớp chín ô trong khung; tránh bóng và lóa. Theo đúng màu tâm và mặt ở phía trên.\n\nSau khi chụp, chạm ô để sửa màu trước khi xác nhận; kiểm tra các ô có dấu ?. Chụp lại nếu ảnh chưa rõ. Sau sáu mặt, chạm một mặt để sửa hoặc chụp lại, rồi Kiểm tra & Giải. Nhận diện màu cần được bạn xác nhận.',
+            ),
+          ),
+        ],
+      ),
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
         child: _summary
@@ -310,7 +322,6 @@ class _RubikScanScreenState extends State<RubikScanScreen>
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text('Chạm một mặt để sửa màu hoặc chụp lại.'),
                       for (final face in CubeState.definitionOrder)
                         ListTile(
                           leading: CircleAvatar(
@@ -378,10 +389,6 @@ class _RubikScanScreenState extends State<RubikScanScreen>
                           ),
                         ),
                         const SizedBox(height: 12),
-                        const Text(
-                          'Giữ điện thoại dọc. Căn mặt Rubik thẳng, khớp 9 ô trong khung; tránh bóng và lóa.',
-                          textAlign: TextAlign.center,
-                        ),
                       ] else ...[
                         if (_thumbnail != null) ...[
                           const Text('Vùng ảnh đã lấy mẫu'),
@@ -394,7 +401,6 @@ class _RubikScanScreenState extends State<RubikScanScreen>
                           ),
                           const SizedBox(height: 12),
                         ],
-                        const Text('Chạm ô để sửa màu trước khi xác nhận.'),
                         const SizedBox(height: 8),
                         SizedBox(
                           width: 240,

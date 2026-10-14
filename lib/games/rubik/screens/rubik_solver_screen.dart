@@ -9,7 +9,20 @@ class RubikSolverScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => RubikTheme(
     child: Scaffold(
-      appBar: AppBar(title: const Text('GIẢI RUBIK'), centerTitle: true),
+      appBar: AppBar(
+        title: const Text('GIẢI RUBIK'),
+        actions: [
+          IconButton(
+            tooltip: 'Cách sử dụng',
+            icon: const Icon(Icons.help_outline),
+            onPressed: () => showRubikHelp(
+              context,
+              'Chọn nhập thủ công hoặc quét camera để nhập sáu mặt của Rubik thật. Thuật toán giải trạng thái đã nhập.\n\nTrong hình xem trước: kéo để xoay góc nhìn, chụm hai ngón để thu phóng. Nhập từng mặt theo màu tâm và hướng phía trên hiển thị trên màn hình.',
+            ),
+          ),
+        ],
+        centerTitle: true,
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -32,7 +45,6 @@ class RubikSolverScreen extends StatelessWidget {
                   const SizedBox(height: 28),
                   RubikModeTile(
                     title: 'QUÉT RUBIK BẰNG CAMERA',
-                    subtitle: 'Dùng camera để nhận diện màu',
                     icon: Icons.camera_alt_outlined,
                     onTap: () => Navigator.push(
                       context,
@@ -44,7 +56,6 @@ class RubikSolverScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   RubikModeTile(
                     title: 'NHẬP MÀU THỦ CÔNG',
-                    subtitle: 'Tự nhập màu của 6 mặt Rubik',
                     icon: Icons.grid_view_rounded,
                     primary: true,
                     onTap: () => Navigator.push(

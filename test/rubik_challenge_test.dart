@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
-import 'package:nhom_bar/games/gacha/services/gacha_wallet.dart';
+import 'package:nhom_bar/shared/services/fish_wallet.dart';
 import 'package:nhom_bar/games/rubik/challenge/models/rubik_room.dart';
 import 'package:nhom_bar/games/rubik/challenge/services/mock_rubik_challenge_service.dart';
 import 'package:nhom_bar/games/rubik/challenge/services/rubik_reward_service.dart';
@@ -75,24 +75,23 @@ void main() {
   test(
     'receipt credits atomically persist and cannot repeat after restart',
     () async {
-      final wallet = GachaWallet(initialBalance: 100);
+      final wallet = FishWallet(initialBalance: 100);
       final results = await Future.wait([
         wallet.creditChallengeReceipt('match:1', 50),
         wallet.creditChallengeReceipt('match:1', 50),
       ]);
       expect(results, [true, false]);
       expect(wallet.balance, 150);
-      expect(await wallet.spend(), true);
-      final restored = GachaWallet();
+      final restored = FishWallet();
       await restored.load();
-      expect(restored.balance, 50);
+      expect(restored.balance, 150);
       expect(await restored.creditChallengeReceipt('match:1', 50), false);
-      expect(restored.balance, 50);
+      expect(restored.balance, 150);
     },
   );
   test('demo never credits the real wallet', () async {
     final repository = MockRubikChallengeRepository();
-    final wallet = GachaWallet(initialBalance: 0, persist: false);
+    final wallet = FishWallet(initialBalance: 0, persist: false);
     await RubikRewardService(repository, wallet: wallet).sync();
     expect(wallet.balance, 0);
     await repository.dispose();

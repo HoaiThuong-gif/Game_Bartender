@@ -30,16 +30,6 @@ class RubikPreviewPanel extends StatelessWidget {
         children: [
           builder?.call(context, state) ??
               Rubik3DView(cubeState: state, active: active),
-          const Positioned(
-            left: 12,
-            bottom: 8,
-            child: IgnorePointer(
-              child: Text(
-                'Kéo để xoay • Chụm để thu/phóng',
-                style: TextStyle(color: Colors.white70, fontSize: 11),
-              ),
-            ),
-          ),
         ],
       ),
     ),

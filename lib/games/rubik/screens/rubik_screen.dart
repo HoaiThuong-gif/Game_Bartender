@@ -25,7 +25,24 @@ class _RubikScreenState extends State<RubikScreen> {
   @override
   Widget build(BuildContext context) => RubikTheme(
     child: Scaffold(
-      appBar: AppBar(title: const Text('RUBIK'), centerTitle: true),
+      appBar: AppBar(
+        title: const Text('RUBIK'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: 'Cách sử dụng',
+            icon: const Icon(Icons.help_outline),
+            onPressed: () async {
+              setState(() => _active = false);
+              await showRubikHelp(
+                context,
+                'Kéo vùng trống để xoay cả khối. Kéo trên một ô để xoay tầng. Hoàn tác lùi một lượt; Đặt lại đưa khối về ban đầu.\n\nGiải Rubik mở nhập màu hoặc camera cho Rubik thật, độc lập với khối luyện tập ở đây. Thách đấu mở phòng thi giải. Quay lại từ các chức năng giữ nguyên khối luyện tập.',
+              );
+              if (mounted) setState(() => _active = true);
+            },
+          ),
+        ],
+      ),
       backgroundColor: const Color(0xFFDCEFFC),
       body: SafeArea(child: RubikInteractivePreview(active: _active)),
       bottomNavigationBar: SafeArea(

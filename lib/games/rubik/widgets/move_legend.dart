@@ -26,6 +26,10 @@ class MoveLegend extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           const Text(
+            'Kéo hình 3D để xoay góc nhìn; chụm hai ngón để thu phóng. Bước tiếp áp dụng lượt xoay đang hiển thị; Bước trước hoàn tác một lượt. Đóng hướng dẫn giữ nguyên tiến độ.',
+          ),
+          const SizedBox(height: 16),
+          const Text(
             'CÁC MẶT',
             style: TextStyle(
               fontWeight: FontWeight.w800,

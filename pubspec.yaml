@@ -39,9 +39,7 @@ dependencies:
   webview_flutter: ^4.14.1
   camera: ^0.12.1
   image: ^4.10.1
-  model_viewer_plus: 1.10.0
   shared_preferences: ^2.5.5
-  audioplayers: ^6.8.1
   firebase_core: ^4.15.0
   firebase_database: ^12.6.0
   firebase_auth: ^6.7.0
@@ -72,15 +70,11 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/gacha3d/
+    - assets/song_cu/
+    - assets/artifact/
     - assets/rubik/
     - assets/images/lobby/
     - assets/images/character/lobby/
-    - assets/models/gacha/
-    - assets/audio/gacha/
-    - assets/images/gacha/icons/
-    - assets/images/gacha/ui/
-    - assets/images/gacha/cat_wearables/non_la/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

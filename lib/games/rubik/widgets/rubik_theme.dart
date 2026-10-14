@@ -53,13 +53,13 @@ class RubikModeTile extends StatelessWidget {
   const RubikModeTile({
     super.key,
     required this.title,
-    required this.subtitle,
+    this.subtitle,
     required this.icon,
     this.onTap,
     this.primary = false,
   });
   final String title;
-  final String subtitle;
+  final String? subtitle;
   final IconData icon;
   final VoidCallback? onTap;
   final bool primary;
@@ -98,14 +98,18 @@ class RubikModeTile extends StatelessWidget {
                       color: primary ? Colors.white : const Color(0xFF17233D),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: primary ? Colors.white70 : const Color(0xFF64748B),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle!,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: primary
+                            ? Colors.white70
+                            : const Color(0xFF64748B),
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -120,3 +124,43 @@ class RubikModeTile extends StatelessWidget {
     ),
   );
 }
+
+/// Help is a separate route; the game and its controllers stay mounted.
+Future<void> showRubikHelp(BuildContext context, String text) =>
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Cách sử dụng',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Đóng hướng dẫn',
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(text, style: const TextStyle(fontSize: 15, height: 1.5)),
+            ],
+          ),
+        ),
+      ),
+    );

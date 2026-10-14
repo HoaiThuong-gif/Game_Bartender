@@ -71,6 +71,14 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
             backgroundColor: const Color(0xFFF3F5FA),
             actions: [
               IconButton(
+                tooltip: 'Cách sử dụng',
+                icon: const Icon(Icons.help_outline),
+                onPressed: () => showRubikHelp(
+                  context,
+                  'Chọn màu rồi chạm ô để tô; biểu tượng tẩy chọn chế độ xóa. Màu tâm cố định. Mỗi màu có đúng chín ô.\n\nNhìn thẳng vào mặt đang nhập; màu tâm ở phía trên phải trùng quy ước hiển thị. Đổi mặt bằng Mặt trước / Mặt tiếp theo. Sau sáu mặt, Kiểm tra & Giải dùng đúng dữ liệu bạn đã nhập.\n\nKéo hình 3D để xoay; chụm hai ngón để thu phóng. Đặt lại xóa dữ liệu nhập.',
+                ),
+              ),
+              IconButton(
                 tooltip: 'Reset trạng thái',
                 onPressed: busy
                     ? null
@@ -139,7 +147,7 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
                           child: Column(
                             children: [
                               Text(
-                                '${_face.centerColor.label} · ${_face.code}',
+                                '${_face.centerColor.label} · ${_face.code} · Trên: ${_face.topFace.centerColor.label}',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w600,
                                   color: Color(0xFF475569),
@@ -230,15 +238,6 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
                                 ),
                               ),
                               const SizedBox(height: 10),
-                              Text(
-                                _selected == null
-                                    ? 'Chạm ô để xóa'
-                                    : 'Chọn màu, chạm ô để tô',
-                                style: const TextStyle(
-                                  color: Color(0xFF64748B),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
                               Row(
                                 children: [
                                   Expanded(

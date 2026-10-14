@@ -58,7 +58,16 @@ class _SolutionScreenState extends State<SolutionScreen> {
       final move = _controller.currentMove;
       return RubikTheme(
         child: Scaffold(
-          appBar: AppBar(title: const Text('HƯỚNG DẪN GIẢI')),
+          appBar: AppBar(
+            title: const Text('HƯỚNG DẪN GIẢI'),
+            actions: [
+              IconButton(
+                tooltip: 'Cách sử dụng và ký hiệu',
+                onPressed: _showLegend,
+                icon: const Icon(Icons.help_outline),
+              ),
+            ],
+          ),
           bottomNavigationBar: SafeArea(
             minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
             child: Row(
@@ -200,11 +209,6 @@ class _SolutionScreenState extends State<SolutionScreen> {
                             ),
                           if (_controller.error != null)
                             Text(_controller.error!),
-                          TextButton.icon(
-                            onPressed: _showLegend,
-                            icon: const Icon(Icons.help_outline),
-                            label: const Text('Xem chú thích'),
-                          ),
                         ],
                       ),
                     ),

@@ -47,24 +47,24 @@ class _RubikInteractivePreviewState extends State<RubikInteractivePreview>
   }
 
   @override
-  Widget build(BuildContext context) =>
-      widget.active && (_resumed || widget.challengeMoves != null)
-      ? _InteractiveWebView(
-          challengeMoves: widget.challengeMoves,
-          interactionEnabled: widget.interactionEnabled,
-          onPrepared: widget.onPrepared,
-          onSolved: widget.onSolved,
-        )
-      : const SizedBox.expand();
+  Widget build(BuildContext context) => _InteractiveWebView(
+    active: widget.active && _resumed,
+    challengeMoves: widget.challengeMoves,
+    interactionEnabled: widget.interactionEnabled,
+    onPrepared: widget.onPrepared,
+    onSolved: widget.onSolved,
+  );
 }
 
 class _InteractiveWebView extends StatefulWidget {
   const _InteractiveWebView({
     this.challengeMoves,
+    required this.active,
     required this.interactionEnabled,
     this.onPrepared,
     this.onSolved,
   });
+  final bool active;
   final List<String>? challengeMoves;
   final bool interactionEnabled;
   final VoidCallback? onPrepared;
@@ -91,7 +91,10 @@ class _InteractiveWebViewState extends State<_InteractiveWebView> {
         onMessageReceived: (event) {
           if (!mounted) return;
           final status = jsonDecode(event.message) as Map<String, dynamic>;
-          if (status['type'] == 'ready') _timeout?.cancel();
+          if (status['type'] == 'ready') {
+            _timeout?.cancel();
+            unawaited(_setActive());
+          }
           if (status['type'] == 'ready' && widget.challengeMoves != null) {
             unawaited(_prepareChallenge());
           }
@@ -124,6 +127,16 @@ class _InteractiveWebViewState extends State<_InteractiveWebView> {
     });
   }
 
+  Future<void> _setActive() async {
+    try {
+      await _controller.runJavaScript(
+        'window.setRubikToyActive(${widget.active});',
+      );
+    } catch (_) {
+      // A platform view may be closing while a route is popped.
+    }
+  }
+
   Future<void> _prepareChallenge() async {
     try {
       await _controller.runJavaScript(
@@ -140,6 +153,7 @@ class _InteractiveWebViewState extends State<_InteractiveWebView> {
   @override
   void didUpdateWidget(covariant _InteractiveWebView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (_ready && oldWidget.active != widget.active) unawaited(_setActive());
     if (_ready &&
         widget.challengeMoves != null &&
         oldWidget.interactionEnabled != widget.interactionEnabled) {

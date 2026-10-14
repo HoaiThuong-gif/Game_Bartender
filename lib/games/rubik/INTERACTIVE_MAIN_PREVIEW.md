@@ -83,7 +83,7 @@
 
 ## Phạm vi và artifact
 
-Không sửa renderer Rubik cũ, solver, scan, nhập màu, solution, challenge hoặc Gacha.
+Không sửa renderer Rubik cũ, solver, scan, nhập màu, solution, challenge.
 Thêm component, các asset toy, test JS/native, build script và tài liệu này.
 
 - `artifacts/rubik-toy-analyze.txt`, `rubik-toy-flutter-tests.txt`, `rubik-toy-js-tests.txt`.

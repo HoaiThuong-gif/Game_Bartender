@@ -6,6 +6,16 @@ abstract final class LobbyLayout {
   static const designSize = Size(941, 1672);
   static const backgroundAsset = 'assets/images/lobby/background.png';
 
+  // Inside the doorway: feet rest on the low cabinet left of the tea table.
+  static const tv = LobbyPlacement(
+    asset: 'assets/images/lobby/tv.png',
+    imageSize: Size(1254, 1254),
+    contentRect: Rect.fromLTWH(134, 40, 992, 1174),
+    x: 340,
+    y: 746,
+    width: 88,
+  );
+
   // Foreground stall: front feet sit on the courtyard paving.
   static const bartender = LobbyPlacement(
     asset: 'assets/images/lobby/bartender.png',
