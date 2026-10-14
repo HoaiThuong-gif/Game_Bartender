@@ -35,9 +35,9 @@ lib/games/bartender/
 
 This follows the naming style already used by `lib/games/rubik/` (`models/`, `services/`, `controllers/`, `widgets/`, `screens/`) rather than the earlier `domain/data/presentation` naming, so the two features read consistently to anyone browsing the repo.
 
-**`models/`** contains the game rules described in `PROJECT_SPEC.md`: ring position math (`(index ± 1) mod playerCount`), round completion checks, station reassignment, recipe/difficulty selection, and timer bonus rules — plain Dart, unit-testable without a device or emulator, same as Rubik's `CubeState`/`CubeValidationService`.
+**`models/`** contains the game rules described in `PROJECT_SPEC.md`: ring position math (`(index ± 1) mod playerCount`), round completion checks, station reassignment together with winnable order generation (D15), recipe/difficulty selection, and timer bonus rules — plain Dart, unit-testable without a device or emulator, same as Rubik's `CubeState`/`CubeValidationService`.
 
-**`services/`** exposes one interface, `RoomRepository`, with methods such as `createRoom()`, `joinRoom(code)`, `submitOrder(...)`, `sendItem(...)`, `watchRoom(code)` (a stream of room state). Two implementations exist, same reasoning as Rubik keeping scanning and solving behind interfaces (`CubeScanner`, `CubeSolver`):
+**`services/`** exposes one interface, `RoomRepository`, with methods such as `createRoom()`, `joinRoom(code)`, `submitOrder(...)`, `sendItem(...)`, `watchRoom(code)` (a stream of room state), plus `endMatch(code)` and a `localPlayerId` getter (the id of the player on this device: `p_0`-style in the fake, the anonymous Auth `uid` in Firebase). Two implementations exist, same reasoning as Rubik keeping scanning and solving behind interfaces (`CubeScanner`, `CubeSolver`):
 - `FakeRoomRepository` — in-memory, used for early development and testing without any backend.
 - `FirebaseRoomRepository` — talks to Firebase Realtime Database for real multi-device play.
 
@@ -55,10 +55,11 @@ sequenceDiagram
     P2->>P2: process item at assigned station
     P2->>RTDB: sendItem(toIndex: 1, finishedProduct)
     RTDB-->>P1: room/{code}/inbox/1 updated
-    P1->>RTDB: submitOrder(orderId)
-    RTDB-->>RTDB: timer.endTime += 5s, player1.completedOrders += 1
-    RTDB-->>RTDB: check: all players done with round's orders?
-    RTDB-->>RTDB: if yes → reshuffle stations, start next round
+    P1->>RTDB: submitOrder(orderId) — one multi-path update
+    Note over P1,RTDB: order status, round/progress +1, completedOrders +1, timer.endTime +5s (ServerValue.increment)
+    RTDB-->>P2: every client observes the new room state
+    P2->>RTDB: if all connected players are done: transaction on round (D17)
+    Note over P2,RTDB: only one client wins; it writes new orders, compacts the ring (D14), refills the inbox
 ```
 
 ### Firebase Realtime Database usage
@@ -66,6 +67,8 @@ sequenceDiagram
 - Chosen because it requires no backend server, has a free tier well above this project's expected load, and has first-class Flutter support (FlutterFire).
 - The shared timer is synced as an absolute `endTime` timestamp (not a per-second countdown stream), with each client computing remaining time locally and correcting for clock drift using Firebase's `.info/serverTimeOffset`.
 - Item passing uses a small per-player "inbox" node so each client only listens to its own inbox, not the whole room state.
+- There is no server-side logic: the "is the round finished?" check and the round/match transitions run on the clients and are made safe by transactions (D17).
+- Players are identified by a Firebase **Anonymous Auth** `uid` used as `playerId` (no login screen, no accounts). Anonymous sign-in must be enabled in the Firebase console.
 - Full schema is documented in `API.md`.
 
 ### Technologies
@@ -73,6 +76,7 @@ sequenceDiagram
 |---|---|---|
 | UI framework | Flutter | Fixed by the overall project |
 | Realtime sync | Firebase Realtime Database | No server to host/maintain, free tier is enough, good Flutter support, first feature to add it |
+| Player identity | `firebase_auth` (anonymous) | Gives each phone a unique `playerId` without any login UI |
 | Shake detection | `sensors_plus` | Standard, well-documented Flutter package, not yet in `pubspec.yaml` |
 | Haptics | `HapticFeedback` (Flutter built-in) or `vibration` package | Simple event-based feedback |
 
@@ -93,5 +97,5 @@ None of these require attribution, though crediting "Kenney.nl" where Kenney pac
 - **No authoritative server:** game logic runs on each client; Firebase Security Rules provide only basic write validation, not full anti-cheat. Accepted because this is a student demo, not a public game.
 - **RTDB over Firestore:** lower latency for frequent small updates (item passing), free tier billed by connections/bandwidth rather than per operation.
 - **Round model adds a second piece of state on top of the shared timer:** explicit request from the team lead so future updates (harder rounds, more mechanics) can extend round logic without touching match-ending timer logic.
-- **Duplicate/missing station assignment kept even at 2–4 players:** intentionally keeps the "sometimes you have no station and must rely on teammates" tension from the original design.
+- **Duplicate/missing station assignment kept even at 2–4 players:** intentionally keeps the "sometimes you have no station and must rely on teammates" tension from the original design. It is bounded by D15 (every round must be winnable) and D16 (no recipe needs more than 3 stations).
 - **Touching `lobby_screen.dart`:** this is the one place this feature's code reaches outside `lib/games/bartender/`. Keep that change to the single line wiring `onBartenderTap`, done as its own small, clearly-labeled commit/PR, so the leader can review it in isolation from the rest of the feature's code.

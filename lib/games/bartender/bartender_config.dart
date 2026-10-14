@@ -26,4 +26,7 @@ class BartenderConfig {
   /// Số đơn hàng mỗi người chơi cần hoàn thành trong một round.
   /// Xem PROJECT_SPEC.md: "mục tiêu: 3".
   static const int ordersPerPlayer = 3;
+
+  /// Số lượng người chơi tối đa trong một phòng.
+  static const int maxPlayers = 4;
 }

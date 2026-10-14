@@ -37,6 +37,12 @@ class FakeRoomRepository implements RoomRepository {
 
   bool _isDisposed = false;
 
+  /// ID của người chơi trên máy này (Fake dùng 'p_0', 'p_1', ...).
+  String _localPlayerId = 'p_0';
+
+  @override
+  String get localPlayerId => _localPlayerId;
+
   /// Helper: thời điểm hiện tại (ms since epoch).
   int _nowMs() => DateTime.now().millisecondsSinceEpoch;
 
@@ -66,6 +72,7 @@ class FakeRoomRepository implements RoomRepository {
 
     // Host luôn là ringIndex 0.
     final hostId = 'p_0';
+    _localPlayerId = hostId;
     players[hostId] = Player(
       id: hostId,
       name: hostPlayerName.trim().isEmpty ? 'Bạn' : hostPlayerName,
@@ -117,6 +124,7 @@ class FakeRoomRepository implements RoomRepository {
 
     final newIndex = current.totalPlayerCount;
     final newId = 'p_$newIndex';
+    _localPlayerId = newId;
     final newPlayers = Map<String, Player>.from(current.players);
     newPlayers[newId] = Player(
       id: newId,
@@ -344,7 +352,7 @@ class FakeRoomRepository implements RoomRepository {
   void _endMatch() {
     _stopTimers();
     final room = _currentRoom;
-    if (room == null) return;
+    if (room == null || room.status != RoomStatus.playing) return;
 
     final now = _nowMs();
     // MatchTimer.totalSurvivalSeconds(nowMs:) — cần tham số
@@ -362,6 +370,13 @@ class FakeRoomRepository implements RoomRepository {
     );
 
     _emit(endedRoom);
+  }
+
+  @override
+  Future<void> endMatch(String code) async {
+    if (_currentRoom?.code == code) {
+      _endMatch();
+    }
   }
 
   void _stopTimers() {
