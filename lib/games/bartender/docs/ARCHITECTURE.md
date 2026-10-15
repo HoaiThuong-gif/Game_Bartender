@@ -21,7 +21,8 @@ Inside `lib/games/bartender/`, the same three-layer split from the original plan
 ```
 lib/games/bartender/
 ├── models/        # Pure Dart — no Flutter, no Firebase imports
-│                   # Player, Room, Order, Recipe, Station, Round, ring math
+│                   # Player, Room, Order, Recipe, Station, Round, ring math,
+│                   # RoundSetup (D15), processing_rules (D19)
 ├── services/
 │   ├── room_repository.dart          # Abstract interface
 │   ├── firebase_room_repository.dart # Real implementation (RTDB)
@@ -35,7 +36,7 @@ lib/games/bartender/
 
 This follows the naming style already used by `lib/games/rubik/` (`models/`, `services/`, `controllers/`, `widgets/`, `screens/`) rather than the earlier `domain/data/presentation` naming, so the two features read consistently to anyone browsing the repo.
 
-**`models/`** contains the game rules described in `PROJECT_SPEC.md`: ring position math (`(index ± 1) mod playerCount`), round completion checks, station reassignment together with winnable order generation (D15), recipe/difficulty selection, and timer bonus rules — plain Dart, unit-testable without a device or emulator, same as Rubik's `CubeState`/`CubeValidationService`.
+**`models/`** contains the game rules described in `PROJECT_SPEC.md`: ring position math (`(index ± 1) mod playerCount`), round completion checks, station reassignment together with winnable order generation (D15), recipe/difficulty selection, timer bonus rules, and the single item-processing rule table `processItem` (D19) shared by both repositories and the station widget — plain Dart, unit-testable without a device or emulator, same as Rubik's `CubeState`/`CubeValidationService`.
 
 **`services/`** exposes one interface, `RoomRepository`, with methods such as `createRoom()`, `joinRoom(code)`, `submitOrder(...)`, `sendItem(...)`, `watchRoom(code)` (a stream of room state), plus `endMatch(code)` and a `localPlayerId` getter (the id of the player on this device: `p_0`-style in the fake, the anonymous Auth `uid` in Firebase). Two implementations exist, same reasoning as Rubik keeping scanning and solving behind interfaces (`CubeScanner`, `CubeSolver`):
 - `FakeRoomRepository` — in-memory, used for early development and testing without any backend.
@@ -63,19 +64,19 @@ sequenceDiagram
 ```
 
 ### Firebase Realtime Database usage
-- No other feature in this repo uses Firebase yet (`pubspec.yaml` currently has no `firebase_*` packages) — this feature will be the first to add it. Flag this to the team so adding the Firebase config files doesn't surprise anyone touching `android/`/`ios/`.
+- Bartender shares one Firebase project (`nhom-bar`) with Rubik's online challenge (D18). Bartender's data lives under `bartender/rooms/`; Rubik uses its own `rubik*` nodes. The Firebase config files (`firebase_options.dart`, `google-services.json`) are committed, and the database URL comes from `--dart-define=DATABASE_URL` (default in `BartenderConfig.databaseUrl`). Security rules for both games live in one shared `database.rules.json`.
 - Chosen because it requires no backend server, has a free tier well above this project's expected load, and has first-class Flutter support (FlutterFire).
 - The shared timer is synced as an absolute `endTime` timestamp (not a per-second countdown stream), with each client computing remaining time locally and correcting for clock drift using Firebase's `.info/serverTimeOffset`.
 - Item passing uses a small per-player "inbox" node so each client only listens to its own inbox, not the whole room state.
 - There is no server-side logic: the "is the round finished?" check and the round/match transitions run on the clients and are made safe by transactions (D17).
-- Players are identified by a Firebase **Anonymous Auth** `uid` used as `playerId` (no login screen, no accounts). Anonymous sign-in must be enabled in the Firebase console.
+- Players are identified by a Firebase **Anonymous Auth** `uid` used as `playerId` (no login screen, no accounts). Anonymous sign-in is enabled in the shared project (Rubik uses it too).
 - Full schema is documented in `API.md`.
 
 ### Technologies
 | Concern | Choice | Why |
 |---|---|---|
 | UI framework | Flutter | Fixed by the overall project |
-| Realtime sync | Firebase Realtime Database | No server to host/maintain, free tier is enough, good Flutter support, first feature to add it |
+| Realtime sync | Firebase Realtime Database | No server to host/maintain, free tier is enough, good Flutter support, shared with Rubik (D18) |
 | Player identity | `firebase_auth` (anonymous) | Gives each phone a unique `playerId` without any login UI |
 | Shake detection | `sensors_plus` | Standard, well-documented Flutter package, not yet in `pubspec.yaml` |
 | Haptics | `HapticFeedback` (Flutter built-in) or `vibration` package | Simple event-based feedback |
