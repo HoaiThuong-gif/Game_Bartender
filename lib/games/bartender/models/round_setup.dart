@@ -12,6 +12,7 @@ class RoundSetup {
   const RoundSetup({
     required this.stationAssignment,
     required this.feasibleRecipes,
+    this.anchor,
   });
 
   /// Trạm được phân cho mỗi ringIndex (key = ringIndex, value = StationType? hoặc null).
@@ -20,6 +21,9 @@ class RoundSetup {
   /// Các công thức có thể thực hiện được với phân trạm này.
   /// Đảm bảo luôn có ít nhất 1 công thức (D15).
   final List<Recipe> feasibleRecipes;
+
+  /// Công thức mỏ neo được chọn để đảm bảo round hoàn thành được (D15).
+  final Recipe? anchor;
 
   /// Công thức làm được với MỘT phân trạm có sẵn (D15). Hàm thuần, không random.
   static List<Recipe> feasibleFor({
@@ -112,6 +116,7 @@ class RoundSetup {
     return RoundSetup(
       stationAssignment: assignment,
       feasibleRecipes: feasible,
+      anchor: anchor,
     );
   }
 }
