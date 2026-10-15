@@ -4,10 +4,11 @@
 
 ## Đang làm / In progress
 
-- **Bước F + 3 + 3b + 4 + 5 + 6 + 7 + 8 + 9** — Đang triển khai theo thứ tự yêu cầu.
+- **Bản vá B + C:** Đơn khả thi theo trạm Firebase (D15) và inbox đi theo người khi dồn ring (D14).
 
 ## Đã xong / Done
 
+- **Bản vá A — Chống chuyển round hai lần (2026-10-15):** Trong transaction `_tryAdvanceRound`, kiểm tra `progress` của mọi người chơi đang connected đã nộp đủ đơn (`done >= needed`) trước khi tạo round mới.
 - **Bước 0 — Dọn TASK.md (2026-10-15):** Sửa mục "Đang làm" (Bước 2 đã xong, commit 73433ed). Xoá ghi chú lỗi thời về FirebaseRoomRepository và flag useFakeRepository.
 - **Sửa tràn bố cục màn hình trận Bartender trên 360x640 (2026-10-12):** nguyên nhân do Column phần dưới bị thiếu chiều cao; cách sửa: dùng LayoutBuilder cho phần giữa cuộn được khi màn hình thấp (<720).
 - **Giai đoạn 5, Bước 2: Interface & hằng số** ✅ — commit 73433ed _(2026-10-05)_
