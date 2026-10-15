@@ -402,6 +402,13 @@ class FirebaseRoomRepository implements RoomRepository {
     }
 
     // Xoá người không connected (nếu có) khỏi players
+    for (final key in playersData.keys) {
+      if (!compacted.containsKey(key)) {
+        updates['$_roomsRoot/$code/players/$key'] = null;
+      }
+    }
+
+    // Nguyên liệu ban đầu cho từng ring, gộp vào CÙNG lần update (D17).
     const ingredients = ['orange', 'lemon', 'strawberry', 'ice'];
     for (var ring = 0; ring < compacted.length; ring++) {
       final itemId = 'init_${ring}_${DateTime.now().microsecondsSinceEpoch}';
@@ -413,17 +420,6 @@ class FirebaseRoomRepository implements RoomRepository {
     }
 
     await _db.ref().update(updates);
-
-    // Sinh nguyên liệu ban đầu cho từng ring (gộp vào update trên không được vì inbox phải push)
-    for (var ring = 0; ring < compacted.length; ring++) {
-      final itemId = 'init_${ring}_${DateTime.now().microsecondsSinceEpoch}';
-      final ingredients = ['orange', 'lemon', 'strawberry', 'ice'];
-      await _inboxRef(code, ring).child(itemId).set({
-        'type': 'ingredient',
-        'itemId': ingredients[_rng.nextInt(ingredients.length)],
-        'fromRingIndex': ring,
-      });
-    }
 
     // Gán onDisconnect cho host (để bắt kết nối mất sau khi start)
     final uid = _myUid;
