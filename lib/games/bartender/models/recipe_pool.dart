@@ -22,14 +22,12 @@ import 'station.dart';
 /// Đường chế biến của từng công thức:
 /// 1. orange_juice:       orange --(juicer)--> orange_juice
 /// 2. lemonade:           lemon  --(juicer)--> lemon_juice → đây là sản phẩm "lemonade"
-/// 3. strawberry_smoothie: strawberry --(blender)--> strawberry_blend
-///                          milk      --(blender)--> strawberry_smoothie (khi kết hợp)
-///    Đơn giản hoá: strawberry --(blender)--> strawberry_smoothie (1 bước)
+/// 3. strawberry_smoothie: strawberry --(cuttingBoard)--> cut_strawberry --(blender)--> strawberry_smoothie
 /// 4. citrus_cocktail:    orange --(juicer)--> orange_juice --(shaker)--> citrus_cocktail
 ///                     OR lemon  --(juicer)--> lemon_juice  --(shaker)--> citrus_cocktail
 /// 5. strawberry_lemonade: lemon --(juicer)--> lemon_juice
-///                          strawberry + lemon_juice --(blender)--> strawberry_lemonade_blend
-///                          strawberry_lemonade_blend + ice/sugar --(shaker)--> strawberry_lemonade
+///                          lemon_juice --(blender)--> strawberry_lemonade_blend
+///                          strawberry_lemonade_blend --(shaker)--> strawberry_lemonade
 class RecipePool {
   RecipePool._();
 
@@ -59,21 +57,17 @@ class RecipePool {
       productId: 'lemon_juice',
     ),
 
-    // --- Difficulty 2: 2 nguyên liệu, 1 bước, cần 1 trạm ---
-    // Đơn giản hoá: strawberry trực tiếp → blender → strawberry_smoothie
-    // (milk là nguyên liệu nhưng không cần chế biến riêng)
+    // --- Difficulty 2: 2 nguyên liệu, 2 bước, cần 2 trạm ---
     Recipe(
       id: 'strawberry_smoothie',
       name: 'Sinh tố dâu',
       ingredients: [Ingredient.strawberry, Ingredient.milk],
       steps: [
-        RecipeStep(
-          station: StationType.blender,
-          description: 'Xay dâu + sữa thành sinh tố',
-        ),
+        RecipeStep(station: StationType.cuttingBoard, description: 'Cắt dâu'),
+        RecipeStep(station: StationType.blender, description: 'Xay dâu đã cắt thành sinh tố'),
       ],
       difficulty: 2,
-      // Đường chế biến: strawberry → (blender) → strawberry_smoothie
+      // Đường chế biến: strawberry → (cuttingBoard) → cut_strawberry → (blender) → strawberry_smoothie
       productId: 'strawberry_smoothie',
     ),
 

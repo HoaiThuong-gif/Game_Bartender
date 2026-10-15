@@ -329,7 +329,12 @@ void main() {
 
     test('totalSurvivalSeconds', () {
       final timer = MatchTimer.start(nowMs: 0);
-      expect(timer.totalSurvivalSeconds(nowMs: 65000), 65);
+      // Quá giờ: chỉ tính đến endTime (min(serverNow, endTime) − startedAt).
+      expect(timer.totalSurvivalSeconds(nowMs: 65000), 60);
+      // Đang chơi: tính đến hiện tại.
+      expect(timer.totalSurvivalSeconds(nowMs: 30000), 30);
+      // Có cộng giờ (+5s): sống tới 65 giây.
+      expect(timer.withBonus().totalSurvivalSeconds(nowMs: 65000), 65);
     });
   });
 
