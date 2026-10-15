@@ -4,7 +4,7 @@
 
 ## Đang làm / In progress
 
-- _(Đã hoàn thành các việc được giao: Việc 4a, Việc 4, Việc 5, Việc 6)_
+- Chờ tôi kiểm tra thủ công trên 2–4 thiết bị thật (xem mục 'Cần kiểm tra thủ công'). Chưa có việc code nào đang làm.
 
 ## Cần kiểm tra thủ công (2–4 thiết bị thật)
 
@@ -21,6 +21,7 @@
 
 ## Đã xong / Done
 
+- **Giai đoạn 5 — FirebaseRoomRepository (phần code) (2026-10-15):** dùng chung dự án Firebase `nhom-bar` với đường dẫn `bartender/rooms` (D18); phân trạm và công thức khả thi (D15/D16); bỏ phụ thuộc totalPlayers, dồn ringIndex (D13/D14); submitOrder bằng một multi-path update có transaction chống nộp trùng, tìm đúng món trong inbox; chuyển round không cần host bằng transaction có kiểm tra progress (D17); endMatch ghi results trước status; giờ server; một bảng luật chế biến (D19). analyze và test sạch (chưa chạy với Firebase thật).
 - **Việc 6 — Màn hình kết quả và xử lý biên (Giai đoạn 8/9) (2026-10-15):**
   - Hoàn thiện `BartenderResultsScreen`: hiển thị xếp hạng người chơi, số đơn mỗi người, tổng đơn đội, thời gian sống sót theo `MatchResult` (API.md).
   - Xử lý trạng thái `results == null` (spinner "Đang tải kết quả..." + nút về lobby).
@@ -66,7 +67,7 @@
 2. ~~Giai đoạn 2: Models~~ _(đã hoàn thành)_
 3. ~~Giai đoạn 3: Single-device playable loop với `FakeRoomRepository`~~ _(đã hoàn thành)_
 4. ~~Giai đoạn 4: Firebase project setup~~ _(đã hoàn thành)_
-5. **Giai đoạn 5: `FirebaseRoomRepository`** — Đang làm. Bước 1 ✅, Bước 2 ✅, Bước 3–8 chưa.
+5. ~~Giai đoạn 5: FirebaseRoomRepository~~ _(code đã hoàn thành: Bước F, 3–7, bản vá A/B/C, submitOrder, startMatch; CHƯA kiểm tra trên thiết bị thật nhiều máy)_
 6. ~~Giai đoạn 6: Cảm biến và rung~~ _(đã hoàn thành ShakeDetector, BartenderHaptics, fallback "Lắc giả lập" cho trạm shaker)_
 7. ~~Giai đoạn 7: Nối vào lobby~~ _(đã nối sau merge 2026-10-02; thay đổi callback tách biệt trong diff lobby)_
 8. ~~Giai đoạn 8: Hoàn thiện và màn hình kết quả~~ _(đã hoàn thành kết quả cuối trận, bảng xếp hạng, fallback kết thúc sớm, chống tràn 360x640 & 390x844)_
@@ -78,6 +79,11 @@ _(chưa có)_
 ## Rủi ro đã biết
 
 - **Race condition join/start**: Phòng có thể vừa bắt đầu (`status` chuyển từ `lobby` → `playing`) giữa lúc `joinRoom` kiểm tra status và lúc transaction trên `players` chạy xong. Hiện tại chấp nhận rủi ro này (xác suất rất thấp với 4 người). Giải pháp triệt để cần Security Rules hoặc Cloud Function validate trên server.
+- Client thắng transaction chuyển round có thể crash trước khi ghi xong players/orders/inbox → round mới có thể treo.
+- Đồ vuốt sang người đang mất kết nối bị kẹt cho tới hết round (người đó bị loại ở ranh giới round).
+- `processItemAtStation` đọc rồi ghi, không atomic.
+- `survivalSeconds` bị cắt ở 600 giây.
+- Bảo mật mức lớp học: mọi người đã đăng nhập đều ghi được vào mọi phòng (D18).
 
 ## Ghi chú kỹ thuật
 
@@ -90,9 +96,3 @@ _(chưa có)_
 - `RoundSetup.generate()` là hàm thuần (models/) dùng chung cho Fake và Firebase (D15).
 - `_roomsRoot = 'bartender/rooms'` — tất cả đường dẫn Firebase đều bắt đầu từ đây (D18).
 - `sensors_plus` thêm như dependency riêng; shake detection tách thành class thuần `ShakeDetector` để test được.
-
-## Đề xuất sửa docs
-
-- **API.md**: Root structure hiển thị `rooms/` nhưng theo D18 đường dẫn thực tế là `bartender/rooms/`.
-- **ARCHITECTURE.md**: Ghi chú "No other feature in this repo uses Firebase yet" đã lỗi thời.
-- **DECISIONS.md**: Cần thêm **D19** (bảng luật chế biến duy nhất `processItem` và danh sách công thức cuối cùng).
