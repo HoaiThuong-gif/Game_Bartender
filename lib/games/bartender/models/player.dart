@@ -30,14 +30,11 @@ class Player {
   final int completedOrders;
 
   /// Tạo bản sao với một số trường thay đổi.
-  Player copyWith({
-    bool? connected,
-    int? completedOrders,
-  }) {
+  Player copyWith({int? ringIndex, bool? connected, int? completedOrders}) {
     return Player(
       id: id,
       name: name,
-      ringIndex: ringIndex,
+      ringIndex: ringIndex ?? this.ringIndex,
       connected: connected ?? this.connected,
       completedOrders: completedOrders ?? this.completedOrders,
     );

@@ -136,10 +136,7 @@ class FakeRoomRepository implements RoomRepository {
 
     final updated = current.copyWith(
       players: newPlayers,
-      inbox: {
-        ...current.inbox,
-        newIndex: <GameItem>[],
-      },
+      inbox: {...current.inbox, newIndex: <GameItem>[]},
     );
 
     _emit(updated);
@@ -179,10 +176,9 @@ class FakeRoomRepository implements RoomRepository {
     if (!current.canStart) return;
 
     // D13: ring size = số người connected khi start (không dùng totalPlayers cố định)
-    final connectedPlayers = current.players.values
-        .where((p) => p.connected)
-        .toList()
-      ..sort((a, b) => a.ringIndex.compareTo(b.ringIndex));
+    final connectedPlayers =
+        current.players.values.where((p) => p.connected).toList()
+          ..sort((a, b) => a.ringIndex.compareTo(b.ringIndex));
 
     final playerIds = connectedPlayers.map((p) => p.id).toList();
 
@@ -208,11 +204,13 @@ class FakeRoomRepository implements RoomRepository {
       for (var i = 0; i < BartenderConfig.ordersPerPlayer; i++) {
         final recipe =
             setup.feasibleRecipes[_rng.nextInt(setup.feasibleRecipes.length)];
-        orders.add(Order(
-          id: 'ord_${orderCounter++}',
-          recipeId: recipe.id,
-          status: OrderStatus.pending,
-        ));
+        orders.add(
+          Order(
+            id: 'ord_${orderCounter++}',
+            recipeId: recipe.id,
+            status: OrderStatus.pending,
+          ),
+        );
       }
       playerOrders[playerId] = orders;
     }
@@ -232,13 +230,16 @@ class FakeRoomRepository implements RoomRepository {
     var itemCounter = 1;
     for (var i = 0; i < playerIds.length; i++) {
       final items = <GameItem>[];
-      final ingredient = Ingredient.values[_rng.nextInt(Ingredient.values.length)];
-      items.add(GameItem(
-        id: 'item_${itemCounter++}',
-        type: GameItemType.ingredient,
-        itemId: ingredient.name,
-        fromRingIndex: i,
-      ));
+      final ingredient =
+          Ingredient.values[_rng.nextInt(Ingredient.values.length)];
+      items.add(
+        GameItem(
+          id: 'item_${itemCounter++}',
+          type: GameItemType.ingredient,
+          itemId: ingredient.name,
+          fromRingIndex: i,
+        ),
+      );
       initialInbox[i] = items;
     }
 
@@ -326,7 +327,9 @@ class FakeRoomRepository implements RoomRepository {
 
     // Duyệt qua các bot (ringIndex > 0, hoặc bất kỳ ai không phải localPlayerId)
     for (final player in room.players.values) {
-      if (player.id == _localPlayerId) continue; // Không can thiệp vào người thật
+      if (player.id == _localPlayerId) {
+        continue; // Không can thiệp vào người thật
+      }
       if (!player.connected) continue;
 
       final ring = player.ringIndex;
@@ -340,22 +343,20 @@ class FakeRoomRepository implements RoomRepository {
       if (pendingOrders.isNotEmpty) {
         for (final order in pendingOrders) {
           // Lấy productId của recipe
-          final recipe = RecipePool.allRecipes
-              .cast<dynamic>()
-              .firstWhere(
-                (r) => r.id == order.recipeId,
-                orElse: () => null,
-              );
+          final recipe = RecipePool.allRecipes.cast<dynamic>().firstWhere(
+            (r) => r.id == order.recipeId,
+            orElse: () => null,
+          );
           if (recipe == null) continue;
           final targetProductId = recipe.productId as String;
 
           // Kiểm tra trong inbox có sản phẩm khớp không
           final productIndex = items.indexWhere(
-            (i) => i.type == GameItemType.product && i.itemId == targetProductId,
+            (i) =>
+                i.type == GameItemType.product && i.itemId == targetProductId,
           );
           if (productIndex != -1) {
             // Bot nộp đơn này (với độ trễ giả lập hợp lý — thực ra submit ngay)
-            final product = items[productIndex];
             items.removeAt(productIndex);
             newInbox[ring] = items;
 
@@ -363,18 +364,21 @@ class FakeRoomRepository implements RoomRepository {
             final updatedOrders = List<Order>.from(botOrders);
             final orderIdx = updatedOrders.indexWhere((o) => o.id == order.id);
             if (orderIdx != -1) {
-              updatedOrders[orderIdx] =
-                  updatedOrders[orderIdx].copyWith(status: OrderStatus.submitted);
+              updatedOrders[orderIdx] = updatedOrders[orderIdx].copyWith(
+                status: OrderStatus.submitted,
+              );
             }
 
-            final newPlayerOrders =
-                Map<String, List<Order>>.from(round.playerOrders);
+            final newPlayerOrders = Map<String, List<Order>>.from(
+              round.playerOrders,
+            );
             newPlayerOrders[player.id] = updatedOrders;
             final newRound = round.copyWith(playerOrders: newPlayerOrders);
 
             // Cộng completedOrders và timer bonus
-            newPlayers[player.id] =
-                player.copyWith(completedOrders: player.completedOrders + 1);
+            newPlayers[player.id] = player.copyWith(
+              completedOrders: player.completedOrders + 1,
+            );
             final updatedTimer = room.timer?.withBonus();
 
             var updatedRoom = room.copyWith(
@@ -418,12 +422,14 @@ class FakeRoomRepository implements RoomRepository {
             : Ring.rightNeighbor(ring, room.connectedPlayerCount);
 
         final targetItems = newInbox[targetRing] ?? [];
-        targetItems.add(GameItem(
-          id: itemToPass.id,
-          type: itemToPass.type,
-          itemId: itemToPass.itemId,
-          fromRingIndex: ring,
-        ));
+        targetItems.add(
+          GameItem(
+            id: itemToPass.id,
+            type: itemToPass.type,
+            itemId: itemToPass.itemId,
+            fromRingIndex: ring,
+          ),
+        );
         newInbox[targetRing] = targetItems;
         _emit(room.copyWith(inbox: newInbox));
         return;
@@ -450,10 +456,9 @@ class FakeRoomRepository implements RoomRepository {
     if (round == null) return room;
 
     // Chỉ giữ người còn connected
-    final connectedPlayers = room.players.values
-        .where((p) => p.connected)
-        .toList()
-      ..sort((a, b) => a.ringIndex.compareTo(b.ringIndex));
+    final connectedPlayers =
+        room.players.values.where((p) => p.connected).toList()
+          ..sort((a, b) => a.ringIndex.compareTo(b.ringIndex));
 
     if (connectedPlayers.length < 2) {
       // Ít hơn 2 người → kết thúc trận
@@ -484,11 +489,13 @@ class FakeRoomRepository implements RoomRepository {
       for (var i = 0; i < BartenderConfig.ordersPerPlayer; i++) {
         final r =
             setup.feasibleRecipes[_rng.nextInt(setup.feasibleRecipes.length)];
-        pOrders.add(Order(
-          id: 'ord_r${nextRoundNumber}_${count++}',
-          recipeId: r.id,
-          status: OrderStatus.pending,
-        ));
+        pOrders.add(
+          Order(
+            id: 'ord_r${nextRoundNumber}_${count++}',
+            recipeId: r.id,
+            status: OrderStatus.pending,
+          ),
+        );
       }
       nextPlayerOrders[pId] = pOrders;
     }
@@ -503,7 +510,8 @@ class FakeRoomRepository implements RoomRepository {
     // Sinh 1 nguyên liệu mới cho mỗi ring
     final newInbox = <int, List<GameItem>>{};
     for (var i = 0; i < playerIds.length; i++) {
-      final ingredient = Ingredient.values[_rng.nextInt(Ingredient.values.length)];
+      final ingredient =
+          Ingredient.values[_rng.nextInt(Ingredient.values.length)];
       newInbox[i] = [
         GameItem(
           id: 'spawn_r${nextRoundNumber}_$i',
@@ -532,7 +540,8 @@ class FakeRoomRepository implements RoomRepository {
 
   Room _buildEndedRoom(Room room) {
     final now = _nowMs();
-    final survivalSec = room.timer?.totalSurvivalSeconds(nowMs: now) ??
+    final survivalSec =
+        room.timer?.totalSurvivalSeconds(nowMs: now) ??
         BartenderConfig.initialTimerSeconds;
 
     final results = MatchResult.fromPlayers(
@@ -540,10 +549,7 @@ class FakeRoomRepository implements RoomRepository {
       survivalSeconds: survivalSec,
     );
 
-    return room.copyWith(
-      status: RoomStatus.ended,
-      results: results,
-    );
+    return room.copyWith(status: RoomStatus.ended, results: results);
   }
 
   @override
@@ -584,7 +590,9 @@ class FakeRoomRepository implements RoomRepository {
     required GameItem item,
   }) async {
     final room = _currentRoom;
-    if (room == null || room.code != code || room.status != RoomStatus.playing) {
+    if (room == null ||
+        room.code != code ||
+        room.status != RoomStatus.playing) {
       return;
     }
 
@@ -597,12 +605,14 @@ class FakeRoomRepository implements RoomRepository {
     newInbox[fromRingIndex] = sourceItems;
 
     final destItems = newInbox[toRingIndex] ?? [];
-    destItems.add(GameItem(
-      id: item.id,
-      type: item.type,
-      itemId: item.itemId,
-      fromRingIndex: fromRingIndex,
-    ));
+    destItems.add(
+      GameItem(
+        id: item.id,
+        type: item.type,
+        itemId: item.itemId,
+        fromRingIndex: fromRingIndex,
+      ),
+    );
     newInbox[toRingIndex] = destItems;
 
     _emit(room.copyWith(inbox: newInbox));
@@ -615,7 +625,9 @@ class FakeRoomRepository implements RoomRepository {
     required String itemId,
   }) async {
     final room = _currentRoom;
-    if (room == null || room.code != code || room.status != RoomStatus.playing) {
+    if (room == null ||
+        room.code != code ||
+        room.status != RoomStatus.playing) {
       return;
     }
 
@@ -655,7 +667,8 @@ class FakeRoomRepository implements RoomRepository {
     }
 
     final originalItem = items[itemIndex];
-    final processed = _deriveProcessedProduct(originalItem, station) ??
+    final processed =
+        _deriveProcessedProduct(originalItem, station) ??
         GameItem(
           id: originalItem.id,
           type: GameItemType.product,
@@ -725,7 +738,9 @@ class FakeRoomRepository implements RoomRepository {
     required String productId,
   }) async {
     final room = _currentRoom;
-    if (room == null || room.code != code || room.status != RoomStatus.playing) {
+    if (room == null ||
+        room.code != code ||
+        room.status != RoomStatus.playing) {
       return;
     }
 
@@ -743,9 +758,10 @@ class FakeRoomRepository implements RoomRepository {
 
     // Kiểm tra productId khớp với recipeId hoặc productId của recipe
     final order = orders[orderIndex];
-    final recipe = RecipePool.allRecipes
-        .cast<dynamic>()
-        .firstWhere((r) => r.id == order.recipeId, orElse: () => null);
+    final recipe = RecipePool.allRecipes.cast<dynamic>().firstWhere(
+      (r) => r.id == order.recipeId,
+      orElse: () => null,
+    );
     final expectedProductId = recipe?.productId as String? ?? order.recipeId;
 
     // Cho phép nộp nếu productId khớp (hoặc dùng recipeId như fallback)
@@ -760,7 +776,10 @@ class FakeRoomRepository implements RoomRepository {
     );
     final playerItems = newInbox[player.ringIndex] ?? [];
     playerItems.removeWhere(
-      (i) => i.id == productId || i.itemId == productId || i.itemId == expectedProductId,
+      (i) =>
+          i.id == productId ||
+          i.itemId == productId ||
+          i.itemId == expectedProductId,
     );
     newInbox[player.ringIndex] = playerItems;
 
@@ -794,8 +813,9 @@ class FakeRoomRepository implements RoomRepository {
     // Kiểm tra: tất cả người CONNECTED đã xong hết đơn của round chưa? (D14)
     if (_isRoundCompleteForConnected(updatedRoom)) {
       // Kiểm tra còn đủ người để tiếp tục không
-      final connectedCount =
-          updatedRoom.players.values.where((p) => p.connected).length;
+      final connectedCount = updatedRoom.players.values
+          .where((p) => p.connected)
+          .length;
       if (connectedCount < 2) {
         updatedRoom = _buildEndedRoom(updatedRoom);
       } else {

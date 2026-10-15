@@ -581,7 +581,7 @@ class FirebaseRoomRepository implements RoomRepository {
       return;
     }
 
-    if (tr == null || !tr.committed) return; // Thua race
+    if (!tr.committed) return; // Thua race
 
     // Chỉ client thắng tiếp tục ghi orders, players compact, inbox
     final roundData = asMap(tr.snapshot.value);
@@ -1006,8 +1006,9 @@ class FirebaseRoomRepository implements RoomRepository {
 
 /// Compact ringIndex: dồn các player về 0..k-1 giữ nguyên thứ tự.
 ///
-/// [playersData] là Map<playerId, playerData> (chỉ những người còn connected).
-/// Trả về Map<playerId, playerData> với ringIndex mới.
+/// [playersData] là `Map<playerId, playerData>` (chỉ những người còn connected).
+/// Trả về `Map<playerId, playerData>` với `ringIndex` mới.
+
 ///
 /// Dùng chung cho startMatch (lobby → playing) và round boundary (D14).
 Map<String, dynamic> compactRing(Map<String, dynamic> playersData) {
