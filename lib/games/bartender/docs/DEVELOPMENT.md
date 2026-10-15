@@ -10,7 +10,7 @@ Follow this order; each stage should be runnable and demoable before moving to t
 3. **Single-device playable loop with `FakeRoomRepository`.** Wire up `widgets/`/`screens/` against the fake, in-memory repository. The full round loop, station display, swiping, trash bin, and order submission should work on one phone with simulated other players. No Firebase needed yet.
 4. **Firebase project setup.** Done: Bartender uses the shared Firebase project `nhom-bar` (D18) and the config files are already committed. See "Firebase setup" below; do not create a new project or run `flutterfire configure`.
 5. **`FirebaseRoomRepository`.** Implement the real repository against the schema in `API.md`. Test room creation and joining with 2 physical devices first, then 3–4.
-6. **Sensors and haptics.** Add `sensors_plus` (not yet a dependency — add it to `pubspec.yaml`) for the shaker station, plus haptic feedback for key events. Test only on real devices (see note below).
+6. **Sensors and haptics.** Add `sensors_plus` (already a dependency in `pubspec.yaml`) for the shaker station, plus haptic feedback for key events. Test only on real devices (see note below).
 7. **Wire into the lobby.** This is the only step that touches a shared file. In `lib/screens/home/lobby_screen.dart`, change the `onBartenderTap` default from the "coming soon" snackbar to:
    ```dart
    onBartenderTap ?? () => Navigator.of(context).push(

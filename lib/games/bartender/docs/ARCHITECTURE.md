@@ -78,7 +78,7 @@ sequenceDiagram
 | UI framework | Flutter | Fixed by the overall project |
 | Realtime sync | Firebase Realtime Database | No server to host/maintain, free tier is enough, good Flutter support, shared with Rubik (D18) |
 | Player identity | `firebase_auth` (anonymous) | Gives each phone a unique `playerId` without any login UI |
-| Shake detection | `sensors_plus` | Standard, well-documented Flutter package, not yet in `pubspec.yaml` |
+| Shake detection | `sensors_plus` | Standard, well-documented Flutter package, a dependency in `pubspec.yaml` |
 | Haptics | `HapticFeedback` (Flutter built-in) or `vibration` package | Simple event-based feedback |
 
 ### Visual assets
