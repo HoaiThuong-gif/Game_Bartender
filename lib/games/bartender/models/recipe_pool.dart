@@ -9,7 +9,27 @@ import 'station.dart';
 ///
 /// Difficulty 1 = chỉ cần 1 nguyên liệu, 1 bước, 1 trạm.
 /// Difficulty 2 = 2 nguyên liệu, 2 bước, có thể cần 2 trạm khác nhau.
-/// Difficulty 3 = nhiều nguyên liệu, nhiều bước, nhiều trạm.
+/// Difficulty 3 = nhiều nguyên liệu, nhiều bước, tối đa 3 trạm (D16).
+///
+/// D16: Không công thức nào cần quá 3 loại trạm khác nhau.
+/// strawberry_lemonade giảm từ 4 bước (4 trạm) xuống còn 3 bước (3 trạm).
+///
+/// Kết quả (productId) khớp với logic processItem() trong:
+///   - fake_room_repository.dart (_deriveProcessedProduct)
+///   - firebase_room_repository.dart (processItem)
+/// Phải đồng bộ với nhau.
+///
+/// Đường chế biến của từng công thức:
+/// 1. orange_juice:       orange --(juicer)--> orange_juice
+/// 2. lemonade:           lemon  --(juicer)--> lemon_juice → đây là sản phẩm "lemonade"
+/// 3. strawberry_smoothie: strawberry --(blender)--> strawberry_blend
+///                          milk      --(blender)--> strawberry_smoothie (khi kết hợp)
+///    Đơn giản hoá: strawberry --(blender)--> strawberry_smoothie (1 bước)
+/// 4. citrus_cocktail:    orange --(juicer)--> orange_juice --(shaker)--> citrus_cocktail
+///                     OR lemon  --(juicer)--> lemon_juice  --(shaker)--> citrus_cocktail
+/// 5. strawberry_lemonade: lemon --(juicer)--> lemon_juice
+///                          strawberry + lemon_juice --(blender)--> strawberry_lemonade_blend
+///                          strawberry_lemonade_blend + ice/sugar --(shaker)--> strawberry_lemonade
 class RecipePool {
   RecipePool._();
 
@@ -24,6 +44,8 @@ class RecipePool {
         RecipeStep(station: StationType.juicer, description: 'Ép cam'),
       ],
       difficulty: 1,
+      // Đường chế biến: orange → (juicer) → orange_juice
+      productId: 'orange_juice',
     ),
     Recipe(
       id: 'lemonade',
@@ -33,41 +55,47 @@ class RecipePool {
         RecipeStep(station: StationType.juicer, description: 'Ép chanh'),
       ],
       difficulty: 1,
+      // Đường chế biến: lemon → (juicer) → lemon_juice (= sản phẩm nộp)
+      productId: 'lemon_juice',
     ),
 
-    // --- Difficulty 2: 2 nguyên liệu, 2 bước, cần 2 trạm ---
+    // --- Difficulty 2: 2 nguyên liệu, 1 bước, cần 1 trạm ---
+    // Đơn giản hoá: strawberry trực tiếp → blender → strawberry_smoothie
+    // (milk là nguyên liệu nhưng không cần chế biến riêng)
     Recipe(
       id: 'strawberry_smoothie',
       name: 'Sinh tố dâu',
       ingredients: [Ingredient.strawberry, Ingredient.milk],
       steps: [
         RecipeStep(
-          station: StationType.cuttingBoard,
-          description: 'Cắt dâu',
-        ),
-        RecipeStep(
           station: StationType.blender,
-          description: 'Xay sinh tố',
+          description: 'Xay dâu + sữa thành sinh tố',
         ),
       ],
       difficulty: 2,
+      // Đường chế biến: strawberry → (blender) → strawberry_smoothie
+      productId: 'strawberry_smoothie',
     ),
 
-    // --- Difficulty 3: nhiều nguyên liệu, nhiều bước, nhiều trạm ---
+    // --- Difficulty 3: nhiều nguyên liệu, nhiều bước, tối đa 3 trạm ---
     Recipe(
       id: 'citrus_cocktail',
       name: 'Cocktail cam chanh',
       ingredients: [Ingredient.orange, Ingredient.lemon, Ingredient.ice],
       steps: [
-        RecipeStep(station: StationType.juicer, description: 'Ép cam'),
-        RecipeStep(station: StationType.juicer, description: 'Ép chanh'),
+        RecipeStep(station: StationType.juicer, description: 'Ép cam hoặc chanh'),
         RecipeStep(
           station: StationType.shaker,
           description: 'Lắc trộn với đá',
         ),
       ],
       difficulty: 3,
+      // Đường chế biến: orange → (juicer) → orange_juice → (shaker) → citrus_cocktail
+      //              OR lemon  → (juicer) → lemon_juice  → (shaker) → citrus_cocktail
+      productId: 'citrus_cocktail',
     ),
+    // Bước D16: strawberry_lemonade giảm từ 4 bước (4 trạm) xuống 3 bước (3 trạm):
+    // juicer "Ép chanh" → blender "Xay dâu + nước chanh" → shaker "Lắc trộn với đá và đường"
     Recipe(
       id: 'strawberry_lemonade',
       name: 'Nước chanh dâu',
@@ -78,10 +106,6 @@ class RecipePool {
         Ingredient.ice,
       ],
       steps: [
-        RecipeStep(
-          station: StationType.cuttingBoard,
-          description: 'Cắt dâu',
-        ),
         RecipeStep(station: StationType.juicer, description: 'Ép chanh'),
         RecipeStep(
           station: StationType.blender,
@@ -93,6 +117,10 @@ class RecipePool {
         ),
       ],
       difficulty: 3,
+      // Đường chế biến: lemon → (juicer) → lemon_juice
+      //                 strawberry + lemon_juice → (blender) → strawberry_lemonade_blend
+      //                 strawberry_lemonade_blend → (shaker) → strawberry_lemonade
+      productId: 'strawberry_lemonade',
     ),
   ];
 

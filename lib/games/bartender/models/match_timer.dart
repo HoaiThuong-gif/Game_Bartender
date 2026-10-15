@@ -9,19 +9,27 @@
 /// tuyệt đối endTime, mỗi client tự tính thời gian còn lại."
 ///
 /// Xem API.md: timer/endTime, timer/startedAt.
+/// Xem DECISIONS.md D17: endTime dùng ServerValue.timestamp + serverTimeOffset.
 class MatchTimer {
   const MatchTimer({
     required this.endTime,
     required this.startedAt,
+    this.serverOffsetMs = 0,
   });
 
   /// Thời điểm trận kết thúc (mốc tuyệt đối, milliseconds since epoch).
-  /// Client tính thời gian còn lại = endTime - now.
+  /// Client tính thời gian còn lại = endTime - (now + offset).
   /// Firebase lưu dạng server timestamp.
   final int endTime;
 
   /// Thời điểm trận bắt đầu (milliseconds since epoch).
   final int startedAt;
+
+  /// Độ lệch giữa đồng hồ client và server (ms).
+  /// Lấy từ Firebase .info/serverTimeOffset (ARCHITECTURE.md, Bước 6).
+  /// Dương = server nhanh hơn client; âm = server chậm hơn client.
+  /// Mặc định 0 (dùng khi Fake hoặc chưa fetch được).
+  final int serverOffsetMs;
 
   /// Thời gian ban đầu (mặc định 60 giây) — xem PROJECT_SPEC.md.
   static const int initialDurationMs = 60 * 1000;
@@ -33,27 +41,28 @@ class MatchTimer {
   ///
   /// [nowMs]: thời điểm hiện tại (milliseconds since epoch).
   /// Inject được để test deterministic.
-  factory MatchTimer.start({required int nowMs}) {
+  factory MatchTimer.start({required int nowMs, int serverOffsetMs = 0}) {
+    final correctedNow = nowMs + serverOffsetMs;
     return MatchTimer(
-      startedAt: nowMs,
-      endTime: nowMs + initialDurationMs,
+      startedAt: correctedNow,
+      endTime: correctedNow + initialDurationMs,
+      serverOffsetMs: serverOffsetMs,
     );
   }
 
   /// Tính thời gian còn lại (milliseconds). Trả về 0 nếu đã hết giờ.
   ///
-  /// [nowMs]: thời điểm hiện tại.
-  /// [serverOffsetMs]: độ lệch giữa đồng hồ client và server
-  ///   (Firebase .info/serverTimeOffset). Mặc định = 0.
-  int remainingMs({required int nowMs, int serverOffsetMs = 0}) {
+  /// [nowMs]: thời điểm hiện tại (client clock).
+  /// serverOffsetMs đã được lưu trong instance.
+  int remainingMs({required int nowMs}) {
     final correctedNow = nowMs + serverOffsetMs;
     final remaining = endTime - correctedNow;
     return remaining > 0 ? remaining : 0;
   }
 
   /// Trận đã hết giờ chưa.
-  bool isExpired({required int nowMs, int serverOffsetMs = 0}) {
-    return remainingMs(nowMs: nowMs, serverOffsetMs: serverOffsetMs) == 0;
+  bool isExpired({required int nowMs}) {
+    return remainingMs(nowMs: nowMs) == 0;
   }
 
   /// Tạo bản sao với endTime được cộng thêm bonus (+5 giây).
@@ -62,15 +71,20 @@ class MatchTimer {
     return MatchTimer(
       startedAt: startedAt,
       endTime: endTime + bonusMs,
+      serverOffsetMs: serverOffsetMs,
     );
   }
 
   /// Tổng thời gian sống sót (giây) — dùng cho màn hình kết quả.
+  /// survivalSeconds = min(serverNow, endTime) − startedAt (ARCHITECTURE.md, Bước 6)
   int totalSurvivalSeconds({required int nowMs}) {
-    final elapsed = nowMs - startedAt;
-    return (elapsed / 1000).round();
+    final serverNow = nowMs + serverOffsetMs;
+    final effectiveEnd = serverNow < endTime ? serverNow : endTime;
+    final elapsed = effectiveEnd - startedAt;
+    return (elapsed / 1000).round().clamp(0, 999);
   }
 
   @override
-  String toString() => 'MatchTimer(end=$endTime, started=$startedAt)';
+  String toString() =>
+      'MatchTimer(end=$endTime, started=$startedAt, offset=$serverOffsetMs)';
 }

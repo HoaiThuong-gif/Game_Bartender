@@ -11,6 +11,21 @@ class BartenderConfig {
   /// false = dùng FirebaseRoomRepository thật (bắt đầu từ giai đoạn 5).
   static const bool useFakeRepository = true;
 
+  /// URL của Firebase Realtime Database dùng chung với dự án nhom-bar (D18).
+  ///
+  /// Lấy từ --dart-define=DATABASE_URL khi chạy:
+  ///   flutter run --dart-define=DATABASE_URL=https://nhom-bar-default-rtdb.asia-southeast1.firebasedatabase.app
+  /// Fallback: dùng RUBIK_DATABASE_URL nếu có, cuối cùng dùng giá trị cứng.
+  /// Không có dấu '/' cuối URL.
+  static const String databaseUrl = String.fromEnvironment(
+    'DATABASE_URL',
+    defaultValue: String.fromEnvironment(
+      'RUBIK_DATABASE_URL',
+      defaultValue:
+          'https://nhom-bar-default-rtdb.asia-southeast1.firebasedatabase.app',
+    ),
+  );
+
   /// Số giây khởi đầu của đồng hồ chung. Mặc định 60 giây.
   /// Xem PROJECT_SPEC.md: "đồng hồ đếm ngược chung, bắt đầu ở 60 giây".
   static const int initialTimerSeconds = 60;
