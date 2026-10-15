@@ -63,8 +63,7 @@ class Recipe {
   ///
   /// Dùng để kiểm tra khi người chơi kéo sản phẩm vào vùng nộp đơn:
   /// sản phẩm phải có itemId == recipeId của đơn hoặc == productId của recipe đó.
-  /// Xem firebase_room_repository.dart (processItem) và fake_room_repository.dart
-  /// (_deriveProcessedProduct) — phải đồng bộ với nhau.
+  /// dùng processItem() trong models/processing_rules.dart (D19).
   final String productId;
 
   /// Số loại trạm khác nhau cần để làm công thức này.

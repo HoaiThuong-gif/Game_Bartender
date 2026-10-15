@@ -14,10 +14,7 @@ import 'station.dart';
 /// D16: Không công thức nào cần quá 3 loại trạm khác nhau.
 /// strawberry_lemonade giảm từ 4 bước (4 trạm) xuống còn 3 bước (3 trạm).
 ///
-/// Kết quả (productId) khớp với logic processItem() trong:
-///   - fake_room_repository.dart (_deriveProcessedProduct)
-///   - firebase_room_repository.dart (processItem)
-/// Phải đồng bộ với nhau.
+/// dùng processItem() trong models/processing_rules.dart (D19).
 ///
 /// Đường chế biến của từng công thức:
 /// 1. orange_juice:       orange --(juicer)--> orange_juice
