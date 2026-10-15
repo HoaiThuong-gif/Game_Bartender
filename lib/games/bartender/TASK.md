@@ -4,13 +4,15 @@
 
 ## Đang làm / In progress
 
-- **Giai đoạn 5, Bước 2: Interface & hằng số** — Thêm `endMatch` + `localPlayerId` vào `RoomRepository`. Cập nhật Fake/Firebase/Controller/Test. Tách `_asMap` → `rtdb_utils.dart`. Giới hạn createRoom 20 lần thử.
+- **Bước F + 3 + 3b + 4 + 5 + 6 + 7 + 8 + 9** — Đang triển khai theo thứ tự yêu cầu.
 
 ## Đã xong / Done
 
-- **Sửa tràn bố cục màn hình trận Bartender trên 360×640 (2026-10-12):** nguyên nhân do Column phần dưới (chứa Expanded ListView và TrashBinWidget cố định 76px) bị thiếu chiều cao khi các widget phía trên chiếm ~530px; cách sửa: dùng LayoutBuilder cho phần giữa (đồng đội, trạm, đơn hàng) cuộn được trong SingleChildScrollView/Expanded khi màn hình thấp (<720) và thu gọn TrashBinWidget (size 48) cùng padding, giữ nguyên tính năng kéo thả và giao diện.
-- **Giai đoạn 5, Bước 1: Durability cho RTDB reads/writes** ✅ — Thêm `_asMap` helper (→ `rtdb_utils.dart`), `createRoom` dùng transaction tránh ghi đè, `joinRoom` chặn phòng full/đã bắt đầu + tìm ringIndex an toàn, `watchRoom` cleanup đầy đủ, `maxPlayers = 4`. _(2026-10-05)_
-- **Giai đoạn 4: Firebase project setup** ✅ — Project `mobile-app-project-52a1d`, RTDB `mobile-app-project-52a1d-default-rtdb`. `firebase_options.dart` + `google-services.json` tạo bởi FlutterFire CLI. Security Rules deploy OK (read/write trên `rooms/`). `BartenderScreen` wire `DefaultFirebaseOptions`. `.gitignore` cập nhật (không commit API key). `flutter analyze` sạch, 59 tests pass. _(2026-10-02)_
+- **Bước 0 — Dọn TASK.md (2026-10-15):** Sửa mục "Đang làm" (Bước 2 đã xong, commit 73433ed). Xoá ghi chú lỗi thời về FirebaseRoomRepository và flag useFakeRepository.
+- **Sửa tràn bố cục màn hình trận Bartender trên 360x640 (2026-10-12):** nguyên nhân do Column phần dưới bị thiếu chiều cao; cách sửa: dùng LayoutBuilder cho phần giữa cuộn được khi màn hình thấp (<720).
+- **Giai đoạn 5, Bước 2: Interface & hằng số** ✅ — commit 73433ed _(2026-10-05)_
+- **Giai đoạn 5, Bước 1: Durability cho RTDB reads/writes** ✅ _(2026-10-05)_
+- **Giai đoạn 4: Firebase project setup** ✅ — Project `nhom-bar`, RTDB `nhom-bar-default-rtdb`. `flutter analyze` sạch, 59 tests pass. _(2026-10-02)_
 - **Giai đoạn 3: Single-device playable loop** ✅ — FakeRoomRepository (in-memory, bot simulation, round loop), BartenderController (ChangeNotifier), 6 widgets (TimerBar, RingNeighbors, OrderTray, Station, ItemCard, TrashBin), 3 screens (Lobby, Match, Results) nối qua BartenderScreen. 59 unit tests (42 model + 17 controller) pass. `flutter analyze` sạch. _(2026-10-02)_
 - **Tích hợp sau merge (2026-10-02):** callback mặc định của quầy trong lobby
   chính mở `BartenderScreen`, giữ callback được truyền vào và route game khác.
@@ -54,11 +56,12 @@ _(chưa có)_
 - `BartenderScreen` là điểm vào duy nhất lộ ra ngoài `lib/games/bartender/`.
 - Các docs lobby/Rubik ở `docs/` gốc mà AGENTS.md dẫn đến không còn trong checkout
   sau merge; không tạo lại hoặc sửa tài liệu ngoài module trong task này.
-- **Phần chưa hoàn thiện, chỉ ghi nhận:** chưa có `FirebaseRoomRepository`, UI
-  nhập mã phòng hay cảm biến lắc; controller mặc định tạo `FakeRoomRepository`
-  và chưa sử dụng flag `useFakeRepository`. Không cần thêm Firebase/sensors
-  để chạy flow offline hiện có.
-- Bot hiện chỉ chế biến/chuyền vật phẩm, chưa tự nộp đơn, nên round không tự
-  hoàn thành khi có bot. Xử lý công thức nhiều nguyên liệu còn đơn giản hóa;
-  `strawberry_lemonade` chưa có nhánh tạo sản phẩm. Không đổi gameplay trong
-  task integration này; để thành viên phụ trách hoàn thiện riêng.
+- `BartenderConfig.useFakeRepository = true` trong mọi commit (quy tắc chung).
+- `RoundSetup.generate()` là hàm thuần (models/) dùng chung cho Fake và Firebase (D15).
+- `_roomsRoot = 'bartender/rooms'` — tất cả đường dẫn Firebase đều bắt đầu từ đây (D18).
+- `sensors_plus` thêm như dependency riêng; shake detection tách thành class thuần `ShakeDetector` để test được.
+
+## Đề xuất sửa docs
+
+- **API.md**: Root structure hiển thị `rooms/` nhưng theo D18 đường dẫn thực tế là `bartender/rooms/`.
+- **ARCHITECTURE.md**: Ghi chú "No other feature in this repo uses Firebase yet" đã lỗi thời.
