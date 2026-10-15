@@ -21,6 +21,17 @@ class RoundSetup {
   /// Đảm bảo luôn có ít nhất 1 công thức (D15).
   final List<Recipe> feasibleRecipes;
 
+  /// Công thức làm được với MỘT phân trạm có sẵn (D15). Hàm thuần, không random.
+  static List<Recipe> feasibleFor({
+    required Map<int, StationType?> assignment,
+    required int roundNumber,
+  }) {
+    final assigned = assignment.values.whereType<StationType>().toSet();
+    return RecipePool.recipesForRound(roundNumber)
+        .where((r) => r.steps.every((s) => assigned.contains(s.station)))
+        .toList();
+  }
+
   /// Tạo phân trạm và lọc công thức khả thi cho một round.
   ///
   /// D15: Chọn "mỏ neo" — recipe đảm bảo có thể làm được.
@@ -90,15 +101,7 @@ class RoundSetup {
       }
     }
 
-    // Lấy tập trạm đang có trong assignment
-    final assignedStations = assignment.values
-        .whereType<StationType>()
-        .toSet();
-
-    // Lọc công thức khả thi: mọi bước đều có trạm trong assignment (D15)
-    final feasible = roundRecipes.where((r) {
-      return r.steps.every((s) => assignedStations.contains(s.station));
-    }).toList();
+    final feasible = feasibleFor(assignment: assignment, roundNumber: roundNumber);
 
     // Đảm bảo luôn có mỏ neo trong feasible (kiểm tra logic)
     assert(

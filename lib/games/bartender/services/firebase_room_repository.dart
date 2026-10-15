@@ -585,11 +585,6 @@ class FirebaseRoomRepository implements RoomRepository {
 
     // Chỉ client thắng tiếp tục ghi orders, players compact, inbox
     final roundData = asMap(tr.snapshot.value);
-    final setup = RoundSetup.generate(
-      playerIds: aliveIds,
-      roundNumber: nextRound,
-      rng: _rng, // RNG cùng seed → cần random mới vì đã dùng trong transaction
-    );
     // Lấy stationAssignment từ roundData vừa commit
     final stationData = asMap(roundData['stationAssignment']);
     final newAssignment = <int, StationType?>{};
@@ -602,6 +597,15 @@ class FirebaseRoomRepository implements RoomRepository {
       );
     }
 
+    final feasible = RoundSetup.feasibleFor(
+      assignment: newAssignment,
+      roundNumber: nextRound,
+    );
+    if (feasible.isEmpty) {
+      debugPrint('Bartender: không có công thức khả thi cho round $nextRound');
+      return;
+    }
+
     // Tạo orders mới
     final ordersData = <String, dynamic>{};
     var counter = 1;
@@ -609,8 +613,7 @@ class FirebaseRoomRepository implements RoomRepository {
       final pId = aliveIds[i];
       final pOrders = <String, dynamic>{};
       for (var j = 0; j < BartenderConfig.ordersPerPlayer; j++) {
-        final recipe =
-            setup.feasibleRecipes[_rng.nextInt(setup.feasibleRecipes.length)];
+        final recipe = feasible[_rng.nextInt(feasible.length)];
         pOrders['ord_r${nextRound}_${counter++}'] = {
           'recipeId': recipe.id,
           'status': 'pending',
