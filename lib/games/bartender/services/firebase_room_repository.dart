@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
+import 'package:nhom_bar/games/bartender/models/recipe_pool.dart';
 
 import '../bartender_config.dart';
 import '../models/game_item.dart';
@@ -401,10 +402,14 @@ class FirebaseRoomRepository implements RoomRepository {
     }
 
     // Xoá người không connected (nếu có) khỏi players
-    for (final key in playersData.keys) {
-      if (!compacted.containsKey(key)) {
-        updates['$_roomsRoot/$code/players/$key'] = null;
-      }
+    const ingredients = ['orange', 'lemon', 'strawberry', 'ice'];
+    for (var ring = 0; ring < compacted.length; ring++) {
+      final itemId = 'init_${ring}_${DateTime.now().microsecondsSinceEpoch}';
+      updates['$_roomsRoot/$code/inbox/$ring/$itemId'] = {
+        'type': 'ingredient',
+        'itemId': ingredients[_rng.nextInt(ingredients.length)],
+        'fromRingIndex': ring,
+      };
     }
 
     await _db.ref().update(updates);
@@ -747,39 +752,67 @@ class FirebaseRoomRepository implements RoomRepository {
     if (!playerSnap.exists) return;
     final ringIndex = asMap(playerSnap.value)['ringIndex'] as int? ?? 0;
 
-    // Transaction nhỏ trên order/status để idempotent (D17)
-    // Abort nếu không phải pending — tránh nộp lại cùng đơn
+    // 1) Tìm đúng sản phẩm trong inbox của người nộp.
+    //    Khoá trong inbox là id của món, KHÔNG phải itemId.
+    final inboxSnap = await _inboxRef(code, ringIndex).get();
+    String? productKey;
+    for (final e in asMap(inboxSnap.value).entries) {
+      final d = asMap(e.value);
+      if (d['type'] == 'product' && d['itemId'] == productId) {
+        productKey = e.key;
+        break;
+      }
+    }
+    if (productKey == null) return; // Không có sản phẩm này → không nộp
+
+    // 2) Sản phẩm phải khớp công thức của đơn (giống bản Fake).
+    final orderSnap = await _db
+        .ref('$_roomsRoot/$code/orders/$playerId/$orderId')
+        .get();
+    final recipeId = asMap(orderSnap.value)['recipeId'] as String?;
+    if (recipeId == null) return;
+    final matches = RecipePool.allRecipes.where((r) => r.id == recipeId);
+    final expectedProductId = matches.isEmpty
+        ? recipeId
+        : matches.first.productId;
+    if (productId != expectedProductId && productId != recipeId) return;
+
+    // 3) Transaction nhỏ trên order/status để idempotent (D17).
+    //    Abort nếu không phải pending — tránh nộp lại cùng đơn.
     bool accepted = false;
     try {
       final tr = await _db
           .ref('$_roomsRoot/$code/orders/$playerId/$orderId/status')
           .runTransaction((currentData) {
             if (currentData != 'pending') return Transaction.abort();
-            accepted = true;
             return Transaction.success('submitted');
           });
       accepted = tr.committed;
     } catch (_) {
       return;
     }
-
     if (!accepted) return; // Đã nộp trước đó
 
-    // ONE multi-path update: order status + completedOrders + progress + endTime + xoá product
-    await _db.ref().update({
-      '$_roomsRoot/$code/orders/$playerId/$orderId/status': 'submitted',
-      '$_roomsRoot/$code/players/$playerId/completedOrders':
-          ServerValue.increment(1),
-      '$_roomsRoot/$code/round/progress/$ringIndex': ServerValue.increment(1),
-      '$_roomsRoot/$code/timer/endTime': ServerValue.increment(
-        BartenderConfig.orderCompletionBonusSeconds * 1000,
-      ),
-      '$_roomsRoot/$code/inbox/$ringIndex/$productId': null, // xoá product
-    });
+    // 4) MỘT multi-path update; nếu lỗi thì hoàn lại trạng thái đơn để
+    //    không bị kẹt ở "submitted" mà chưa tính tiến độ.
+    try {
+      await _db.ref().update({
+        '$_roomsRoot/$code/players/$playerId/completedOrders':
+            ServerValue.increment(1),
+        '$_roomsRoot/$code/round/progress/$ringIndex': ServerValue.increment(1),
+        '$_roomsRoot/$code/timer/endTime': ServerValue.increment(
+          BartenderConfig.orderCompletionBonusSeconds * 1000,
+        ),
+        '$_roomsRoot/$code/inbox/$ringIndex/$productKey': null, // xoá đúng món
+      });
+    } catch (e) {
+      await _db
+          .ref('$_roomsRoot/$code/orders/$playerId/$orderId/status')
+          .set('pending');
+      rethrow;
+    }
   }
 
-  /// Kết thúc trận — D17: ghi results TRƯỚC rồi mới set status = ended.
-  /// Idempotent: không ghi lại nếu đã ended.
   @override
   Future<void> endMatch(String code) async {
     // Chỉ chạy khi status == 'playing' (D17)
