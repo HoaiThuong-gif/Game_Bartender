@@ -14,6 +14,7 @@ import '../models/room.dart';
 import '../models/round.dart';
 import '../models/round_setup.dart';
 import '../models/station.dart';
+import '../models/processing_rules.dart';
 import 'room_repository.dart';
 
 /// Bản triển khai trong bộ nhớ (in-memory) của [RoomRepository].
@@ -667,59 +668,21 @@ class FakeRoomRepository implements RoomRepository {
     }
 
     final originalItem = items[itemIndex];
-    final processed =
-        _deriveProcessedProduct(originalItem, station) ??
-        GameItem(
-          id: originalItem.id,
-          type: GameItemType.product,
-          itemId: '${originalItem.itemId}_processed',
-          fromRingIndex: ringIndex,
-        );
-
-    items[itemIndex] = processed;
-    newInbox[ringIndex] = items;
-
-    _emit(room.copyWith(inbox: newInbox));
-    return processed;
+    final processed = _deriveProcessedProduct(originalItem, station);
+    if (processed != null) {
+      items[itemIndex] = processed;
+      newInbox[ringIndex] = items;
+      _emit(room.copyWith(inbox: newInbox));
+      return processed;
+    }
+    return originalItem;
   }
 
   /// Suy luận kết quả sau khi một vật phẩm được chế biến tại trạm.
   ///
-  /// Phải đồng bộ với processItem() trong firebase_room_repository.dart.
-  /// Xem recipe_pool.dart cho đường chế biến đầy đủ của từng công thức.
+  /// Dùng chung quy tắc chế biến [processItem] (D19).
   GameItem? _deriveProcessedProduct(GameItem item, StationType station) {
-    final id = item.itemId;
-
-    String? resultId;
-    switch (station) {
-      case StationType.juicer:
-        if (id == Ingredient.orange.name) resultId = 'orange_juice';
-        if (id == Ingredient.lemon.name) resultId = 'lemon_juice';
-      case StationType.cuttingBoard:
-        // cuttingBoard không còn dùng trong pool hiện tại (D16)
-        if (id == Ingredient.strawberry.name) resultId = 'cut_strawberry';
-      case StationType.blender:
-        // strawberry_smoothie: strawberry → blender → strawberry_smoothie
-        if (id == Ingredient.strawberry.name ||
-            id == 'cut_strawberry' ||
-            id == Ingredient.milk.name) {
-          resultId = 'strawberry_smoothie';
-        }
-        // strawberry_lemonade bước 2: strawberry + lemon_juice → blender → strawberry_lemonade_blend
-        if (id == 'lemon_juice') resultId = 'strawberry_lemonade_blend';
-      case StationType.shaker:
-        // citrus_cocktail: orange_juice hoặc lemon_juice → shaker → citrus_cocktail
-        if (id == 'orange_juice' || id == 'lemon_juice') {
-          resultId = 'citrus_cocktail';
-        }
-        // strawberry_lemonade bước 3: strawberry_lemonade_blend → shaker → strawberry_lemonade
-        if (id == 'strawberry_lemonade_blend' ||
-            id == Ingredient.ice.name ||
-            id == Ingredient.sugar.name) {
-          resultId = 'strawberry_lemonade';
-        }
-    }
-
+    final resultId = processItem(item.itemId, station);
     if (resultId == null) return null;
 
     return GameItem(

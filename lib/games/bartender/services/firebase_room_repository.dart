@@ -17,6 +17,7 @@ import '../models/room.dart';
 import '../models/round.dart';
 import '../models/round_setup.dart';
 import '../models/station.dart';
+import '../models/processing_rules.dart';
 import 'room_repository.dart';
 import 'rtdb_utils.dart';
 
@@ -720,6 +721,18 @@ class FirebaseRoomRepository implements RoomRepository {
     final data = asMap(snap.value);
     final currentItemId = data['itemId'] as String;
     final resultItemId = processItem(currentItemId, station);
+    if (resultItemId == null) {
+      final fromRing = (data['fromRingIndex'] as int?) ?? ringIndex;
+      final typeStr = (data['type'] as String?) ?? 'ingredient';
+      return GameItem(
+        id: itemId,
+        type: typeStr == 'product'
+            ? GameItemType.product
+            : GameItemType.ingredient,
+        itemId: currentItemId,
+        fromRingIndex: fromRing,
+      );
+    }
 
     await _inboxRef(
       code,
@@ -1059,35 +1072,3 @@ Map<String, dynamic> compactRing(Map<String, dynamic> playersData) {
   return result;
 }
 
-/// Logic chế biến vật phẩm — hàm thuần, dùng chung cho Fake và Firebase.
-///
-/// Xem DECISIONS.md D15: logic phải đồng bộ với FakeRoomRepository._deriveProcessedProduct.
-String processItem(String itemId, StationType station) {
-  switch (station) {
-    case StationType.juicer:
-      if (itemId == 'orange') return 'orange_juice';
-      if (itemId == 'lemon') return 'lemon_juice';
-    case StationType.cuttingBoard:
-      // cuttingBoard không còn dùng trong pool hiện tại (D16: bỏ khỏi strawberry_lemonade)
-      if (itemId == 'strawberry') return 'cut_strawberry';
-    case StationType.blender:
-      // Bước blender: strawberry + lemon_juice → strawberry_lemonade_blend
-      if (itemId == 'strawberry') return 'strawberry_blend';
-      if (itemId == 'lemon_juice') return 'strawberry_lemonade_blend';
-      if (itemId == 'cut_strawberry') return 'strawberry_blend';
-      // Sinh tố dâu: dâu + sữa
-      if (itemId == 'milk') return 'strawberry_smoothie';
-    case StationType.shaker:
-      // orange_juice → citrus_cocktail
-      if (itemId == 'orange_juice') return 'citrus_cocktail';
-      // lemon_juice dùng cho cocktail citrus
-      if (itemId == 'lemon_juice') return 'citrus_cocktail';
-      // strawberry_lemonade: strawberry blend + ice/sugar → strawberry_lemonade
-      if (itemId == 'strawberry_blend' ||
-          itemId == 'strawberry_lemonade_blend') {
-        return 'strawberry_lemonade';
-      }
-      if (itemId == 'ice') return 'iced_drink';
-  }
-  return '${itemId}_processed';
-}

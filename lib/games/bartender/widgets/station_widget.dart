@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/game_item.dart';
+import '../models/processing_rules.dart';
 import '../models/station.dart';
 
 /// Hiển thị trạm chế biến được phân cho người chơi trong round hiện tại.
@@ -226,16 +227,6 @@ class StationWidget extends StatelessWidget {
   }
 
   bool _canProcess(GameItem item, StationType station) {
-    final id = item.itemId;
-    switch (station) {
-      case StationType.juicer:
-        return id == 'orange' || id == 'lemon';
-      case StationType.cuttingBoard:
-        return id == 'strawberry' || id == 'lemon';
-      case StationType.blender:
-        return id == 'cut_strawberry' || id == 'strawberry';
-      case StationType.shaker:
-        return id == 'orange_juice' || id == 'lemonade' || id == 'ice';
-    }
+    return processItem(item.itemId, station) != null;
   }
 }
