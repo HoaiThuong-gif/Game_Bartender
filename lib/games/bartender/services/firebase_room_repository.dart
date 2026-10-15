@@ -641,28 +641,42 @@ class FirebaseRoomRepository implements RoomRepository {
       }
     }
 
-    // Xoá inbox cũ của người disconnect, giữ inbox của người còn
-    // (items trong inbox của người sống chuyển sang ringIndex mới)
-    for (var i = 0; i < aliveIds.length; i++) {
+    // ---- Inbox mới (D14): đồ của người còn lại đi theo họ sang ringIndex mới ----
+    final inboxSnap = await _db.ref('$_roomsRoot/$code/inbox').get();
+    final oldInbox = asMap(inboxSnap.value); // khoá = ringIndex CŨ
+
+    final newInbox = <String, dynamic>{};
+    for (final p in connectedPlayers) {
+      final newRing = aliveIds.indexOf(p.id);
+      final items = <String, dynamic>{};
+
+      // Đồ cũ của người này đi theo họ.
+      final oldItems = asMap(oldInbox['${p.ringIndex}']);
+      for (final e in oldItems.entries) {
+        final d = asMap(e.value);
+        items[e.key] = {
+          'type': d['type'],
+          'itemId': d['itemId'],
+          'fromRingIndex': newRing,
+        };
+      }
+
+      // Thêm 1 nguyên liệu mới cho mỗi ring.
+      const ingredients = ['orange', 'lemon', 'strawberry', 'ice'];
       final newItemId =
-          'r${nextRound}_${i}_${DateTime.now().microsecondsSinceEpoch}';
-      // Xoá inbox của ringIndex cũ → sẽ set lại với key mới
-      // (Đơn giản hoá: xoá tất cả inbox cũ, sinh 1 nguyên liệu mới cho mỗi ring)
-    }
-
-    await _db.ref().update(updates);
-
-    // Sinh nguyên liệu mới cho round mới (không thể gộp vào update vì push key)
-    for (var i = 0; i < aliveIds.length; i++) {
-      final itemId =
-          'r${nextRound}_${i}_${DateTime.now().microsecondsSinceEpoch}';
-      final ingredients = ['orange', 'lemon', 'strawberry', 'ice'];
-      await _inboxRef(code, i).child(itemId).set({
+          'r${nextRound}_${newRing}_${DateTime.now().microsecondsSinceEpoch}';
+      items[newItemId] = {
         'type': 'ingredient',
         'itemId': ingredients[_rng.nextInt(ingredients.length)],
-        'fromRingIndex': i,
-      });
+        'fromRingIndex': newRing,
+      };
+
+      newInbox['$newRing'] = items;
     }
+    // Ghi đè cả node inbox: xoá luôn hòm thư của người bị loại.
+    updates['$_roomsRoot/$code/inbox'] = newInbox;
+
+    await _db.ref().update(updates);
   }
 
   @override
