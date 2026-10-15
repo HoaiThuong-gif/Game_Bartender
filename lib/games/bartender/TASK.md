@@ -13,7 +13,8 @@
 
 ## Đã xong / Done
 
-- **Việc 5 (Phần 1) — Thêm dependency sensors_plus (2026-10-15):** Đã thêm `sensors_plus: ^6.1.1` vào pubspec.yaml và cập nhật pubspec.lock.
+- **Việc 5 — Cảm biến lắc và rung (Giai đoạn 6) (2026-10-15):** Tạo lớp thuần `ShakeDetector` nhận diện lắc với ngưỡng (threshold) và cooldown chống nhận nhầm; tạo `BartenderHaptics` bọc phản hồi rung cho 3 sự kiện (nộp đơn, thùng rác, hết giờ); tích hợp cảm biến lắc + nút fallback "Lắc giả lập" vào `StationWidget`, thêm test `test/bartender_shake_test.dart`.
+- **Việc 5 (Phần 1) — Thêm dependency sensors_plus (2026-10-15):** Đã thêm `sensors_plus: ^6.1.1` vào pubspec.yaml và cập nhật pubspec.lock (commit `e29496e`).
 - **Việc 4 — Test cho RoundSetup.generate (2026-10-15):** Thêm test suite cho `RoundSetup.generate` trong `test/bartender_round_setup_test.dart` chạy 200 seed cố định cho 2, 3, 4 người và round 1..4, kiểm tra đủ 4 điều kiện (a, b, c, d); expose `anchor` trên `RoundSetup` (commit `6947f76`).
 - **Việc 4a — Dọn comment lỗi thời về processItem (D19) (2026-10-15):** Sửa comment trong `recipe.dart` và `recipe_pool.dart` thành "dùng processItem() trong models/processing_rules.dart (D19)" (commit `3be90e6`).
 - **Việc 3 — Một bảng luật chế biến duy nhất (D19) (2026-10-15):** Tạo `models/processing_rules.dart` chứa hàm thuần `processItem`, chuyển Fake/Firebase/StationWidget sang dùng chung, hoàn thiện hiển thị `item_card_widget.dart` cho toàn bộ itemId, thêm unit test `test/bartender_processing_test.dart`.
@@ -50,7 +51,7 @@
 3. ~~Giai đoạn 3: Single-device playable loop với `FakeRoomRepository`~~ _(đã hoàn thành)_
 4. ~~Giai đoạn 4: Firebase project setup~~ _(đã hoàn thành)_
 5. **Giai đoạn 5: `FirebaseRoomRepository`** — Đang làm. Bước 1 ✅, Bước 2 đang làm, Bước 3–8 chưa.
-6. **Giai đoạn 6: Cảm biến và rung** — Thêm `sensors_plus` cho trạm bình lắc + haptic feedback. Chỉ test trên thiết bị thật.
+6. ~~Giai đoạn 6: Cảm biến và rung~~ _(đã hoàn thành ShakeDetector, BartenderHaptics, fallback "Lắc giả lập" cho trạm shaker)_
 7. ~~Giai đoạn 7: Nối vào lobby~~ _(đã nối sau merge 2026-10-02; thay đổi callback tách biệt trong diff lobby)_
 8. **Giai đoạn 8: Hoàn thiện và màn hình kết quả** — Kết quả cuối trận, bảng xếp hạng, chỉnh giao diện.
 
