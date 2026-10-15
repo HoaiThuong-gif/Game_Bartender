@@ -326,6 +326,19 @@ class BartenderController extends ChangeNotifier {
   void _subscribeToRoom(String code) {
     _roomSubscription?.cancel();
     _roomSubscription = _repository.watchRoom(code).listen((updatedRoom) {
+      // D14: Nếu người chơi bị loại khỏi phòng (ví dụ qua ranh giới round khi mất kết nối)
+      if (myPlayerId != null &&
+          _room != null &&
+          !updatedRoom.players.containsKey(myPlayerId)) {
+        _stopTicker();
+        _roomSubscription?.cancel();
+        _roomSubscription = null;
+        _room = null;
+        _errorMessage = 'Bạn đã bị loại khỏi phòng do mất kết nối.';
+        notifyListeners();
+        return;
+      }
+
       final oldRound = _room?.currentRound?.number;
       _room = updatedRoom;
 

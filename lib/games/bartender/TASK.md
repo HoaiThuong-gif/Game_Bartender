@@ -4,20 +4,36 @@
 
 ## Đang làm / In progress
 
-- _(Đã hoàn thành 3 bản vá A, B, C)_
+- _(Đã hoàn thành các việc được giao: Việc 4a, Việc 4, Việc 5, Việc 6)_
 
-## Cần kiểm tra thủ công khi thử 2 điện thoại
+## Cần kiểm tra thủ công (2–4 thiết bị thật)
 
-1. Hết round 1 thì số round lên 2, không lên 3.
-2. Tắt mạng một máy giữa trận, sang round sau những người còn lại vẫn nhận đủ đồ của mình.
+1. **2 máy tạo/vào phòng bằng mã**: Kiểm tra tạo phòng, vào phòng bằng mã 4 chữ số, cập nhật danh sách người chơi trong lobby.
+2. **Hết round 1 thì lên round 2 (không nhảy cóc)**: Kiểm tra hoàn thành đơn ở round 1 chuyển sang round 2 tuần tự, không bị nhảy cóc round.
+3. **Nộp đơn xong món biến khỏi inbox và không nộp lại được**: Xác nhận item đã nộp biến mất khỏi khay đồ (inbox) ngay lập tức và không thể tái nộp.
+4. **Tắt mạng một máy giữa trận thì các máy còn lại tiếp tục và đồ không lạc**: Ngắt kết nối 1 máy, máy còn lại tiếp tục chơi; sang round sau đồ của người bị ngắt/loại không làm tắc nghẽn hoặc thất lạc (D14).
+5. **Lắc điện thoại ở trạm bình lắc (shaker)**: Cảm biến gia tốc nhận diện lắc thật trên thiết bị thực tế; nút "Lắc giả lập" chỉ hiện khi không có cảm biến.
+6. **Thử phòng 2 người, 3–4 người**: Kiểm tra luồng chơi và phân bổ trạm công thức mỏ neo/khả thi ở quy mô 2 người, 3 người, 4 người.
+7. **Người cuối rời phòng thì trận kết thúc đúng**: Khi chỉ còn dưới 2 người chơi connected hoặc người cuối rời phòng, trận kết thúc đúng quy trình và chuyển sang kết quả.
+8. **Xem màn hình kết quả**: Hiển thị bảng xếp hạng, số đơn mỗi người, tổng đơn toàn đội, thời gian sống sót, thông báo kết thúc sớm nếu có; nút quay về lobby hoạt động mượt mà.
+
+*(Lưu ý: Chưa sẵn sàng production, cần hoàn tất kiểm tra thủ công trên thiết bị vật lý và nghiệm thu Firebase RTDB).*
 
 ## Đã xong / Done
 
-- **Việc 5 — Cảm biến lắc và rung (Giai đoạn 6) (2026-10-15):** Tạo lớp thuần `ShakeDetector` nhận diện lắc với ngưỡng (threshold) và cooldown chống nhận nhầm; tạo `BartenderHaptics` bọc phản hồi rung cho 3 sự kiện (nộp đơn, thùng rác, hết giờ); tích hợp cảm biến lắc + nút fallback "Lắc giả lập" vào `StationWidget`, thêm test `test/bartender_shake_test.dart`.
+- **Việc 6 — Màn hình kết quả và xử lý biên (Giai đoạn 8/9) (2026-10-15):**
+  - Hoàn thiện `BartenderResultsScreen`: hiển thị xếp hạng người chơi, số đơn mỗi người, tổng đơn đội, thời gian sống sót theo `MatchResult` (API.md).
+  - Xử lý trạng thái `results == null` (spinner "Đang tải kết quả..." + nút về lobby).
+  - Hiển thị thông báo khi trận kết thúc sớm vì còn dưới 2 người connected.
+  - Xử lý người chơi bị loại khỏi phòng (D14): `BartenderController` hiển thị thông báo `'Bạn đã bị loại khỏi phòng do mất kết nối.'` và đưa người chơi về lobby an toàn.
+  - Thiết kế thích ứng chống tràn bố cục (không overflow) ở cả 360×640 và 390×844.
+  - Viết bộ widget test toàn diện `test/bartender_results_test.dart` (6 test, pass 100%).
+  - Kết quả kiểm tra: `flutter analyze` 0 lỗi 0 cảnh báo; `flutter test` toàn bộ 199 test pass (commit `181f380`).
+- **Việc 5 — Cảm biến lắc và rung (Giai đoạn 6) (2026-10-15):** Tạo lớp thuần `ShakeDetector` nhận diện lắc với ngưỡng (threshold) và cooldown chống nhận nhầm; tạo `BartenderHaptics` bọc phản hồi rung cho 3 sự kiện (nộp đơn, thùng rác, hết giờ); tích hợp cảm biến lắc + nút fallback "Lắc giả lập" vào `StationWidget`, thêm test `test/bartender_shake_test.dart` (commit `46996e9`).
 - **Việc 5 (Phần 1) — Thêm dependency sensors_plus (2026-10-15):** Đã thêm `sensors_plus: ^6.1.1` vào pubspec.yaml và cập nhật pubspec.lock (commit `e29496e`).
 - **Việc 4 — Test cho RoundSetup.generate (2026-10-15):** Thêm test suite cho `RoundSetup.generate` trong `test/bartender_round_setup_test.dart` chạy 200 seed cố định cho 2, 3, 4 người và round 1..4, kiểm tra đủ 4 điều kiện (a, b, c, d); expose `anchor` trên `RoundSetup` (commit `6947f76`).
 - **Việc 4a — Dọn comment lỗi thời về processItem (D19) (2026-10-15):** Sửa comment trong `recipe.dart` và `recipe_pool.dart` thành "dùng processItem() trong models/processing_rules.dart (D19)" (commit `3be90e6`).
-- **Việc 3 — Một bảng luật chế biến duy nhất (D19) (2026-10-15):** Tạo `models/processing_rules.dart` chứa hàm thuần `processItem`, chuyển Fake/Firebase/StationWidget sang dùng chung, hoàn thiện hiển thị `item_card_widget.dart` cho toàn bộ itemId, thêm unit test `test/bartender_processing_test.dart`.
+- **Việc 3 — Một bảng luật chế biến duy nhất (D19) (2026-10-15):** Tạo `models/processing_rules.dart` chứa hàm thuần `processItem`, chuyển Fake/Firebase/StationWidget sang dùng chung, hoàn thiện hiển thị `item_card_widget.dart` cho toàn bộ itemId, thêm unit test `test/bartender_processing_test.dart` (commit `09c07b3`).
 - **Việc 2 — Sửa 2 test hỏng và trả lại thớt (D16/D19) (2026-10-15):** Cập nhật test `totalSurvivalSeconds` theo logic mới, trả `strawberry_smoothie` về 2 bước (thớt + xay), cập nhật doc comment `recipe_pool.dart` (commit `f6b7d8d`).
 - **Bản vá C — Đồ trong inbox đi theo người khi dồn ringIndex (D14) (2026-10-15):** Đọc inbox cũ và chuyển toàn bộ items của các người chơi còn sống sang `ringIndex` mới, sinh 1 nguyên liệu mới cho mỗi ring còn lại, ghi đè toàn bộ node `inbox` để dọn sạch người bị loại.
 - **Bản vá B — Đơn khả thi theo trạm đã ghi lên Firebase (D15) (2026-10-15):** Thêm hàm thuần `RoundSetup.feasibleFor`, thay thế lần gọi `RoundSetup.generate` thứ hai trong `_tryAdvanceRound` bằng `feasibleFor` từ phân trạm thực tế vừa commit lên Firebase, thêm unit test cho `feasibleFor` (commit `62be7ac`).
@@ -50,10 +66,10 @@
 2. ~~Giai đoạn 2: Models~~ _(đã hoàn thành)_
 3. ~~Giai đoạn 3: Single-device playable loop với `FakeRoomRepository`~~ _(đã hoàn thành)_
 4. ~~Giai đoạn 4: Firebase project setup~~ _(đã hoàn thành)_
-5. **Giai đoạn 5: `FirebaseRoomRepository`** — Đang làm. Bước 1 ✅, Bước 2 đang làm, Bước 3–8 chưa.
+5. **Giai đoạn 5: `FirebaseRoomRepository`** — Đang làm. Bước 1 ✅, Bước 2 ✅, Bước 3–8 chưa.
 6. ~~Giai đoạn 6: Cảm biến và rung~~ _(đã hoàn thành ShakeDetector, BartenderHaptics, fallback "Lắc giả lập" cho trạm shaker)_
 7. ~~Giai đoạn 7: Nối vào lobby~~ _(đã nối sau merge 2026-10-02; thay đổi callback tách biệt trong diff lobby)_
-8. **Giai đoạn 8: Hoàn thiện và màn hình kết quả** — Kết quả cuối trận, bảng xếp hạng, chỉnh giao diện.
+8. ~~Giai đoạn 8: Hoàn thiện và màn hình kết quả~~ _(đã hoàn thành kết quả cuối trận, bảng xếp hạng, fallback kết thúc sớm, chống tràn 360x640 & 390x844)_
 
 ## Vướng mắc / Blocked
 

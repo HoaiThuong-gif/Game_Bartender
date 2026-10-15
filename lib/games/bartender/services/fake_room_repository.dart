@@ -63,6 +63,9 @@ class FakeRoomRepository implements RoomRepository {
     }
   }
 
+  /// Helper dùng trong unit/widget test để phát ra trạng thái phòng giả lập.
+  void emitRoomForTest(Room room) => _emit(room);
+
   @override
   Future<Room> createRoom({
     required String hostPlayerName,
@@ -166,7 +169,12 @@ class FakeRoomRepository implements RoomRepository {
       // D14 (playing): chỉ set connected = false, giữ slot cho round này
       final updatedPlayers = Map<String, Player>.from(current.players);
       updatedPlayers[playerId] = player.copyWith(connected: false);
-      _emit(current.copyWith(players: updatedPlayers));
+      var updatedRoom = current.copyWith(players: updatedPlayers);
+      // D14: Nếu còn dưới 2 người connected: kết thúc trận
+      if (updatedRoom.connectedPlayerCount < 2) {
+        updatedRoom = _buildEndedRoom(updatedRoom);
+      }
+      _emit(updatedRoom);
     }
   }
 
