@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import * as THREE from 'three';
 import { createCube, beginTurn, finishTurn, cubeSnapshot, chooseTurn, pickCube } from '../assets/rubik/interactive-cube.mjs';
+import { rotateView } from '../assets/rubik/interactive-view.mjs';
 
 function verify(cube) {
   assert.equal(cube.cubies.length, 27);
@@ -88,7 +89,7 @@ function harness() {
     return { handlers,
       addEventListener(type,handler) { if(!handlers.has(type))handlers.set(type,new Set());handlers.get(type).add(handler); },
       removeEventListener(type,handler) { handlers.get(type)?.delete(handler); },
-      fire(type,event={}) { const e={preventDefault(){},stopImmediatePropagation(){},...event}; for(const h of handlers.get(type)??[])h(e); },
+      fire(type,event={}) { const e={type,preventDefault(){},stopImmediatePropagation(){},...event}; for(const h of handlers.get(type)??[])h(e); },
     };
   }
   const canvas={...events(),setPointerCapture(){},releasePointerCapture(){},remove(){},
@@ -98,16 +99,35 @@ function harness() {
   class Controls extends THREE.EventDispatcher { constructor(camera){super();this.camera=camera;this.target=new THREE.Vector3();this.enabled=true;}update(){this.camera.lookAt(this.target);this.camera.updateMatrixWorld();}dispose(){disposed++;} }
   const context=vm.createContext({THREE:{...THREE,WebGLRenderer:class {
     domElement=canvas;renderLists={dispose(){}};setPixelRatio(){}setSize(){}render(){}dispose(){disposed++;}forceContextLoss(){disposed++;}
-  }},OrbitControls:Controls,createCube,pickCube,chooseTurn,beginTurn,finishTurn,cubeSnapshot,
+  }},OrbitControls:Controls,createCube,pickCube,chooseTurn,beginTurn,finishTurn,cubeSnapshot,rotateView,
     window,document,innerWidth:360,innerHeight:720,devicePixelRatio:2,
     requestAnimationFrame(cb){frames.set(++next,cb);return next;},cancelAnimationFrame(id){frames.delete(id);}});
   const source=fs.readFileSync('assets/rubik/interactive-src.js','utf8').replace(/^import .*;\r?\n/gm,'');
   vm.runInContext(source,context);
+  window.restoreRubikToy(null);
   function frame(){time+=16.7;const batch=[...frames.values()];frames.clear();batch.forEach(cb=>cb(time));}
   return {canvas,window,document,frames,frame,
     settle(){for(let i=0;i<100&&frames.size;i++)frame();assert.equal(frames.size,0);},
     snapshot(){return window.rubikToySnapshot();},get disposed(){return disposed;}};
 }
+
+test('two fingers orbit through the poles without moving any stickers or zooming',()=>{
+  const h=harness();h.settle();const before=h.snapshot();
+  const a={pointerId:1,clientX:160,clientY:340},b={pointerId:2,clientX:200,clientY:380};
+  h.canvas.fire('pointerdown',a);h.canvas.fire('pointerdown',b);
+  for(let i=1;i<=20;i++){
+    h.canvas.fire('pointermove',{...a,clientX:a.clientX+i*8,clientY:a.clientY+i*20});
+    h.canvas.fire('pointermove',{...b,clientX:b.clientX+i*8,clientY:b.clientY+i*20});
+    h.frame();
+  }
+  h.canvas.fire('pointerup',b);
+  h.canvas.fire('pointermove',{...a,clientX:300,clientY:600});
+  h.canvas.fire('pointerup',a);h.settle();
+  const after=h.snapshot();
+  assert.deepEqual(after.cube,before.cube);assert.equal(after.moves,0);
+  assert.equal(after.zoom,before.zoom);assert.notDeepEqual(after.camera,before.camera);
+  h.frame();assert.deepEqual(h.snapshot().camera,after.camera);h.window.disposeRubikToy();
+});
 
 test('pointer ownership, tap/cancel, one turn per swipe, then idle and dispose', () => {
   const h=harness();h.settle();
@@ -120,18 +140,104 @@ test('pointer ownership, tap/cancel, one turn per swipe, then idle and dispose',
   assert.equal(h.snapshot().gesture,null);assert.equal(h.snapshot().busy,false);
   const renders=h.snapshot().renders;h.frame();assert.equal(h.snapshot().renders,renders);
   h.canvas.fire('pointerdown',{...pointer,clientX:5});
-  assert.equal(h.snapshot().gesture,'orbit');h.canvas.fire('pointerup',{...pointer,clientX:5});
+  assert.equal(h.snapshot().gesture,null);h.canvas.fire('pointermove',{...pointer,clientX:70});
+  h.canvas.fire('pointerup',{...pointer,clientX:70});assert.equal(h.snapshot().moves,1);
   h.window.disposeRubikToy();h.window.disposeRubikToy();
-  assert.equal(h.frames.size,0);assert.equal(h.disposed,3);
+  assert.equal(h.frames.size,0);assert.equal(h.disposed,2);
   assert.ok([...h.canvas.handlers.values()].every(list=>list.size===0));
 });
 
 test('pause while animating snaps atomically and resume has no pending gesture',()=>{
   const h=harness();h.settle();const pointer={pointerId:1,clientX:180,clientY:360};
   h.canvas.fire('pointerdown',pointer);h.canvas.fire('pointermove',{...pointer,clientY:420});
+  h.canvas.fire('pointerup',{...pointer,clientY:420});
   h.frame();h.window.setRubikToyActive(false);assert.equal(h.frames.size,0);
   assert.equal(h.snapshot().moves,1);assert.equal(h.snapshot().busy,false);assert.equal(h.snapshot().gesture,null);
   h.window.setRubikToyActive(true);h.settle();assert.equal(h.snapshot().moves,1);h.window.disposeRubikToy();
+});
+
+test('camera-relative yaw/pitch and twist allow 45, 90, 180 degrees with no snap', () => {
+  const camera = new THREE.PerspectiveCamera(40, .6, .1, 100);
+  camera.position.set(0, 0, 12); camera.lookAt(0, 0, 0); camera.updateMatrixWorld(true);
+  const pair = angle => [{x:180-80*Math.cos(angle),y:360-80*Math.sin(angle)},
+    {x:180+80*Math.cos(angle),y:360+80*Math.sin(angle)}];
+  for (const [from, to] of [[0,Math.PI/4],[Math.PI/4,Math.PI/2],[Math.PI/2,Math.PI]]) {
+    rotateView(camera, pair(from), pair(to));
+    const expected = new THREE.Vector3(-Math.sin(to),Math.cos(to),0);
+    assert.ok(camera.up.distanceTo(expected) < 1e-10);
+    assert.ok(camera.position.distanceTo(new THREE.Vector3(0,0,12)) < 1e-10);
+  }
+  rotateView(camera, pair(Math.PI), pair(0));
+  assert.ok(camera.up.distanceTo(new THREE.Vector3(0,1,0)) < 1e-10);
+  for (let i=0; i<100; i++) {
+    const before = pair(i*.07), after = pair((i+1)*.07).map(p=>({x:p.x+12,y:p.y-9}));
+    rotateView(camera,before,after);
+    assert.ok(Math.abs(camera.position.length()-12)<1e-10);
+    assert.ok(Math.abs(camera.up.dot(camera.position))<1e-10);
+    assert.ok(Math.abs(camera.quaternion.length()-1)<1e-10);
+  }
+});
+
+test('swipe velocity follows the finger after arbitrary yaw, pitch and inverted roll', () => {
+  const cube = createCube();cube.root.updateMatrixWorld(true);
+  const camera = new THREE.PerspectiveCamera(40,.6,.1,100), ray = new THREE.Raycaster();
+  let cases=0;
+  for (const yaw of [0,.8,Math.PI]) for (const pitch of [0,.7,Math.PI])
+    for (const roll of [0,Math.PI/4,Math.PI/2,Math.PI]) {
+      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch,yaw,roll));
+      camera.position.set(0,0,12).applyQuaternion(q);
+      camera.up.set(0,1,0).applyQuaternion(q);camera.lookAt(0,0,0);camera.updateMatrixWorld(true);
+      for(const x of [-.18,0,.18]) for(const y of [-.18,0,.18]) {
+        ray.setFromCamera(new THREE.Vector2(x,y),camera);const hit=pickCube(ray,cube.cubies);
+        if(!hit)continue;
+        for(const [dx,dy] of [[50,0],[-50,0],[0,50],[0,-50]]) {
+          const spec=chooseTurn(hit,dx,dy,camera,360,600);if(!spec)continue;
+          const axis = new THREE.Vector3().setComponent(['x','y','z'].indexOf(spec.axis),1);
+          const start=hit.point.clone().project(camera);
+          const end=hit.point.clone().applyAxisAngle(axis,spec.sign*.001).project(camera);
+          const vx=(end.x-start.x)*180,vy=-(end.y-start.y)*300;
+          assert.ok((vx*dx+vy*dy)/(Math.hypot(vx,vy)*50)>.59);
+          cases++;
+        }
+      }
+    }
+  assert.ok(cases>500);cube.dispose();
+});
+
+test('second finger cancels a pending layer; remaining finger stays blocked until all lift', () => {
+  const h=harness();h.settle();const initial=h.snapshot();
+  const a={pointerId:1,clientX:180,clientY:360},b={pointerId:2,clientX:240,clientY:360};
+  for(let i=0;i<10;i++) {
+    h.canvas.fire('pointerdown',a);h.canvas.fire('pointermove',{...a,clientX:220});
+    h.frame();assert.equal(h.snapshot().moves,0);assert.equal(h.snapshot().busy,false);
+    h.canvas.fire('pointerdown',b);
+    h.canvas.fire('pointermove',{...b,clientY:410});h.canvas.fire('pointerup',b);
+    h.canvas.fire('pointermove',{...a,clientY:460});h.canvas.fire('pointerup',a);h.settle();
+    assert.deepEqual(h.snapshot().cube,initial.cube);assert.equal(h.snapshot().moves,0);
+  }
+  h.canvas.fire('pointerdown',a);h.canvas.fire('pointermove',{...a,clientY:430});
+  h.canvas.fire('pointercancel',a);h.settle();assert.equal(h.snapshot().moves,0);
+  h.window.disposeRubikToy();
+});
+
+test('separately delivered touch updates produce a pure roll from the initially tilted view', () => {
+  const h=harness();h.settle();const initial=h.snapshot();
+  const camera=new THREE.PerspectiveCamera();
+  camera.position.fromArray(initial.camera);camera.up.fromArray(initial.up);camera.lookAt(0,0,0);
+  const initialUp=new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion);
+  const a={pointerId:1,clientX:100,clientY:360},b={pointerId:2,clientX:260,clientY:360};
+  h.canvas.fire('pointerdown',a);h.canvas.fire('pointerdown',b);
+  for(let step=1;step<=36;step++){
+    const angle=Math.PI*step/36,dx=80*Math.cos(angle),dy=80*Math.sin(angle);
+    h.canvas.fire('pointermove',{...a,clientX:180-dx,clientY:360-dy});h.frame();
+    h.canvas.fire('pointermove',{...b,clientX:180+dx,clientY:360+dy});h.frame();
+  }
+  h.canvas.fire('pointerup',a);h.canvas.fire('pointerup',b);h.settle();
+  const after=h.snapshot();
+  assert.ok(new THREE.Vector3(...after.camera).distanceTo(new THREE.Vector3(...initial.camera))<1e-10);
+  assert.ok(new THREE.Vector3(...after.up).distanceTo(initialUp.negate())<1e-10);
+  assert.deepEqual(after.cube,initial.cube);assert.equal(after.moves,initial.moves);
+  h.window.disposeRubikToy();
 });
 
 test('undo reverses successive swipes; reset restores solved cube and camera', () => {

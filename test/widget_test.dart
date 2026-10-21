@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nhom_bar/games/rubik/screens/rubik_screen.dart';
+import 'package:nhom_bar/games/song_cu/screens/song_cu_screen.dart';
 import 'package:nhom_bar/main.dart';
 import 'package:nhom_bar/screens/home/lobby_screen.dart';
 import 'package:nhom_bar/screens/home/lobby_layout.dart';
+import 'package:nhom_bar/screens/home/lobby_cats.dart';
 import 'package:nhom_bar/screens/home/widgets/animated_flag.dart';
 import 'package:nhom_bar/screens/home/widgets/lobby_object.dart';
 
@@ -38,10 +40,62 @@ Widget _app({
 );
 
 Finder _object(String label) => find.byWidgetPredicate(
-  (widget) => widget is LobbyObject && widget.label == label,
+  (widget) =>
+      widget is LobbyObject &&
+      (label.contains('arcade')
+          ? widget.game == LobbyGame.arcade
+          : widget.label == label),
 );
 
 void main() {
+  testWidgets(
+    'lobby Rubik tap opens the puzzle',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final routes = _Routes();
+      await tester.pumpWidget(_app(observer: routes));
+      await _load(tester);
+      final rubik = find.byWidgetPredicate(
+        (w) => w is LobbyObject && w.game == LobbyGame.rubik,
+      );
+      await tester.tap(rubik);
+      final route = routes.last! as PageRouteBuilder<void>;
+      expect(
+        route.pageBuilder(
+          tester.element(find.byType(LobbyScreen)),
+          kAlwaysCompleteAnimation,
+          kAlwaysDismissedAnimation,
+        ),
+        isA<RubikScreen>(),
+      );
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+  testWidgets(
+    'television stays tappable above the stall at its existing position',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final routes = _Routes();
+      await tester.pumpWidget(_app(observer: routes));
+      await _load(tester);
+      final tv = find.byWidgetPredicate(
+        (w) => w is LobbyObject && w.game == LobbyGame.television,
+      );
+      await tester.tap(tv);
+      final route = routes.last! as PageRouteBuilder<void>;
+      expect(
+        route.pageBuilder(
+          tester.element(find.byType(LobbyScreen)),
+          kAlwaysCompleteAnimation,
+          kAlwaysDismissedAnimation,
+        ),
+        isA<SongCuScreen>(),
+      );
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   testWidgets('home renders scene objects without game title cards', (
     tester,
   ) async {
@@ -62,12 +116,16 @@ void main() {
     tester,
   ) async {
     addTearDown(() => tester.binding.setSurfaceSize(null));
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    tester.view.devicePixelRatio = 1;
     for (final size in [
       const Size(360, 640),
       const Size(390, 844),
       const Size(430, 932),
       const Size(768, 1024),
     ]) {
+      tester.view.physicalSize = size;
       await tester.binding.setSurfaceSize(size);
       await tester.pumpWidget(_app());
       await _load(tester);
@@ -86,7 +144,7 @@ void main() {
         'Quầy Bartender': LobbyLayout.bartender,
       }.entries) {
         final rect = tester.getRect(_object(entry.key));
-        final config = entry.value;
+        final config = LobbyLayout.fitObject(entry.value, size);
         final contact = Offset(
           rect.left +
               config.sourceAnchor.dx / config.imageSize.width * rect.width,
@@ -125,17 +183,23 @@ void main() {
     await tester.tap(_object('Máy arcade'));
     await tester.pump(const Duration(milliseconds: 100));
     expect(arcade, 1);
+    await tester.pump();
     await tester.tap(_object('Quầy Bartender'));
     await tester.pump(const Duration(milliseconds: 100));
     expect(bartender, 1);
+    await tester.pump();
     await tester.tap(find.byType(AnimatedFlag), warnIfMissed: false);
     await tester.pump(const Duration(milliseconds: 100));
     expect(arcade, 1);
     expect(bartender, 1);
     await tester.tap(_object('Chơi Rubik'));
-    final route = routes.last! as MaterialPageRoute<void>;
+    final route = routes.last! as PageRouteBuilder<void>;
     expect(
-      route.builder(tester.element(find.byType(LobbyScreen))),
+      route.pageBuilder(
+        tester.element(find.byType(LobbyScreen)),
+        kAlwaysCompleteAnimation,
+        kAlwaysDismissedAnimation,
+      ),
       isA<RubikScreen>(),
     );
     // Rubik embeds a native WebView, so verify the destination before rendering it.

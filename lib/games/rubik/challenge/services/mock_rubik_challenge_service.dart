@@ -4,7 +4,7 @@ import 'dart:math';
 import '../models/rubik_room.dart';
 import 'rubik_challenge_service.dart';
 
-/// Explicit single-device demo. No Firebase access and no real wallet credits.
+/// Explicit single-device demo without Firebase access.
 class MockRubikChallengeRepository implements RubikChallengeRepository {
   final _events = StreamController<RubikRoom?>.broadcast();
   Map<String, dynamic>? _data;
@@ -89,16 +89,6 @@ class MockRubikChallengeRepository implements RubikChallengeRepository {
         : 'demo-rival';
     _data!['status'] = 'finished';
     _data!['winnerId'] = winner;
-    _data!['rewards'] = {
-      for (final id in players.keys)
-        id: players[id]['dnf'] == true
-            ? 0
-            : winner == 'draw'
-            ? 25
-            : winner == id
-            ? 50
-            : 10,
-    };
   }
 
   @override
@@ -158,7 +148,6 @@ class MockRubikChallengeRepository implements RubikChallengeRepository {
         _data!.remove('scramble');
         _data!.remove('startAt');
         _data!.remove('winnerId');
-        _data!.remove('rewards');
       case 'leave':
         _data = null;
     }
@@ -167,8 +156,6 @@ class MockRubikChallengeRepository implements RubikChallengeRepository {
 
   @override
   Future<void> presence(String code, bool online) async {}
-  @override
-  Future<Map<String, int>> rewardReceipts() async => {};
   @override
   Future<void> dispose() async {
     for (final timer in _timers) {

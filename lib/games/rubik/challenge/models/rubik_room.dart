@@ -25,8 +25,6 @@ class RubikRoom {
       startAt = (data['startAt'] as num?)?.toInt(),
       winnerId = data['winnerId'] as String?,
       scramble = List<String>.from(data['scramble'] as List? ?? []),
-      rewards = challengeMap(data['rewards'])
-          .map((k, v) => MapEntry(k, (v as num).toInt())),
       players = challengeMap(data['players'])
           .map((k, v) => MapEntry(k, ChallengePlayer(challengeMap(v))));
   final String code, creationId;
@@ -36,8 +34,6 @@ class RubikRoom {
   final String? winnerId;
   final List<String> scramble;
   final Map<String, ChallengePlayer> players;
-  final Map<String, int> rewards;
-  String get rewardId => '${creationId}_$round';
 }
 
 String challengeTime(int milliseconds) {

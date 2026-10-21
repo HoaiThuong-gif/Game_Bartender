@@ -7,8 +7,6 @@ class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) => LobbyScreen(
-    onArcadeTap: () => Navigator.of(context)
-        .push(MaterialPageRoute<void>(builder: (_) => const ArtifactScreen())),
-  );
+  Widget build(BuildContext context) =>
+      LobbyScreen(arcadeBuilder: (_) => const ArtifactScreen());
 }

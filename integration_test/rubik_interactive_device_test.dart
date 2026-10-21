@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:nhom_bar/games/rubik/challenge/screens/rubik_challenge_lobby_screen.dart';
 import 'package:nhom_bar/games/rubik/screens/rubik_screen.dart';
 import 'package:nhom_bar/games/rubik/widgets/rubik_interactive_preview.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -125,10 +126,19 @@ void main() {
         final bounds = tester.getRect(view), before = await state(tester);
         final gesture = await tester.startGesture(
           Offset(bounds.left + bounds.width * .06, bounds.center.dy),
+          pointer: 1,
+        );
+        final second = await tester.startGesture(
+          Offset(bounds.left + bounds.width * .18, bounds.center.dy),
+          pointer: 2,
         );
         await gesture.moveBy(
           Offset(i % 20 == 0 ? 70 : -70, i % 30 == 0 ? 35 : -15),
         );
+        await second.moveBy(
+          Offset(i % 20 == 0 ? 70 : -70, i % 30 == 0 ? 35 : -15),
+        );
+        await second.up();
         await gesture.up();
         await settled(tester);
         expect((await state(tester))['moves'], before['moves']);
@@ -204,15 +214,15 @@ void main() {
     await tester.tap(find.text('GIẢI RUBIK'));
     await tester.pumpAndSettle();
     expect(find.text('Chọn cách nhập Rubik'), findsOneWidget);
-    expect(find.byType(WebViewWidget, skipOffstage: false), findsNothing);
+    expect(find.byType(WebViewWidget), findsNothing);
     await tester.pageBack();
     await ready(tester);
     await settled(tester);
     expect((await state(tester))['moves'], 0);
     await tester.tap(find.text('THÁCH ĐẤU'));
     await tester.pumpAndSettle();
-    expect(find.text('Thử thách sắp bắt đầu'), findsOneWidget);
-    expect(find.byType(WebViewWidget, skipOffstage: false), findsNothing);
+    expect(find.byType(RubikChallengeLobbyScreen), findsOneWidget);
+    expect(find.byType(WebViewWidget), findsNothing);
     await tester.pageBack();
     await ready(tester);
     expect(find.byType(RubikInteractivePreview), findsOneWidget);

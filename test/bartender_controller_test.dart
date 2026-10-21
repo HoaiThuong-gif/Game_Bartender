@@ -402,7 +402,6 @@ void main() {
       );
 
       await ctrl.createRoom(playerName: 'Host', totalPlayers: 2);
-      final firstCode = ctrl.room!.code;
 
       await ctrl.playAgain();
 

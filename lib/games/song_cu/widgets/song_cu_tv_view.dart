@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 class SongCuTVView extends StatefulWidget {
@@ -32,6 +33,12 @@ class _SongCuTVViewState extends State<SongCuTVView>
   bool _foreground = true;
   String? _pending;
   String? _failure;
+  late final Future<String> _seasonImage = rootBundle
+      .load('assets/images/lobby/tv.png')
+      .then(
+        (data) =>
+            'data:image/png;base64,${base64Encode(data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes))}',
+      );
 
   @override
   void initState() {
@@ -91,6 +98,7 @@ class _SongCuTVViewState extends State<SongCuTVView>
           _failure = null;
         });
         _queue();
+        unawaited(_loadSeasons());
       } else if (data['type'] == 'error') {
         _fail();
       } else if (data['type'] == 'action' &&
@@ -102,6 +110,19 @@ class _SongCuTVViewState extends State<SongCuTVView>
       }
     } catch (_) {
       // Ignore incomplete or stale bridge messages.
+    }
+  }
+
+  Future<void> _loadSeasons() async {
+    try {
+      final image = await _seasonImage;
+      if (!_disposed && _ready) {
+        await _web.runJavaScript(
+          'window.loadSongCuSeasons(${jsonEncode(image)});',
+        );
+      }
+    } catch (_) {
+      _fail();
     }
   }
 

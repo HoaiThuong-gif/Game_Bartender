@@ -4,9 +4,10 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-/// Local toy on the main Rubik screen. No solver/scan state or persistence.
+/// Practice progress is persisted separately from solver and challenge state.
 class RubikInteractivePreview extends StatefulWidget {
   const RubikInteractivePreview({
     super.key,
@@ -74,11 +75,13 @@ class _InteractiveWebView extends StatefulWidget {
 }
 
 class _InteractiveWebViewState extends State<_InteractiveWebView> {
+  static const _sessionKey = 'rubik.practice.session.v1';
+  static Future<void> _storageQueue = Future<void>.value();
   late final WebViewController _controller;
+  late final Widget _webView;
   String? _failure;
   Timer? _timeout;
   bool _ready = false;
-  bool _busy = false;
   bool _canUndo = false;
   @override
   void initState() {
@@ -89,27 +92,42 @@ class _InteractiveWebViewState extends State<_InteractiveWebView> {
       ..addJavaScriptChannel(
         'RubikToy',
         onMessageReceived: (event) {
-          if (!mounted) return;
-          final status = jsonDecode(event.message) as Map<String, dynamic>;
+          final dynamic decoded;
+          try {
+            decoded = jsonDecode(event.message);
+          } catch (_) {
+            return;
+          }
+          if (decoded is! Map<String, dynamic>) return;
+          final status = decoded;
+          if (status['type'] == 'save') {
+            if (widget.challengeMoves == null) _saveSession(status['session']);
+            return;
+          }
+          if (!mounted || status['type'] == 'disposed') return;
           if (status['type'] == 'ready') {
             _timeout?.cancel();
-            unawaited(_setActive());
+            unawaited(_initialize());
+            return;
           }
-          if (status['type'] == 'ready' && widget.challengeMoves != null) {
-            unawaited(_prepareChallenge());
+          if (status['type'] == 'invalidSession') {
+            _notice(
+              'Dữ liệu Rubik đã lưu không hợp lệ. Đã khôi phục khối mặc định.',
+            );
           }
           if (status['type'] == 'prepared') widget.onPrepared?.call();
-          if (status['type'] != 'ready') {
+          if (['move', 'prepared'].contains(status['type'])) {
             widget.onSolved?.call(
               status['solved'] == true && status['busy'] != true,
             );
           }
-          setState(() {
-            _ready = true;
-            _busy = status['busy'] == true;
-            _canUndo = (status['historyDepth'] as num? ?? 0) > 0;
-          });
-          if (kDebugMode) debugPrint('[RubikToy] ${event.message}');
+          final canUndo = (status['historyDepth'] as num? ?? 0) > 0;
+          if (!_ready || _canUndo != canUndo) {
+            setState(() {
+              _ready = true;
+              _canUndo = canUndo;
+            });
+          }
         },
       )
       ..setNavigationDelegate(
@@ -122,9 +140,101 @@ class _InteractiveWebViewState extends State<_InteractiveWebView> {
         ),
       )
       ..loadFlutterAsset('assets/rubik/interactive.html');
+    _webView = WebViewWidget(
+      key: const ValueKey('rubik-interactive-webview'),
+      controller: _controller,
+      gestureRecognizers: {
+        Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer()),
+      },
+    );
     _timeout = Timer(const Duration(seconds: 30), () {
       if (mounted) setState(() => _failure = 'Không tải được Rubik');
     });
+  }
+
+  void _notice(String message) {
+    if (mounted) {
+      ScaffoldMessenger.maybeOf(context)
+          ?.showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
+  void _saveSession(dynamic session) {
+    final value = jsonEncode(session);
+    _storageQueue = _storageQueue
+        .then((_) async {
+          final prefs = await SharedPreferences.getInstance();
+          if (!await prefs.setString(_sessionKey, value)) {
+            throw StateError('Cannot save Rubik session');
+          }
+        })
+        .catchError((Object _) {
+          _notice('Không lưu được tiến trình Rubik trên thiết bị.');
+        });
+  }
+
+  Future<void> _initialize() async {
+    try {
+      if (widget.challengeMoves != null) {
+        await _prepareChallenge();
+      } else {
+        dynamic session;
+        try {
+          await _storageQueue;
+          final prefs = await SharedPreferences.getInstance();
+          final raw = prefs.getString(_sessionKey);
+          if (raw != null) session = jsonDecode(raw);
+        } catch (_) {
+          _notice(
+            'Không đọc được tiến trình Rubik đã lưu. Đang mở khối mặc định.',
+          );
+        }
+        if (!mounted) return;
+        await _controller.runJavaScript(
+          'window.restoreRubikToy(${jsonEncode(session)});',
+        );
+      }
+      if (mounted) await _setActive();
+    } catch (_) {
+      if (mounted) setState(() => _failure = 'Không khôi phục được Rubik');
+    }
+  }
+
+  Future<void> _scramble() async {
+    bool needsConfirmation;
+    try {
+      final result = await _controller.runJavaScriptReturningResult(
+        'window.rubikToyNeedsScrambleConfirmation();',
+      );
+      needsConfirmation = result == true || result.toString() == 'true';
+    } catch (_) {
+      _notice('Không đọc được trạng thái Rubik. Hãy thử lại.');
+      return;
+    }
+    if (!mounted) return;
+    if (needsConfirmation) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Tự xáo Rubik?'),
+          content: const Text(
+            'Khối Rubik đang chơi dở sẽ được xáo thêm. Bạn vẫn có thể hoàn tác các lượt xáo.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Hủy'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Tự xáo'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+    await _command('scrambleRubikToy');
   }
 
   Future<void> _setActive() async {
@@ -168,11 +278,10 @@ class _InteractiveWebViewState extends State<_InteractiveWebView> {
   }
 
   Future<void> _command(String name) async {
-    setState(() => _busy = true);
     try {
       await _controller.runJavaScript('window.$name?.();');
     } catch (_) {
-      if (mounted) setState(() => _busy = false);
+      _notice('Không thực hiện được thao tác Rubik. Hãy thử lại.');
     }
   }
 
@@ -201,35 +310,36 @@ class _InteractiveWebViewState extends State<_InteractiveWebView> {
       : Stack(
           fit: StackFit.expand,
           children: [
-            WebViewWidget(
-              key: const ValueKey('rubik-interactive-webview'),
-              controller: _controller,
-              gestureRecognizers: {
-                Factory<OneSequenceGestureRecognizer>(
-                  () => EagerGestureRecognizer(),
-                ),
-              },
-            ),
+            _webView,
             if (widget.challengeMoves == null)
               Positioned(
                 top: 8,
                 right: 12,
-                child: Row(
+                left: 12,
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 8,
+                  runSpacing: 4,
                   children: [
+                    _smallButton(
+                      key: const ValueKey('rubik-toy-scramble'),
+                      icon: Icons.shuffle_rounded,
+                      label: 'Tự xáo',
+                      onPressed: _ready ? _scramble : null,
+                    ),
                     _smallButton(
                       key: const ValueKey('rubik-toy-undo'),
                       icon: Icons.undo_rounded,
                       label: 'Hoàn tác',
-                      onPressed: _ready && !_busy && _canUndo
+                      onPressed: _ready && _canUndo
                           ? () => _command('undoRubikToy')
                           : null,
                     ),
-                    const SizedBox(width: 8),
                     _smallButton(
                       key: const ValueKey('rubik-toy-reset'),
                       icon: Icons.restart_alt_rounded,
                       label: 'Đặt lại',
-                      onPressed: _ready && !_busy
+                      onPressed: _ready
                           ? () => _command('resetRubikToy')
                           : null,
                     ),

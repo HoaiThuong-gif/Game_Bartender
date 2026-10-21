@@ -1,0 +1,1155 @@
+{
+  "bartender": {
+    "sourceFingerprint": "2527329-3c407904",
+    "sheetSize": [
+      1448,
+      1086
+    ],
+    "grid": [
+      4,
+      3
+    ],
+    "canvas": [
+      400,
+      480
+    ],
+    "anchor": [
+      200,
+      350
+    ],
+    "frames": [
+      {
+        "sourceRect": [
+          0,
+          0,
+          362,
+          333
+        ],
+        "offset": [
+          16,
+          26
+        ],
+        "sourceAnchor": [
+          184.0,
+          324.0
+        ],
+        "contentBounds": [
+          23,
+          48,
+          354,
+          302
+        ],
+        "fullBounds": [
+          16,
+          44,
+          362,
+          308
+        ],
+        "pixelCount": 84851
+      },
+      {
+        "sourceRect": [
+          362,
+          0,
+          362,
+          333
+        ],
+        "offset": [
+          16,
+          26
+        ],
+        "sourceAnchor": [
+          184.0,
+          324.0
+        ],
+        "contentBounds": [
+          23,
+          48,
+          354,
+          302
+        ],
+        "fullBounds": [
+          16,
+          43,
+          362,
+          310
+        ],
+        "pixelCount": 85379
+      },
+      {
+        "sourceRect": [
+          724,
+          0,
+          362,
+          333
+        ],
+        "offset": [
+          17,
+          26
+        ],
+        "sourceAnchor": [
+          183.5,
+          324.0
+        ],
+        "contentBounds": [
+          24,
+          48,
+          353,
+          302
+        ],
+        "fullBounds": [
+          17,
+          45,
+          362,
+          307
+        ],
+        "pixelCount": 84626
+      },
+      {
+        "sourceRect": [
+          1086,
+          0,
+          362,
+          333
+        ],
+        "offset": [
+          16,
+          26
+        ],
+        "sourceAnchor": [
+          184.0,
+          324.0
+        ],
+        "contentBounds": [
+          22,
+          48,
+          356,
+          302
+        ],
+        "fullBounds": [
+          16,
+          43,
+          362,
+          311
+        ],
+        "pixelCount": 85364
+      },
+      {
+        "sourceRect": [
+          0,
+          333,
+          362,
+          324
+        ],
+        "offset": [
+          16,
+          39
+        ],
+        "sourceAnchor": [
+          184.5,
+          311.0
+        ],
+        "contentBounds": [
+          23,
+          48,
+          355,
+          302
+        ],
+        "fullBounds": [
+          16,
+          45,
+          362,
+          308
+        ],
+        "pixelCount": 85622
+      },
+      {
+        "sourceRect": [
+          362,
+          333,
+          362,
+          324
+        ],
+        "offset": [
+          17,
+          39
+        ],
+        "sourceAnchor": [
+          183.5,
+          311.0
+        ],
+        "contentBounds": [
+          24,
+          48,
+          353,
+          302
+        ],
+        "fullBounds": [
+          17,
+          45,
+          362,
+          311
+        ],
+        "pixelCount": 85994
+      },
+      {
+        "sourceRect": [
+          724,
+          333,
+          362,
+          324
+        ],
+        "offset": [
+          16,
+          39
+        ],
+        "sourceAnchor": [
+          184.0,
+          311.0
+        ],
+        "contentBounds": [
+          23,
+          48,
+          354,
+          302
+        ],
+        "fullBounds": [
+          16,
+          46,
+          362,
+          308
+        ],
+        "pixelCount": 85583
+      },
+      {
+        "sourceRect": [
+          1086,
+          333,
+          362,
+          324
+        ],
+        "offset": [
+          17,
+          39
+        ],
+        "sourceAnchor": [
+          183.5,
+          311.0
+        ],
+        "contentBounds": [
+          23,
+          48,
+          355,
+          302
+        ],
+        "fullBounds": [
+          17,
+          41,
+          362,
+          315
+        ],
+        "pixelCount": 85678
+      },
+      {
+        "sourceRect": [
+          0,
+          657,
+          362,
+          429
+        ],
+        "offset": [
+          16,
+          35
+        ],
+        "sourceAnchor": [
+          184.0,
+          315.0
+        ],
+        "contentBounds": [
+          23,
+          48,
+          354,
+          302
+        ],
+        "fullBounds": [
+          16,
+          43,
+          362,
+          310
+        ],
+        "pixelCount": 84581
+      },
+      {
+        "sourceRect": [
+          362,
+          657,
+          362,
+          429
+        ],
+        "offset": [
+          17,
+          35
+        ],
+        "sourceAnchor": [
+          183.5,
+          315.0
+        ],
+        "contentBounds": [
+          23,
+          48,
+          355,
+          302
+        ],
+        "fullBounds": [
+          17,
+          43,
+          362,
+          368
+        ],
+        "pixelCount": 85267
+      },
+      {
+        "sourceRect": [
+          724,
+          657,
+          362,
+          429
+        ],
+        "offset": [
+          17,
+          35
+        ],
+        "sourceAnchor": [
+          183.5,
+          315.0
+        ],
+        "contentBounds": [
+          24,
+          49,
+          353,
+          301
+        ],
+        "fullBounds": [
+          17,
+          45,
+          362,
+          370
+        ],
+        "pixelCount": 84272
+      },
+      {
+        "sourceRect": [
+          1086,
+          657,
+          362,
+          429
+        ],
+        "offset": [
+          16,
+          35
+        ],
+        "sourceAnchor": [
+          184.0,
+          315.0
+        ],
+        "contentBounds": [
+          23,
+          48,
+          354,
+          302
+        ],
+        "fullBounds": [
+          16,
+          43,
+          362,
+          400
+        ],
+        "pixelCount": 84630
+      }
+    ]
+  },
+  "games": {
+    "sourceFingerprint": "1145430-912c513a",
+    "sheetSize": [
+      1672,
+      941
+    ],
+    "grid": [
+      3,
+      1
+    ],
+    "canvas": [
+      500,
+      620
+    ],
+    "anchor": [
+      250,
+      600
+    ],
+    "frames": [
+      {
+        "sourceRect": [
+          39,
+          167,
+          456,
+          569
+        ],
+        "offset": [
+          22,
+          35
+        ],
+        "sourceAnchor": [
+          228.0,
+          565.0
+        ],
+        "contentBounds": [
+          26,
+          39,
+          448,
+          561
+        ],
+        "fullBounds": [
+          22,
+          35,
+          456,
+          567
+        ],
+        "pixelCount": 187619,
+        "primaryPixelCount": 181876
+      },
+      {
+        "sourceRect": [
+          616,
+          167,
+          454,
+          570
+        ],
+        "offset": [
+          23,
+          34
+        ],
+        "sourceAnchor": [
+          227.0,
+          566.0
+        ],
+        "contentBounds": [
+          27,
+          38,
+          446,
+          562
+        ],
+        "fullBounds": [
+          23,
+          34,
+          454,
+          569
+        ],
+        "pixelCount": 187030,
+        "primaryPixelCount": 181286
+      },
+      {
+        "sourceRect": [
+          1201,
+          167,
+          453,
+          572
+        ],
+        "offset": [
+          24,
+          32
+        ],
+        "sourceAnchor": [
+          226.5,
+          568.0
+        ],
+        "contentBounds": [
+          28,
+          36,
+          445,
+          564
+        ],
+        "fullBounds": [
+          25,
+          32,
+          452,
+          571
+        ],
+        "pixelCount": 187675,
+        "primaryPixelCount": 182153
+      }
+    ]
+  },
+  "tv": {
+    "sourceFingerprint": "2125682-cd635fe8",
+    "sheetSize": [
+      1536,
+      1024
+    ],
+    "grid": [
+      2,
+      2
+    ],
+    "canvas": [
+      620,
+      620
+    ],
+    "anchor": [
+      310,
+      600
+    ],
+    "frames": [
+      {
+        "sourceRect": [
+          122,
+          0,
+          589,
+          519
+        ],
+        "offset": [
+          16,
+          85
+        ],
+        "sourceAnchor": [
+          294.5,
+          515.0
+        ],
+        "contentBounds": [
+          20,
+          87,
+          581,
+          513
+        ],
+        "fullBounds": [
+          17,
+          85,
+          587,
+          517
+        ],
+        "pixelCount": 219192,
+        "primaryPixelCount": 213654
+      },
+      {
+        "sourceRect": [
+          836,
+          0,
+          594,
+          519
+        ],
+        "offset": [
+          13,
+          85
+        ],
+        "sourceAnchor": [
+          297.0,
+          515.0
+        ],
+        "contentBounds": [
+          17,
+          87,
+          586,
+          513
+        ],
+        "fullBounds": [
+          13,
+          85,
+          594,
+          517
+        ],
+        "pixelCount": 220834,
+        "primaryPixelCount": 215279
+      },
+      {
+        "sourceRect": [
+          120,
+          504,
+          593,
+          517
+        ],
+        "offset": [
+          14,
+          87
+        ],
+        "sourceAnchor": [
+          296.5,
+          513.0
+        ],
+        "contentBounds": [
+          18,
+          91,
+          585,
+          509
+        ],
+        "fullBounds": [
+          14,
+          87,
+          593,
+          517
+        ],
+        "pixelCount": 221110,
+        "primaryPixelCount": 215763
+      },
+      {
+        "sourceRect": [
+          831,
+          504,
+          599,
+          517
+        ],
+        "offset": [
+          11,
+          87
+        ],
+        "sourceAnchor": [
+          299.5,
+          513.0
+        ],
+        "contentBounds": [
+          15,
+          91,
+          591,
+          509
+        ],
+        "fullBounds": [
+          13,
+          88,
+          595,
+          516
+        ],
+        "pixelCount": 222882,
+        "primaryPixelCount": 217937
+      }
+    ]
+  },
+  "rubik": {
+    "sourceFingerprint": "1835999-f4c8833f",
+    "sheetSize": [
+      1312,
+      1199
+    ],
+    "grid": [
+      1,
+      1
+    ],
+    "canvas": [
+      336,
+      336
+    ],
+    "anchor": [
+      168,
+      168
+    ],
+    "frames": [
+      {
+        "sourceRect": [
+          135,
+          64,
+          1042,
+          1106
+        ],
+        "offset": [
+          -353,
+          -385
+        ],
+        "sourceAnchor": [
+          521.0,
+          553.0
+        ],
+        "contentBounds": [
+          30,
+          22,
+          276,
+          293
+        ],
+        "fullBounds": [
+          30,
+          21,
+          277,
+          294
+        ],
+        "pixelCount": 60494,
+        "primaryPixelCount": 843536,
+        "registration": [
+          0.2668488160291439,
+          0.0
+        ]
+      }
+    ]
+  },
+  "flag": {
+    "sourceFingerprint": "1366510-92a26923",
+    "sheetSize": [
+      1448,
+      1086
+    ],
+    "grid": [
+      4,
+      3
+    ],
+    "canvas": [
+      600,
+      480
+    ],
+    "anchor": [
+      80,
+      398.5
+    ],
+    "frames": [
+      {
+        "sourceRect": [
+          10,
+          10,
+          383,
+          329
+        ],
+        "offset": [
+          64,
+          82
+        ],
+        "sourceAnchor": [
+          16.0,
+          317.0
+        ],
+        "contentBounds": [
+          68,
+          85,
+          375,
+          321
+        ],
+        "fullBounds": [
+          64,
+          83,
+          382,
+          327
+        ],
+        "pixelCount": 51823,
+        "primaryPixelCount": 48010,
+        "registration": [
+          1.0,
+          0.0
+        ],
+        "poleTip": [
+          356.12379828549456,
+          102.03271092909455
+        ]
+      },
+      {
+        "sourceRect": [
+          404,
+          11,
+          411,
+          329
+        ],
+        "offset": [
+          64,
+          82
+        ],
+        "sourceAnchor": [
+          16.0,
+          317.0
+        ],
+        "contentBounds": [
+          68,
+          83,
+          442,
+          341
+        ],
+        "fullBounds": [
+          64,
+          81,
+          451,
+          346
+        ],
+        "pixelCount": 67559,
+        "primaryPixelCount": 53925,
+        "registration": [
+          1.0734438931515768,
+          0.08019845978675466
+        ],
+        "poleTip": [
+          356.12379828549456,
+          102.03271092909455
+        ]
+      },
+      {
+        "sourceRect": [
+          773,
+          11,
+          395,
+          331
+        ],
+        "offset": [
+          64,
+          82
+        ],
+        "sourceAnchor": [
+          16.0,
+          317.0
+        ],
+        "contentBounds": [
+          68,
+          84,
+          406,
+          332
+        ],
+        "fullBounds": [
+          64,
+          82,
+          413,
+          337
+        ],
+        "pixelCount": 55382,
+        "primaryPixelCount": 47380,
+        "registration": [
+          1.0365608572922604,
+          0.03885621431198527
+        ],
+        "poleTip": [
+          356.12379828549456,
+          102.03271092909455
+        ]
+      },
+      {
+        "sourceRect": [
+          1136,
+          9,
+          312,
+          332
+        ],
+        "offset": [
+          64,
+          80
+        ],
+        "sourceAnchor": [
+          16.0,
+          319.0
+        ],
+        "contentBounds": [
+          68,
+          84,
+          343,
+          346
+        ],
+        "fullBounds": [
+          64,
+          81,
+          352,
+          352
+        ],
+        "pixelCount": 56797,
+        "primaryPixelCount": 42871,
+        "registration": [
+          1.1022621980495613,
+          0.12715698497877193
+        ],
+        "poleTip": [
+          356.12379828549456,
+          102.03271092909455
+        ]
+      },
+      {
+        "sourceRect": [
+          9,
+          378,
+          423,
+          320
+        ],
+        "offset": [
+          64,
+          86
+        ],
+        "sourceAnchor": [
+          16.0,
+          313.0
+        ],
+        "contentBounds": [
+          67,
+          85,
+          444,
+          317
+        ],
+        "fullBounds": [
+          64,
+          81,
+          450,
+          323
+        ],
+        "pixelCount": 61252,
+        "primaryPixelCount": 51627,
+        "registration": [
+          1.0490029275609065,
+          0.038600593040203024
+        ],
+        "poleTip": [
+          356.12379828549456,
+          102.03271092909455
+        ]
+      },
+      {
+        "sourceRect": [
+          403,
+          380,
+          406,
+          320
+        ],
+        "offset": [
+          64,
+          87
+        ],
+        "sourceAnchor": [
+          16.0,
+          312.0
+        ],
+        "contentBounds": [
+          68,
+          84,
+          437,
+          343
+        ],
+        "fullBounds": [
+          63,
+          82,
+          446,
+          347
+        ],
+        "pixelCount": 60016,
+        "primaryPixelCount": 47065,
+        "registration": [
+          1.0825833727224328,
+          0.07058627630612702
+        ],
+        "poleTip": [
+          356.12379828549456,
+          102.03271092909455
+        ]
+      },
+      {
+        "sourceRect": [
+          775,
+          378,
+          353,
+          328
+        ],
+        "offset": [
+          64,
+          85
+        ],
+        "sourceAnchor": [
+          16.0,
+          314.0
+        ],
+        "contentBounds": [
+          67,
+          84,
+          387,
+          346
+        ],
+        "fullBounds": [
+          63,
+          80,
+          395,
+          355
+        ],
+        "pixelCount": 61741,
+        "primaryPixelCount": 47600,
+        "registration": [
+          1.0956104442697367,
+          0.09649617144199307
+        ],
+        "poleTip": [
+          356.12379828549456,
+          102.03271092909455
+        ]
+      },
+      {
+        "sourceRect": [
+          1129,
+          380,
+          319,
+          319
+        ],
+        "offset": [
+          64,
+          87
+        ],
+        "sourceAnchor": [
+          16.0,
+          312.0
+        ],
+        "contentBounds": [
+          67,
+          83,
+          354,
+          333
+        ],
+        "fullBounds": [
+          64,
+          80,
+          361,
+          339
+        ],
+        "pixelCount": 50469,
+        "primaryPixelCount": 38255,
+        "registration": [
+          1.0961959365678453,
+          0.08651818794837252
+        ],
+        "poleTip": [
+          356.12379828549456,
+          102.03271092909455
+        ]
+      },
+      {
+        "sourceRect": [
+          9,
+          715,
+          394,
+          324
+        ],
+        "offset": [
+          64,
+          82
+        ],
+        "sourceAnchor": [
+          16.0,
+          317.0
+        ],
+        "contentBounds": [
+          68,
+          85,
+          391,
+          317
+        ],
+        "fullBounds": [
+          65,
+          82,
+          399,
+          323
+        ],
+        "pixelCount": 50563,
+        "primaryPixelCount": 45451,
+        "registration": [
+          1.0108012369322887,
+          0.011125922983531877
+        ],
+        "poleTip": [
+          356.12379828549456,
+          102.03271092909455
+        ]
+      },
+      {
+        "sourceRect": [
+          404,
+          713,
+          381,
+          329
+        ],
+        "offset": [
+          64,
+          81
+        ],
+        "sourceAnchor": [
+          16.0,
+          318.0
+        ],
+        "contentBounds": [
+          67,
+          84,
+          408,
+          338
+        ],
+        "fullBounds": [
+          64,
+          80,
+          414,
+          345
+        ],
+        "pixelCount": 59960,
+        "primaryPixelCount": 48072,
+        "registration": [
+          1.0699301081823478,
+          0.07972993777174187
+        ],
+        "poleTip": [
+          356.12379828549456,
+          102.03271092909455
+        ]
+      },
+      {
+        "sourceRect": [
+          762,
+          716,
+          426,
+          323
+        ],
+        "offset": [
+          64,
+          84
+        ],
+        "sourceAnchor": [
+          16.0,
+          315.0
+        ],
+        "contentBounds": [
+          67,
+          84,
+          460,
+          319
+        ],
+        "fullBounds": [
+          64,
+          80,
+          468,
+          326
+        ],
+        "pixelCount": 58977,
+        "primaryPixelCount": 47220,
+        "registration": [
+          1.0732672855110397,
+          0.07349063594824401
+        ],
+        "poleTip": [
+          356.12379828549456,
+          102.03271092909455
+        ]
+      },
+      {
+        "sourceRect": [
+          1128,
+          717,
+          319,
+          335
+        ],
+        "offset": [
+          64,
+          85
+        ],
+        "sourceAnchor": [
+          16.0,
+          314.0
+        ],
+        "contentBounds": [
+          67,
+          84,
+          344,
+          355
+        ],
+        "fullBounds": [
+          64,
+          80,
+          353,
+          364
+        ],
+        "pixelCount": 54221,
+        "primaryPixelCount": 41074,
+        "registration": [
+          1.094475732555974,
+          0.09449911420656598
+        ],
+        "poleTip": [
+          356.12379828549456,
+          102.03271092909455
+        ]
+      }
+    ]
+  }
+}

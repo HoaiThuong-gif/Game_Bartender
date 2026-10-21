@@ -5,7 +5,7 @@
 Vào **Rubik → Thách đấu**. Bản debug có công tắc **Thử một máy**:
 tạo phòng, đối thủ mô phỏng vào sau 1 giây, sẵn sàng, tải đề, countdown,
 đối thủ hoàn thành sau khoảng 20 giây kể từ GO. Giải cube rồi bấm Hoàn thành;
-kết quả và chơi lại dùng cùng repository interface với online. Demo không cộng cá thật.
+kết quả và chơi lại dùng cùng repository interface với online.
 Nếu không giải trong 5 phút, người chơi được đánh dấu DNF.
 
 ## Cấu hình online còn cần
@@ -44,21 +44,20 @@ rubikRooms/{CODE}
   scramble: [20 notation moves]          // có sau khi cả hai ready
   startAt                              // có sau khi cả hai loaded
   winnerId: UID | draw | none           // chỉ có khi kết thúc
-  endedAt, rewards: { UID: amount }     // chỉ có khi kết thúc
+  endedAt                              // chỉ có khi kết thúc
   players/{UID}
     name, ready, loaded, finished, dnf, left, rematch
     finishAt, finishMs                  // chỉ có khi hoàn thành
 rubikCommands/{UID}/{requestId}: action, code, round, name, at
 rubikResponses/{UID}/{requestId}: ok, error?
 rubikPresence/{CODE}/{UID}: online, at
-rubikRewards/{UID}/{creationId_round}: amount, code, round, issuedAt
 ```
 
 Client chỉ được tạo command của chính UID và cập nhật presence của chính mình.
 Timestamp command/presence bắt buộc `ServerValue.timestamp` (`at == now` trong rules).
 Cloud Function nhận command, chạy transaction trên một room; chỉ Admin SDK ghi
-room, finishAt, winner, reward receipt. Người thứ ba bị từ chối trong transaction.
-Client chỉ đọc phòng nếu thuộc phòng; chỉ đọc response/reward của chính UID.
+room, finishAt, winner. Người thứ ba bị từ chối trong transaction.
+Client chỉ đọc phòng nếu thuộc phòng; chỉ đọc response của chính UID.
 `database.rules.json` từ chối mọi nhánh ngoài các nhánh trên. Nếu database dùng
 cho tính năng khác, merge rules của chúng trước khi deploy, không mở `.write: true`.
 
@@ -82,19 +81,10 @@ cho tính năng khác, merge rules của chúng trước khi deploy, không mở
   finishMs = finishAt - startAt. Nút tắt ngay khi submit; retry không sửa finishAt.
 - Cả hai tiếp tục giải để có hai thời gian. Khi cả hai finished/DNF,
   finishAt thấp hơn thắng; cùng millisecond hòa; cả hai DNF có winner `none`.
-  Giới hạn toàn trận 5 phút. Thắng 50, thua có hoàn thành 10, hòa 25, DNF 0.
+  Giới hạn toàn trận 5 phút.
 
-## Thưởng và giới hạn prototype
+## Giới hạn prototype
 
-Backend phát receipt bất biến theo creationId + round; client chỉ đọc receipt đó.
-`RubikRewardService` chuyển receipt vào ví cá dùng chung qua API dùng chung.
-Ví v2 lưu balance + danh sách receipt trong **một JSON value**, serialize các lần nhận thưởng,
-migrate số dư v1; mở lại kết quả hoặc khởi động lại không nhận trùng.
-Thưởng chưa nhận được tự thử lại khi kết quả mở, và đồng bộ lại khi vào challenge online.
-
-Ví cá dùng chung vẫn là local SharedPreferences: người chỉnh dữ liệu máy vẫn sửa được số dư,
-xóa dữ liệu/cài lại có thể nhận lại receipt cùng tài khoản. Đây chưa phải ví chống gian lận
-production. TODO chuyển **toàn bộ balance** sang backend dùng ledger transaction.
 UI solved check cũng không chứng minh người dùng đã giải cho server; client sửa đổi có thể
 gửi finish sau GO. Prototype không gửi move/state; không quảng bá như hệ anti-cheat hoàn chỉnh.
 Race với timeout khi Function xử lý command bị trì hoãn quá lâu cần authority queue/ordered
@@ -108,7 +98,7 @@ hoặc scheduler mỗi phút (cả hai offline), vì vậy phát hiện có th�
 Rời trước GO loại player, reset waiting/readiness/scramble; người còn lại trở thành host.
 Rời giữa trận đánh DNF nếu chưa finish; người còn lại cần hoàn thành để nhận thắng.
 Nút Về sảnh gửi leave, cả hai rời thì xóa room. Phòng quá 24 giờ được scheduler xóa;
-command/response hơn 1 giờ được xóa, reward receipts được giữ để đồng bộ lại.
+command/response hơn 1 giờ được xóa.
 Hai người phải gửi rematch, cùng round; backend tăng round, reset ready/finish/results,
 chờ ready mới và sinh đề mới. Command round cũ bị từ chối.
 
@@ -117,15 +107,12 @@ chờ ready mới và sinh đề mới. Command round cũ bị từ chối.
 - `challenge/models/rubik_room.dart`: room, player, enum, timer formatting.
 - `challenge/services/rubik_challenge_service.dart`: interface và Firebase adapter.
 - `challenge/services/mock_rubik_challenge_service.dart`: demo một máy.
-- `challenge/services/rubik_reward_service.dart`: receipt → shared wallet.
 - `challenge/controllers/rubik_challenge_controller.dart`: realtime subscription, ticker, actions.
 - `challenge/screens/rubik_challenge_lobby_screen.dart`, `rubik_challenge_room_screen.dart`:
   sảnh, waiting/game/result theo state. Không cần tạo các route riêng cho từng trạng thái.
 - `screens/rubik_screen.dart`: thay placeholder bằng lobby.
 - `widgets/rubik_interactive_preview.dart`, `assets/rubik/interactive-src.js`,
   `interactive-cube.mjs`, `interactive.js`: reuse engine, scramble/lock/solved bridge.
-- `lib/shared/services/fish_wallet.dart`: API receipt và lưu atomically.
-  Không thay solver, scan hoặc tutorial.
 - `pubspec.yaml`, `pubspec.lock`: Firebase Auth.
 - `functions/`: backend, dependency lock, unit tests, emulator check.
 - `database.rules.json`, `firebase.json`, `firebase.emulator.json`: rules và cấu hình.
@@ -142,11 +129,11 @@ firebase emulators:exec --config firebase.emulator.json --project demo-rubik --o
 ```
 
 Emulator check dùng REST với hai token Auth khác nhau, kiểm tra create/join, capacity,
-shared scramble/start, prepared handshake, double finish, kết quả/receipt, rematch/round cũ,
-không đọc phòng của người khác, không sửa winner/finish đối thủ/reward/timestamp.
+shared scramble/start, prepared handshake, double finish, kết quả, rematch/round cũ,
+không đọc phòng của người khác, không sửa winner/finish đối thủ/timestamp.
 Không kết nối Firebase production. Kiểm tra OPPO + máy/emulator Android thứ hai:
 tạo/join → ready → so scramble → countdown → lần lượt giải xong/finish → so hai thời gian,
-winner và ví → rematch → ngắt mạng 10 giây (grace), 40 giây (DNF) → rời trước GO.
+winner → rematch → ngắt mạng 10 giây (grace), 40 giây (DNF) → rời trước GO.
 Không có hai Android client đã cấu hình online trong phiên này nên chưa xác nhận realtime
 trên hai thiết bị thật. Xem kết quả kiểm tra thực tế ở báo cáo cuối phiên.
 

@@ -32,9 +32,6 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
   cuber: ^0.4.0
   webview_flutter: ^4.14.1
   camera: ^0.12.1
@@ -76,11 +73,31 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/song_cu/
-    - assets/artifact/
-    - assets/rubik/
-    - assets/images/lobby/
-    - assets/images/character/lobby/
+    # Package runtime WebViews only; npm uses the source modules when rebuilding.
+    - assets/song_cu/index.html
+    - assets/song_cu/song-cu.js
+    - assets/artifact/index.html
+    - assets/artifact/artifact.js
+    - assets/rubik/index.html
+    - assets/rubik/rubik.js
+    - assets/rubik/interactive.html
+    - assets/rubik/interactive.js
+    - assets/images/lobby/background.png
+    # The TV game reads this sheet for its four authored seasonal pictures.
+    - assets/images/lobby/tv.png
+    - assets/images/lobby/frames/
+    - assets/images/character/Nam/Nam_dung.png
+    - assets/images/character/Nam/Nam_ngoi.png
+    - assets/images/character/Nam/Nam_nam.png
+    - assets/images/character/Nam/Nam_vo.png
+    - assets/images/character/Cam/Cam_dung.png
+    - assets/images/character/Cam/Cam_ngoi.png
+    - assets/images/character/Cam/Cam_nam.png
+    - assets/images/character/Cam/Cam_vo.png
+    - assets/images/character/Cho/Cho_dung.png
+    - assets/images/character/Cho/Cho_ngoi.png
+    - assets/images/character/Cho/Cho_nam.png
+    - assets/images/character/Cho/Cho_vo.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

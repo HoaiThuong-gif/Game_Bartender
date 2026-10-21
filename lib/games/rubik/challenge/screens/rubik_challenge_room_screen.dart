@@ -336,22 +336,6 @@ class _RoomState extends State<RubikChallengeRoomScreen>
                   : challengeTime(entry.value.finishMs ?? 0),
             ),
           ),
-        const SizedBox(height: 16),
-        Text(
-          '+${room.rewards[widget.repository.uid] ?? 0} cá${widget.repository.demo ? ' (mô phỏng)' : ''}',
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-        if (!widget.repository.demo)
-          Text(
-            c.rewardSynced ? 'Đã nhận vào ví cá' : 'Đang chờ nhận thưởng',
-            textAlign: TextAlign.center,
-          ),
-        if (!c.rewardSynced && !widget.repository.demo)
-          TextButton(
-            onPressed: c.syncRewards,
-            child: const Text('Nhận thưởng / thử lại'),
-          ),
         if (c.error != null)
           Text(c.error!, style: const TextStyle(color: Colors.red)),
         const SizedBox(height: 24),

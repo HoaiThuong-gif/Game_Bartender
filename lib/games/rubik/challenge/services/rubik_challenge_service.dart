@@ -17,7 +17,6 @@ abstract class RubikChallengeRepository {
   Stream<RubikRoom?> watch(String code);
   Future<void> send(String code, int round, String action);
   Future<void> presence(String code, bool online);
-  Future<Map<String, int>> rewardReceipts();
   Future<void> dispose();
 }
 
@@ -150,12 +149,6 @@ class FirebaseRubikChallengeRepository implements RubikChallengeRepository {
     await ref.set({'online': online, 'at': ServerValue.timestamp});
   }
 
-  @override
-  Future<Map<String, int>> rewardReceipts() async =>
-      challengeMap((await db.ref('rubikRewards/$uid').get()).value).map(
-        (id, value) =>
-            MapEntry(id, (challengeMap(value)['amount'] as num).toInt()),
-      );
   @override
   Future<void> dispose() async {
     if (_room != null) {

@@ -74,11 +74,13 @@ export function chooseTurn(hit, dx, dy, camera, width, height, threshold = 18) {
   let best = null;
   for (let i = 0; i < 3; i++) {
     if (Math.abs(hit.normal.getComponent(i)) > .5) continue;
-    const tangent = new THREE.Vector3().crossVectors(basis[i], hit.normal);
-    const end = hit.point.clone().addScaledVector(tangent, .25).project(camera);
+    // Angular velocity at the actual raycast contact, including perspective.
+    // Using only the face normal loses the depth component near face edges.
+    const tangent = new THREE.Vector3().crossVectors(basis[i], hit.point);
+    const end = hit.point.clone().addScaledVector(tangent, .001).project(camera);
     const sx = (end.x - start.x) * width / 2, sy = -(end.y - start.y) * height / 2;
     const length = Math.hypot(sx, sy);
-    if (length < .5) continue;
+    if (length < .0001) continue;
     const dot = (sx * dx + sy * dy) / (length * Math.hypot(dx, dy));
     if (!best || Math.abs(dot) > best.score) best = {
       axis: axes[i], layer: Math.round(hit.cubie.position[axes[i]]),

@@ -34,7 +34,7 @@ class CubeInputController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Both manual input and a future CubeScanner feed this same state.
+  /// Manual input and camera scanning feed this same state.
   void load(CubeState state) {
     if (_busy) return;
     _state = state;

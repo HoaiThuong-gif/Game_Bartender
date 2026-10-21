@@ -29,8 +29,6 @@ function settle(room, now, presence = {}) {
   room.status = 'finished'; room.endedAt = now;
   room.winnerId = valid.length === 2 && valid[0][1].finishAt === valid[1][1].finishAt
     ? 'draw' : valid[0]?.[0] || 'none';
-  room.rewards = Object.fromEntries(players.map(([uid, p]) => [uid,
-    p.dnf ? 0 : room.winnerId === 'draw' ? 25 : room.winnerId === uid ? 50 : p.finished ? 10 : 0]));
   return room;
 }
 function transition(original, uid, command, now, presence = {}) {
@@ -54,7 +52,7 @@ function transition(original, uid, command, now, presence = {}) {
   }
   const p = room.players[uid];
   if (!p || round !== room.round) throw new Error('Bạn không thuộc lượt chơi này.');
-  // Finish uses the server receipt time of the command, not function execution latency.
+  // Finish uses the server arrival time of the command, not function execution latency.
   if (action === 'finish' && ['countdown', 'playing'].includes(room.status) &&
       now >= room.startAt && now < room.startAt + LIMIT && !p.finished && !p.dnf && !p.left) {
     p.finished = true; p.finishAt = now; p.finishMs = now - room.startAt;
@@ -78,7 +76,7 @@ function transition(original, uid, command, now, presence = {}) {
     p.rematch = true;
     if (Object.values(room.players).every(p => p.rematch && !p.left)) {
       room.round++; room.status = 'ready';
-      delete room.scramble; delete room.startAt; delete room.winnerId; delete room.rewards; delete room.endedAt;
+      delete room.scramble; delete room.startAt; delete room.winnerId; delete room.endedAt;
       for (const id of Object.keys(room.players)) room.players[id] = player(room.players[id].name);
     }
   } else if (!['finish', 'tick', 'loaded', 'ready', 'rematch'].includes(action)) {

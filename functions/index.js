@@ -12,16 +12,6 @@ const db = getDatabase();
 // Set this region to the RTDB region before deploying.
 const region = process.env.FUNCTIONS_EMULATOR === 'true' ? 'us-central1' :
   process.env.RUBIK_REGION || 'asia-southeast1';
-async function receipts(code, room) {
-  if (room?.status !== 'finished') return;
-  const updates = {};
-  for (const [uid, amount] of Object.entries(room.rewards)) {
-    updates[`rubikRewards/${uid}/${room.creationId}_${room.round}`] = {
-      amount, code, round: room.round, issuedAt: room.endedAt,
-    };
-  }
-  await db.ref().update(updates);
-}
 exports.rubikCommand = onValueCreated({ ref: '/rubikCommands/{uid}/{id}', region }, async event => {
   const { uid, id } = event.params, command = { ...event.data.val(), id };
   const response = db.ref(`rubikResponses/${uid}/${id}`);
@@ -40,7 +30,6 @@ exports.rubikCommand = onValueCreated({ ref: '/rubikCommands/{uid}/{id}', region
     });
     if (!result.committed) throw failure || new Error('Không cập nhật được phòng.');
     if (!result.snapshot.exists() && command.action !== 'leave') throw new Error('Phòng không tồn tại.');
-    await receipts(command.code, result.snapshot.val());
     await response.set({ ok: true });
   } catch (error) { await response.set({ ok: false, error: error.message }); }
 });
@@ -67,10 +56,9 @@ exports.rubikMaintenance = onSchedule({ schedule: 'every 1 minutes', region }, a
       }
       return settle(room, now, presence);
     });
-    await receipts(code, result.snapshot.val());
     if (!result.snapshot.exists()) await db.ref(`rubikPresence/${code}`).remove();
   }
-  // Commands/responses are transient. Reward receipts survive room cleanup.
+  // Commands/responses are transient.
   for (const [uid, commands] of Object.entries((await db.ref('rubikCommands').get()).val() || {})) {
     for (const [id, command] of Object.entries(commands)) if (now - command.at > 3600000) {
       await db.ref().update({ [`rubikCommands/${uid}/${id}`]: null, [`rubikResponses/${uid}/${id}`]: null });

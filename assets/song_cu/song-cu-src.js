@@ -7,6 +7,7 @@ let gesture=null, lastFrame=0, animate=false, serial=0, pending=null, sendTimer=
 const bridge=(type,extra={})=>window.SongCuGame?.postMessage(JSON.stringify({type,epoch:state?.epoch,...extra}));
 const listeners=[],geometries=new Set(),materials=new Set(),textures=new Set(),picks=[];
 const sounds=new SongCuAudio(),programs=new Programs();
+window.loadSongCuSeasons=data=>{if(!disposed&&typeof data==='string'&&data.startsWith('data:image/png;base64,'))programs.seasons.src=data;};
 const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();
 function listen(target,type,handler,options){
   target.addEventListener(type,handler,options);listeners.push(()=>target.removeEventListener(type,handler,options));
@@ -89,6 +90,7 @@ function knob(y,index){
   return {group,ring,index,kind:'control'};
 }
 const knobs=[knob(.73,2),knob(-.38,3)];
+let yaw=0,pitch=0,spin=0;
 for(let i=0;i<5;i++)mesh(root,rounded(.57,.035,.02,.012),bezel,2,-.9-i*.075,.63);
 const power=mesh(root,new THREE.CylinderGeometry(.18,.18,.15,24),mat('#b3a786'),2,-1.31,.72);power.rotation.x=Math.PI/2;
 const led=mesh(root,new THREE.SphereGeometry(.055,12,8),new THREE.MeshBasicMaterial({color:'#55604e'}),1.70,-1.31,.70);
@@ -117,12 +119,13 @@ function updateGeometry(){
     a.rodMaterial.color.set(gesture?.index===i?'#e1cf94':'#9f9c8d');
   });
   knobs.forEach(k=>{
-    const value=k.index===2?Math.round((controls[2]+1)*3.5)/3.5-1:controls[3];
-    k.group.rotation.z=-value*2.25;
+    const value=controls[k.index];
+    k.group.rotation.z=gesture?.index===k.index&&gesture.rotation!==undefined?gesture.rotation:-value*2.25;
     k.ring.visible=gesture?.index===k.index;
   });
   roofMaterial.color.set(gesture?.kind==='roof'?'#8e987b':'#6e7563');
   led.material.color.set(state?.powered?'#b7bf7b':'#55604e');
+  root.rotation.set(pitch,yaw,0);
   root.updateMatrixWorld(true);
 }
 function resize(){
@@ -143,7 +146,8 @@ function frame(now){
   if(now-lastFrame<32){raf=requestAnimationFrame(frame);return;}
   lastFrame=now;
   const tapping=now-tapAt<260;
-  if(dirty||animate||gesture||tapping){
+  if(dirty||animate||gesture||tapping||Math.abs(spin)>.0001){
+    if(!gesture&&Math.abs(spin)>.0001){yaw+=spin;spin*=.86;}
     updateGeometry();
     root.position.y=!state.reduceMotion&&tapping?-.025*Math.sin((now-tapAt)/260*Math.PI):0;
     const result=programs.draw({...state,controls},now,{
@@ -152,7 +156,7 @@ function frame(now){
     animate=result.animate;texture.needsUpdate=true;renderer.render(scene,camera);dirty=false;
     if(result.playbackEnd!==undefined)bridge('action',{kind:'playbackEnd',playback:result.playbackEnd});
   }
-  if(animate||gesture||tapping)raf=requestAnimationFrame(frame);
+  if(animate||gesture||tapping||Math.abs(spin)>.0001)raf=requestAnimationFrame(frame);
 }
 function cancelGesture(){
   const old=gesture;gesture=null;
@@ -178,7 +182,7 @@ window.applySongCu=function(next){
     controls=[...next.controls];tapAt=-1000;
   }else if(!gesture&&!pending&&next.ack>=serial)controls=[...next.controls];
   state=next;paused=false;
-  sounds.configure({...state,active:state.active&&!document.hidden});
+  sounds.configure({...state,volume:(controls[3]+1)/4,active:state.active&&!document.hidden});
   if(previous&&previous.epoch===state.epoch){
     if(previous.channel!==state.channel)sounds.play('channel');
     if(previous.powered!==state.powered)sounds.play(state.powered?'on':'off');
@@ -202,11 +206,15 @@ function segmentDistance(p,a,b){
 function hit(event){
   root.updateMatrixWorld(true);
   const p=new THREE.Vector2(event.clientX,event.clientY);
+  const front=new THREE.Vector3(0,0,1).applyQuaternion(root.quaternion)
+    .dot(camera.position.clone().sub(root.position).normalize())>.15;
   // Screen-space hit targets retain a usable size when the camera is angled.
   for(const k of knobs){
-    if(p.distanceTo(clientPoint(k.group.getWorldPosition(new THREE.Vector3())))<=27)return {kind:'control',index:k.index};
+    const center=clientPoint(k.group.getWorldPosition(new THREE.Vector3()));
+    const radius=Math.max(27,center.distanceTo(clientPoint(k.group.localToWorld(new THREE.Vector3(.4,0,0))))+8);
+    if(front&&p.distanceTo(center)<=radius)return {kind:'control',index:k.index};
   }
-  if(p.distanceTo(clientPoint(power.getWorldPosition(new THREE.Vector3())))<=25)return {kind:'power'};
+  if(front&&p.distanceTo(clientPoint(power.getWorldPosition(new THREE.Vector3())))<=25)return {kind:'power'};
   let nearest=null,nearestDistance=24;
   for(const a of antennas){
     const start=clientPoint(a.group.localToWorld(new THREE.Vector3(0,.35,0)));
@@ -232,20 +240,45 @@ function action(kind,extra={}){
 }
 function down(event){
   if(!state?.active||paused||disposed||gesture)return;
-  const picked=hit(event);if(!picked)return;
-  if(!state.powered&&picked.kind!=='power')return;
-  if(state.complete&&picked.kind!=='power'&&picked.index!==3)return;
+  const picked=hit(event)||{kind:'orbit'};
+  if(!state.powered&&!['power','orbit'].includes(picked.kind))return;
+  if(state.complete&&!['power','orbit'].includes(picked.kind)&&picked.index!==3)return;
   sounds.unlock();canvas.setPointerCapture(event.pointerId);
   if(picked.kind==='control')sounds.play('click');
   gesture={...picked,id:event.pointerId,x:event.clientX,y:event.clientY,
     origin:picked.index===undefined?0:controls[picked.index],axis:null,started:performance.now(),moved:false};
+  spin=0;
+  if(picked.kind==='control'&&picked.index>=2){
+    const k=knobs.find(k=>k.index===picked.index);
+    gesture.center=clientPoint(k.group.getWorldPosition(new THREE.Vector3()));
+    gesture.angle=Math.atan2(event.clientY-gesture.center.y,event.clientX-gesture.center.x);
+    gesture.rotation=-controls[picked.index]*2.25;
+  }
   updateGeometry();requestDraw();
 }
 function move(event){
   if(!gesture||gesture.id!==event.pointerId)return;
   const g=gesture,dx=event.clientX-g.x,dy=g.y-event.clientY;
   if(Math.hypot(dx,dy)>(g.kind==='roof'?18:10))g.moved=true;
+  if(g.kind==='orbit'||(g.kind==='roof'&&g.moved)){
+    yaw+=(event.clientX-(g.lastX??g.x))*.009;
+    pitch=THREE.MathUtils.clamp(pitch+(event.clientY-(g.lastY??g.y))*.006,-.8,.8);
+    spin=state.reduceMotion?0:THREE.MathUtils.clamp((event.clientX-(g.lastX??g.x))*.002,-.035,.035);
+    g.lastX=event.clientX;g.lastY=event.clientY;requestDraw();return;
+  }
   if(g.kind!=='control')return;
+  if(g.index>=2){
+    if(Math.hypot(event.clientX-g.center.x,event.clientY-g.center.y)<9)return;
+    const angle=Math.atan2(event.clientY-g.center.y,event.clientX-g.center.x);
+    const delta=Math.atan2(Math.sin(angle-g.angle),Math.cos(angle-g.angle));g.angle=angle;
+    g.rotation=THREE.MathUtils.clamp(g.rotation-delta,-2.25,2.25);
+    const value=-g.rotation/2.25;
+    if(g.index===2){
+      const old=Math.round((controls[2]+1)*3.5),candidate=(value+1)*3.5;
+      if(Math.abs(candidate-old)>.62){controls[2]=Math.round(candidate)/3.5-1;sounds.play('channel');}
+    }else{controls[3]=value;sounds.configure({...state,volume:(value+1)/4});}
+    updateGeometry();sendControl(g.index);requestDraw();return;
+  }
   if(!g.axis&&Math.hypot(dx,dy)>=3)g.axis=Math.abs(dx)>=Math.abs(dy)?'x':'y';
   if(!g.axis)return;
   let delta=g.axis==='x'?dx:dy;
@@ -284,6 +317,7 @@ listen(document,'visibilitychange',()=>{
   else if(state?.active){paused=false;sounds.configure(state);requestDraw();}
 });
 window.pauseSongCu=function(){
+  spin=0;
   flush();paused=true;cancelGesture();cancelAnimationFrame(raf);raf=0;clearTimeout(sendTimer);sendTimer=0;pending=null;sounds.pause();
 };
 window.disposeSongCu=function(){
@@ -293,4 +327,16 @@ window.disposeSongCu=function(){
   renderer.dispose();renderer.forceContextLoss();canvas.remove();picks.length=0;scene.clear();
 };
 listen(window,'pagehide',()=>window.disposeSongCu());
+// Read-only measurements for native touch and rendered-screen regression tests.
+window.songCuSnapshot=()=>{
+  const pixels=programs.context.getImageData(0,0,640,480).data;
+  let picture=0;for(let i=0;i<pixels.length;i+=97)picture=(picture*31+pixels[i])>>>0;
+  return {controls:[...controls],yaw,pitch,volume:sounds.volume,picture,raf,
+    seasons:programs.seasons.complete&&programs.seasons.naturalWidth>0,
+    channel:programs.channel,
+    targets:[...knobs.map(k=>k.group),...antennas.map(a=>a.tip),power].map(g=>{
+      const p=clientPoint(g.getWorldPosition(new THREE.Vector3())),r=canvas.getBoundingClientRect();
+      return {x:(p.x-r.left)/r.width,y:(p.y-r.top)/r.height};
+    })};
+};
 resize();bridge('ready');

@@ -28,10 +28,10 @@ test('finish before GO rejected; duplicates cannot rewrite time', () => {
   room = step(room, 'a', {action:'finish',round:1}, 11000);
   assert.equal(room.players.a.finishAt, 10000);
   room = step(room, 'b', {action:'finish',round:1}, 12000);
-  assert.equal(room.winnerId, 'a'); assert.deepEqual(room.rewards, {a:50,b:10});
+  assert.equal(room.winnerId, 'a');
   assert.equal(room.players.b.finishMs, 3000);
 });
-test('receipt timestamps determine winner despite reversed function order', () => {
+test('command arrival timestamps determine winner despite reversed function order', () => {
   let room = start();
   room = step(room, 'b', {action:'finish',round:1}, 12000);
   room = step(room, 'a', {action:'finish',round:1}, 10000);
@@ -41,9 +41,9 @@ test('tie, timeout and disconnect grace', () => {
   let room = start();
   room = step(room, 'a', {action:'finish',round:1}, 10000);
   const tie = step(room, 'b', {action:'finish',round:1}, 10000);
-  assert.deepEqual(tie.rewards, {a:25,b:25});
+  assert.equal(tie.winnerId, 'draw');
   const timeout = settle(structuredClone(room), room.startAt+300000);
-  assert.equal(timeout.players.b.dnf, true); assert.deepEqual(timeout.rewards, {a:50,b:0});
+  assert.equal(timeout.players.b.dnf, true); assert.equal(timeout.winnerId, 'a');
   const presence = {b:{online:false,at:10000}};
   assert.equal(settle(structuredClone(room), 39999, presence).status, 'playing');
   assert.equal(settle(structuredClone(room), 40000, presence).winnerId, 'a');

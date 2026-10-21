@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../../widgets/rubik_theme.dart';
 import '../services/mock_rubik_challenge_service.dart';
 import '../services/rubik_challenge_service.dart';
-import '../services/rubik_reward_service.dart';
 import 'rubik_challenge_room_screen.dart';
 
 class RubikChallengeLobbyScreen extends StatefulWidget {
@@ -37,7 +36,6 @@ class _LobbyState extends State<RubikChallengeLobbyScreen> {
           : _demo
           ? MockRubikChallengeRepository()
           : await FirebaseRubikChallengeRepository.connect();
-      await RubikRewardService(repository).sync();
       final roomCode = create ? await repository.create(name) : code;
       if (!create) await repository.join(code, name);
       if (!mounted) return;
@@ -81,7 +79,7 @@ class _LobbyState extends State<RubikChallengeLobbyScreen> {
             icon: const Icon(Icons.help_outline),
             onPressed: () => showRubikHelp(
               context,
-              'Nhập tên rồi Tạo phòng; gửi mã sáu ký tự cho người thứ hai. Người tham gia nhập mã rồi Tham gia phòng.\n\nOnline cần máy chủ đã cấu hình và kết nối mạng. Chế độ Thử một máy trong bản phát triển dùng đối thủ mô phỏng, không kiểm chứng kết nối hai thiết bị và không cộng thưởng thật.',
+              'Nhập tên rồi Tạo phòng; gửi mã sáu ký tự cho người thứ hai. Người tham gia nhập mã rồi Tham gia phòng.\n\nOnline cần máy chủ đã cấu hình và kết nối mạng. Chế độ Thử một máy trong bản phát triển dùng đối thủ mô phỏng, không kiểm chứng kết nối hai thiết bị.',
             ),
           ),
         ],
@@ -129,7 +127,7 @@ class _LobbyState extends State<RubikChallengeLobbyScreen> {
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Thử một máy'),
-                subtitle: const Text('Đối thủ mô phỏng; không cộng cá thật'),
+                subtitle: const Text('Đối thủ mô phỏng'),
                 value: _demo,
                 onChanged: _busy
                     ? null
@@ -147,8 +145,7 @@ class _LobbyState extends State<RubikChallengeLobbyScreen> {
               ),
             const SizedBox(height: 16),
             const Text(
-              'Thắng +50 cá • Hoàn thành khi thua +10 cá • Hòa +25 cá\n'
-              'Giới hạn 5 phút. Bỏ trận / DNF không nhận thưởng.',
+              'Giới hạn 5 phút. Bỏ trận hoặc hết giờ được tính là DNF.',
               textAlign: TextAlign.center,
             ),
           ],

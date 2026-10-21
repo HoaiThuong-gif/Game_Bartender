@@ -20,7 +20,6 @@
       }
     },
     "rubikResponses": { "$uid": { ".read": "auth != null && auth.uid === $uid" } },
-    "rubikRewards": { "$uid": { ".read": "auth != null && auth.uid === $uid" } },
     "rubikPresence": {
       "$code": {
         "$uid": {

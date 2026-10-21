@@ -2,11 +2,79 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import 'lobby_layout.dart';
+
 enum CatType { black, orange, tuxedo }
+
+extension CatAssetName on CatType {
+  String get assetName => switch (this) {
+    CatType.black => 'Nam',
+    CatType.orange => 'Cam',
+    CatType.tuxedo => 'Cho',
+  };
+}
 
 enum CatPose { sitting, sleeping, standing, resting }
 
 enum CatDepth { behindGames, afterBartender, foreground }
+
+enum LobbyGame { bartender, rubik, arcade, television }
+
+/// A single shared clock animates one courtyard object at a time.
+class LobbyAtmosphere extends ChangeNotifier {
+  LobbyAtmosphere(this.animation);
+  final Animation<double> animation;
+  late final Listenable repaint = Listenable.merge([this, animation]);
+  LobbyGame? game;
+  CatType? reactingCat;
+  bool entering = false;
+  int event = 0;
+  int televisionScene = 0;
+  int previousTelevisionScene = 0;
+
+  void show(LobbyGame next, {CatType? cat, bool entry = false}) {
+    if (next == LobbyGame.television && !entry) {
+      previousTelevisionScene = televisionScene;
+      televisionScene = (televisionScene + 1) % 2;
+    }
+    game = next;
+    reactingCat = cat;
+    entering = entry;
+    event++;
+    notifyListeners();
+  }
+
+  void clear() {
+    game = null;
+    reactingCat = null;
+    entering = false;
+    notifyListeners();
+  }
+
+  void react(CatType cat) {
+    reactingCat = cat;
+    event++;
+    notifyListeners();
+  }
+}
+
+class LobbyEnvironment extends InheritedWidget {
+  const LobbyEnvironment({
+    super.key,
+    required this.atmosphere,
+    required this.prepareEntry,
+    required this.finishEntry,
+    required super.child,
+  });
+  final LobbyAtmosphere atmosphere;
+  final Future<bool> Function(LobbyGame) prepareEntry;
+  final VoidCallback finishEntry;
+  static LobbyEnvironment? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<LobbyEnvironment>();
+  @override
+  bool updateShouldNotify(LobbyEnvironment oldWidget) =>
+      atmosphere != oldWidget.atmosphere;
+}
 
 abstract final class LobbyCats {
   static const minInterval = Duration(seconds: 12);
@@ -14,94 +82,108 @@ abstract final class LobbyCats {
   static const fadeDuration = Duration(milliseconds: 450);
   static const emptyDuration = Duration(milliseconds: 900);
   static const groundAnchor = 0.9;
-  // Nearby cats set the baseline; distant surfaces use smaller scales below.
-  static const characterScale = 2.8;
   static const relaxed = [CatPose.sitting, CatPose.sleeping, CatPose.resting];
   static const seated = [CatPose.sitting, CatPose.resting];
   static const lying = [CatPose.sleeping, CatPose.resting];
   static const spawns = [
     CatSpawn(
       'arcadeArea',
-      x: 710,
+      x: 730,
       y: 1195,
-      size: 108,
-      scale: 2.3,
-      depth: CatDepth.behindGames,
+      targetSize: Size(215, 220),
+      onGround: true,
+      // On the courtyard in front of the cabinet, not behind its lower panel.
+      depth: CatDepth.afterBartender,
     ),
-    CatSpawn('centerGround', x: 485, y: 1585, size: 145),
+    CatSpawn(
+      'centerGround',
+      x: 485,
+      y: 1585,
+      targetSize: Size(285, 295),
+      onGround: true,
+    ),
     CatSpawn(
       'nearRubikTable',
       x: 370,
       y: 1645,
-      size: 168,
+      targetSize: Size(300, 300),
+      onGround: true,
       depth: CatDepth.foreground,
     ),
     CatSpawn(
       'bartenderArea',
       x: 260,
       y: 1600,
-      size: 150,
+      targetSize: Size(285, 290),
+      onGround: true,
       depth: CatDepth.foreground,
     ),
     CatSpawn(
       'roofTop',
       x: 445,
       y: 364,
-      size: 80,
-      scale: 1.6,
+      targetSize: Size(175, 170),
+      poseSizes: {
+        CatPose.sleeping: Size(175, 152),
+        CatPose.resting: Size(175, 157),
+      },
       allowedPoses: relaxed,
       depth: CatDepth.behindGames,
     ),
     CatSpawn(
       'doorStep',
-      x: 566,
+      // Keep the entire body to the left of the arcade cabinet.
+      x: 495,
       y: 900,
-      size: 70,
-      scale: 1.8,
+      targetSize: Size(156, 166),
       allowedPoses: seated,
       depth: CatDepth.behindGames,
     ),
     CatSpawn(
       'chairLeft',
-      x: 274,
-      y: 1094,
-      size: 100,
-      scale: 1.9,
+      x: LobbyLayout.bartenderLeftSeatX,
+      y: LobbyLayout.bartenderLeftSeatY,
+      targetSize: Size(190, 195),
       allowedPoses: seated,
     ),
     CatSpawn(
       'chairRight',
-      x: 420,
-      y: 1083,
-      size: 96,
-      scale: 1.9,
+      x: LobbyLayout.bartenderRightSeatX,
+      y: LobbyLayout.bartenderRightSeatY,
+      targetSize: Size(185, 190),
       allowedPoses: seated,
     ),
     CatSpawn(
       'foregroundBlueStool',
-      x: 618,
+      x: 610,
       y: 1408,
-      size: 150,
-      scale: 1.8,
+      targetSize: Size(232, 238),
+      poseSizes: {CatPose.resting: Size(205, 211)},
       allowedPoses: seated,
       depth: CatDepth.afterBartender,
     ),
     CatSpawn(
       'foregroundRedStool',
-      x: 815,
-      y: 1510,
-      size: 156,
-      scale: 1.5,
+      // Centre the body's supporting paws on the visible red seat.
+      x: 780,
+      y: 1490,
+      targetSize: Size(210, 215),
+      poseSizes: {
+        CatPose.sitting: Size(210, 215),
+        CatPose.standing: Size(220, 210),
+        CatPose.sleeping: Size(210, 176),
+        CatPose.resting: Size(210, 205),
+      },
       allowedPoses: seated,
-      // Keep the cat below the tabletop cube, with its feet on the stool seat.
-      depth: CatDepth.afterBartender,
+      depth: CatDepth.foreground,
     ),
     CatSpawn(
       'rubikTable',
-      x: 650,
+      // Centre the larger silhouette over the tabletop, keeping contact height.
+      x: 680,
       y: 1315,
-      size: 80,
-      scale: 2.45,
+      targetSize: Size(210, 185),
+      poseSizes: {CatPose.resting: Size(210, 200)},
       allowedPoses: lying,
     ),
   ];
@@ -112,32 +194,64 @@ class CatSpawn {
     this.name, {
     required this.x,
     required this.y,
-    required this.size,
-    this.scale = LobbyCats.characterScale,
+    required this.targetSize,
+    this.poseSizes = const {},
     this.anchor = const Offset(0.5, LobbyCats.groundAnchor),
     this.allowedPoses = CatPose.values,
     this.depth = CatDepth.afterBartender,
+    this.onGround = false,
   });
   final String name;
   final double x;
   final double y;
-  final double size;
-  final double scale;
+
+  /// Maximum visible width/height in scene units, excluding transparent pixels.
+  final Size targetSize;
+  final Map<CatPose, Size> poseSizes;
+  Size sizeFor(CatPose pose) => poseSizes[pose] ?? targetSize;
   final Offset anchor;
   final List<CatPose> allowedPoses;
   final CatDepth depth;
-  double get renderedSize => size * scale;
+  final bool onGround;
+  Offset viewportShift(Size viewport) {
+    if (name == 'chairLeft' || name == 'chairRight') {
+      final bar = LobbyLayout.fitObject(LobbyLayout.bartender, viewport);
+      final source = name == 'chairLeft'
+          ? LobbyLayout.bartenderLeftSeat
+          : LobbyLayout.bartenderRightSeat;
+      return bar.imageRect.topLeft + source * bar.imageScale - Offset(x, y);
+    }
+    if (!onGround ||
+        viewport.isEmpty ||
+        !viewport.width.isFinite ||
+        !viewport.height.isFinite) {
+      return Offset.zero;
+    }
+    final scene = LobbyLayout.designSize;
+    final cover = max(
+      viewport.width / scene.width,
+      viewport.height / scene.height,
+    );
+    final bottom = (scene.height + viewport.height / cover) / 2;
+    return Offset(0, min(0, bottom - 4 / cover - y));
+  }
+
+  CatDepth depthFor(CatType type) => depth;
+  double get renderedSize =>
+      max(targetSize.width / .82, targetSize.height / .8);
   Rect get rect => Rect.fromLTWH(
     x - renderedSize * anchor.dx,
     y - renderedSize * anchor.dy,
     renderedSize,
     renderedSize,
   );
+  Rect rectFor(CatType type) => rect;
+
   Rect get visualRect => Rect.fromLTWH(
-    x - renderedSize * 0.41,
-    y - renderedSize * 0.8,
-    renderedSize * 0.82,
-    renderedSize * 0.8,
+    x - targetSize.width / 2,
+    y - targetSize.height,
+    targetSize.width,
+    targetSize.height,
   );
 }
 
@@ -145,30 +259,17 @@ class LobbyCat {
   const LobbyCat(this.type, this.pose);
   final CatType type;
   final CatPose pose;
-  String get asset => 'assets/images/character/lobby/${type.name}-poses.png';
+  String get asset {
+    final suffix = switch (pose) {
+      CatPose.sitting => 'ngoi',
+      CatPose.standing => 'dung',
+      CatPose.sleeping => 'nam',
+      CatPose.resting => 'vo',
+    };
+    return 'assets/images/character/${type.assetName}/${type.assetName}_$suffix.png';
+  }
+
   String get identity => type.name;
-  int get quarterTurns => pose == CatPose.sleeping ? 1 : 0;
-  static const atlasSize = 1254.0;
-  Rect get sourceRect => switch (type) {
-    CatType.black => const [
-      Rect.fromLTWH(115, 31, 501, 596),
-      Rect.fromLTWH(685, 135, 498, 492),
-      Rect.fromLTWH(12, 627, 642, 571),
-      Rect.fromLTWH(689, 650, 530, 540),
-    ][pose.index],
-    CatType.orange => const [
-      Rect.fromLTWH(134, 30, 441, 583),
-      Rect.fromLTWH(719, 144, 460, 465),
-      Rect.fromLTWH(22, 644, 606, 559),
-      Rect.fromLTWH(685, 701, 542, 493),
-    ][pose.index],
-    CatType.tuxedo => const [
-      Rect.fromLTWH(151, 59, 444, 543),
-      Rect.fromLTWH(671, 94, 506, 505),
-      Rect.fromLTWH(33, 634, 610, 552),
-      Rect.fromLTWH(686, 725, 530, 437),
-    ][pose.index],
-  };
 }
 
 /// This object belongs permanently to one character, even when offscreen.
@@ -194,11 +295,21 @@ class CatPopulation extends ChangeNotifier {
     final types = CatType.values.toList()..shuffle(random);
     final count = 1 + random.nextInt(3);
     for (final type in types.take(count)) {
-      final free = availableSpawns();
+      final free = availableSpawns()
+          .where(
+            (slot) =>
+                type != CatType.black ||
+                LobbyCats.spawns[slot].allowedPoses.contains(CatPose.sitting),
+          )
+          .toList();
       final slot = free[random.nextInt(free.length)];
       final cat = characters[type]!;
       cat.spawnIndex = slot;
-      cat.pose = randomPose(slot);
+      cat.pose =
+          type == CatType.black &&
+              LobbyCats.spawns[slot].allowedPoses.contains(CatPose.sitting)
+          ? CatPose.sitting
+          : randomPose(slot);
     }
   }
   final Random random;
@@ -206,6 +317,45 @@ class CatPopulation extends ChangeNotifier {
     for (final type in CatType.values) type: CatCharacter(type),
   };
   CatChange? pending;
+  CatPose? _queuedNamPose;
+  final busyCats = <CatType>{};
+  bool get namBusy => busyCats.contains(CatType.black);
+  set namBusy(bool value) => setBusy(CatType.black, value);
+  void setBusy(CatType type, bool value) {
+    if (value) {
+      busyCats.add(type);
+    } else {
+      busyCats.remove(type);
+    }
+  }
+
+  void setPose(CatType type, CatPose pose) {
+    characters[type]!.pose = pose;
+    notifyListeners();
+  }
+
+  /// Debug pose override reuses the population and never moves another cat.
+  void previewNam(CatPose pose) {
+    if (pending != null) {
+      _queuedNamPose = pose;
+      return;
+    }
+    final cat = characters[CatType.black]!;
+    if (cat.spawnIndex == null) {
+      final slots = availableSpawns(excluding: CatType.black).toList();
+      if (slots.isEmpty) return;
+      // Prefer the nearby ground for the debug experiment, retaining all
+      // occupancy checks and leaving Orange/Tuxedo untouched.
+      slots.sort(
+        (a, b) =>
+            (a >= 1 && a <= 3 ? 0 : 1).compareTo(b >= 1 && b <= 3 ? 0 : 1),
+      );
+      cat.spawnIndex = slots.first;
+    }
+    cat.pose = pose;
+    notifyListeners();
+  }
+
   Iterable<CatCharacter> get visible =>
       characters.values.where((cat) => cat.spawnIndex != null);
 
@@ -262,6 +412,7 @@ class CatPopulation extends ChangeNotifier {
       );
     }
     final cat = present[random.nextInt(present.length)];
+    if (busyCats.contains(cat.type)) return null;
     if (action == 2 && present.length > 1) return CatChange(outgoing: cat.type);
     if (action == 3 && absent.isNotEmpty) {
       return CatChange(
@@ -313,6 +464,12 @@ class CatPopulation extends ChangeNotifier {
 
   void finish() {
     pending = null;
-    notifyListeners();
+    final preview = _queuedNamPose;
+    _queuedNamPose = null;
+    if (preview != null) {
+      previewNam(preview);
+    } else {
+      notifyListeners();
+    }
   }
 }

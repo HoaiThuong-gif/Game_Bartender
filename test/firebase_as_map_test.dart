@@ -1,6 +1,6 @@
-/// Unit tests cho hàm asMap() trong rtdb_utils.dart.
-///
-/// Đảm bảo chuẩn hoá dữ liệu RTDB (Map/List/null) hoạt động đúng.
+// Unit tests cho hàm asMap() trong rtdb_utils.dart.
+//
+// Đảm bảo chuẩn hoá dữ liệu RTDB (Map/List/null) hoạt động đúng.
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:nhom_bar/games/bartender/services/rtdb_utils.dart';

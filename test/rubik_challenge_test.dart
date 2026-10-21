@@ -1,9 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
-import 'package:nhom_bar/shared/services/fish_wallet.dart';
 import 'package:nhom_bar/games/rubik/challenge/models/rubik_room.dart';
 import 'package:nhom_bar/games/rubik/challenge/services/mock_rubik_challenge_service.dart';
-import 'package:nhom_bar/games/rubik/challenge/services/rubik_reward_service.dart';
 import 'package:nhom_bar/games/rubik/challenge/screens/rubik_challenge_room_screen.dart';
 
 class _ClockDemo extends MockRubikChallengeRepository {
@@ -62,7 +60,6 @@ void main() {
       await tester.pump(const Duration(seconds: 20));
       await tester.pump();
       expect(find.text('CHIẾN THẮNG'), findsOneWidget);
-      expect(find.text('+50 cá (mô phỏng)'), findsOneWidget);
       await tester.tap(find.text('Chơi lại'));
       await tester.pump();
       await tester.pump();
@@ -72,30 +69,6 @@ void main() {
       await repository.dispose();
     },
   );
-  test(
-    'receipt credits atomically persist and cannot repeat after restart',
-    () async {
-      final wallet = FishWallet(initialBalance: 100);
-      final results = await Future.wait([
-        wallet.creditChallengeReceipt('match:1', 50),
-        wallet.creditChallengeReceipt('match:1', 50),
-      ]);
-      expect(results, [true, false]);
-      expect(wallet.balance, 150);
-      final restored = FishWallet();
-      await restored.load();
-      expect(restored.balance, 150);
-      expect(await restored.creditChallengeReceipt('match:1', 50), false);
-      expect(restored.balance, 150);
-    },
-  );
-  test('demo never credits the real wallet', () async {
-    final repository = MockRubikChallengeRepository();
-    final wallet = FishWallet(initialBalance: 0, persist: false);
-    await RubikRewardService(repository, wallet: wallet).sync();
-    expect(wallet.balance, 0);
-    await repository.dispose();
-  });
   test('timer keeps milliseconds and clamps negative values', () {
     expect(challengeTime(41582), '00:41.582');
     expect(challengeTime(-1), '00:00.000');

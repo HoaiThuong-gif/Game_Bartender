@@ -42,7 +42,6 @@ async function main() {
   assert.equal((await request(c,'rubikRooms/ABC234')).status,401);
   assert.equal((await request(a,'rubikRooms/ABC234/winnerId','PUT',a.uid)).status,401);
   assert.equal((await request(a,`rubikRooms/ABC234/players/${b.uid}/finishAt`,'PUT',1)).status,401);
-  assert.equal((await request(a,`rubikRewards/${a.uid}/fake`,'PUT',{amount:999})).status,401);
   // Client timestamps and request mutation must be denied.
   assert.equal((await request(a,`rubikCommands/${a.uid}/fake`,'PUT',
     {action:'finish',code:'ABC234',round:1,name:'A',at:1})).status,401);
@@ -61,13 +60,10 @@ async function main() {
   await command(b,'finish');
   const result = await room(a); assert.equal(result.status,'finished'); assert.equal(result.winnerId,a.uid);
   assert.equal((await room(b)).winnerId,a.uid);
-  const receiptId = `${result.creationId}_1`;
-  const receipt = await (await request(a,`rubikRewards/${a.uid}/${receiptId}`)).json();
-  assert.equal(receipt.amount,50);
   await command(a,'rematch'); assert.equal((await room(a)).round,1);
   await command(b,'rematch'); assert.equal((await room(a)).round,2);
   assert.equal((await command(a,'finish',1)).ok,false);
   await command(a,'leave',2); await command(b,'leave',2);
-  console.log('PASS: two authenticated clients, shared scramble/start, finish/reward, rematch, capacity and security rules.');
+  console.log('PASS: two authenticated clients, shared scramble/start, finish, rematch, capacity and security rules.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

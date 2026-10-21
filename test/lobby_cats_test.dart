@@ -102,6 +102,24 @@ void main() {
         LobbyLayout.rubik.visualRect,
       ];
       for (final spawn in LobbyCats.spawns.take(4)) {
+        if (spawn.name == 'arcadeArea') {
+          // Only the cabinet's lowest panel shares this ground position.
+          // The cat is in front; its head and torso remain below the cabinet.
+          expect(spawn.depth, CatDepth.afterBartender);
+          expect(
+            spawn.visualRect.top,
+            greaterThan(LobbyLayout.arcade.visualRect.bottom - 30),
+          );
+          expect(
+            spawn.visualRect.overlaps(LobbyLayout.bartender.visualRect),
+            isFalse,
+          );
+          expect(
+            spawn.visualRect.overlaps(LobbyLayout.rubik.visualRect),
+            isFalse,
+          );
+          continue;
+        }
         if (spawn.depth == CatDepth.behindGames) continue;
         for (final object in objects) {
           expect(spawn.visualRect.overlaps(object), isFalse);
@@ -111,6 +129,43 @@ void main() {
         expect(spawn.allowedPoses, isNot(contains(CatPose.standing)));
       }
       for (final spawn in LobbyCats.spawns) {
+        if (spawn.name == 'rubikTable') {
+          // The larger lying cat shares the tabletop with the cube. The cube
+          // may cover the right silhouette edge, but must leave its head clear.
+          final head = Rect.fromLTWH(
+            spawn.visualRect.left,
+            spawn.visualRect.top,
+            spawn.visualRect.width * .55,
+            spawn.visualRect.height,
+          );
+          expect(
+            head.overlaps(LobbyLayout.rubik.visualRect.inflate(12)),
+            isFalse,
+          );
+          expect(spawn.depth, CatDepth.afterBartender);
+          continue;
+        }
+        if (spawn.name == 'foregroundBlueStool' ||
+            spawn.name == 'foregroundRedStool') {
+          // Keep the central face area clear of the tabletop cube.
+          final face = Rect.fromLTWH(
+            spawn.x - spawn.renderedSize * .2,
+            spawn.y - spawn.renderedSize * .65,
+            spawn.renderedSize * .4,
+            spawn.renderedSize * .4,
+          );
+          expect(
+            face.overlaps(LobbyLayout.rubik.visualRect.inflate(12)),
+            isFalse,
+          );
+          expect(
+            spawn.depth,
+            spawn.name == 'foregroundRedStool'
+                ? CatDepth.foreground
+                : CatDepth.afterBartender,
+          );
+          continue;
+        }
         expect(
           spawn.visualRect.overlaps(LobbyLayout.rubik.visualRect.inflate(12)),
           isFalse,
@@ -120,8 +175,10 @@ void main() {
       for (final type in CatType.values) {
         for (final pose in CatPose.values) {
           expect(
-            LobbyCat(type, pose).quarterTurns,
-            pose == CatPose.sleeping ? 1 : 0,
+            LobbyCat(type, pose).asset,
+            startsWith(
+              'assets/images/character/${type.assetName}/${type.assetName}_',
+            ),
           );
         }
       }
@@ -159,7 +216,16 @@ void main() {
         );
         await _load(tester);
         double opacity() => tester
-            .widget<FadeTransition>(find.byType(FadeTransition).last)
+            .widget<FadeTransition>(
+              find.byWidgetPredicate(
+                (widget) =>
+                    widget is FadeTransition &&
+                    widget.key is ValueKey<String> &&
+                    (widget.key! as ValueKey<String>).value.startsWith(
+                      'cat-population-fade-',
+                    ),
+              ),
+            )
             .opacity
             .value;
         expect(identities(tester), ['black']);
@@ -235,14 +301,18 @@ void main() {
       await tester.pump(const Duration(seconds: 12));
       await tester.pump(const Duration(milliseconds: 100));
       final fade = tester
-          .widget<FadeTransition>(find.byType(FadeTransition).last)
+          .widget<FadeTransition>(
+            find.byKey(const ValueKey('cat-population-fade-black')),
+          )
           .opacity
           .value;
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
       await tester.pump(const Duration(seconds: 60));
       expect(
         tester
-            .widget<FadeTransition>(find.byType(FadeTransition).last)
+            .widget<FadeTransition>(
+              find.byKey(const ValueKey('cat-population-fade-black')),
+            )
             .opacity
             .value,
         fade,
@@ -275,15 +345,15 @@ void main() {
             ? CatPose.sleeping
             : CatPose.sitting;
       await tester.pumpWidget(
-        MaterialApp(
-          home: LobbyScreen(catPopulation: population),
-        ),
+        MaterialApp(home: LobbyScreen(catPopulation: population)),
       );
       population.notifyListeners();
       await _load(tester);
       expect(find.byType(CatSprite), findsOneWidget);
       final layer = find.byWidgetPredicate(
-        (widget) => widget is LobbyCatLayer && widget.depth == spawn.depth,
+        (widget) =>
+            widget is LobbyCatLayer &&
+            widget.depth == spawn.depthFor(CatType.black),
       );
       expect(
         find.descendant(of: layer, matching: find.byType(CatSprite)),

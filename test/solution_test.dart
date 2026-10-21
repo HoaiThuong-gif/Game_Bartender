@@ -94,8 +94,8 @@ void main() {
         tester.widget<Text>(find.byKey(const ValueKey('guide-preview'))).data,
         initial.toFaceletDefinition(),
       );
-      await tester.ensureVisible(find.text('Xem chú thích'));
-      await tester.tap(find.text('Xem chú thích'));
+      await tester.ensureVisible(find.byIcon(Icons.help_outline));
+      await tester.tap(find.byIcon(Icons.help_outline));
       await tester.pumpAndSettle();
       expect(find.text('CHÚ THÍCH KÝ HIỆU'), findsOneWidget);
       expect(find.textContaining('Chiều xoay được tính'), findsOneWidget);
