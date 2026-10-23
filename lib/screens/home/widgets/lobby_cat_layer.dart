@@ -3,13 +3,15 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import 'lobby_panorama.dart';
+
 import '../lobby_cats.dart';
 import '../lobby_layout.dart';
 import '../nam_cat_assets.dart';
 import '../nam_cat_state_controller.dart';
 import 'nam_cat_character.dart';
 
-enum _CatStage { idle, leaving, empty, arriving }
+enum _CatStage { idle, leaving, arriving }
 
 /// Schedules population fades and one occasional courtyard detail independently.
 class LobbyCatHost extends StatefulWidget {
@@ -34,6 +36,10 @@ class _LobbyCatHostState extends State<LobbyCatHost>
       widget.population ?? CatPopulation(Random(widget.seed));
   late final _sprites = {
     for (final type in CatType.values) type: NamSpriteSet.load(type: type),
+  };
+  final _actorKeys = {
+    for (final type in CatType.values)
+      type: GlobalKey(debugLabel: 'lobby-${type.name}'),
   };
   late final _fade = AnimationController(
     vsync: this,
@@ -211,7 +217,7 @@ class _LobbyCatHostState extends State<LobbyCatHost>
         )
         .toList();
     double distance(CatCharacter cat) {
-      final slot = LobbyCats.spawns[cat.spawnIndex!];
+      final slot = cat.placement;
       return (Offset(slot.x, slot.y - slot.sizeFor(cat.pose).height / 2) -
               point +
               slot.viewportShift(MediaQuery.sizeOf(context)))
@@ -282,13 +288,11 @@ class _LobbyCatHostState extends State<LobbyCatHost>
   void _statusChanged(AnimationStatus status) {
     if (_population.pending == null) return;
     if (status == AnimationStatus.dismissed && _stage == _CatStage.leaving) {
-      _stage = _CatStage.empty;
-      // Keep the old sprite/position intact but invisible during this gap.
-      _arm(LobbyCats.emptyDuration, () {
-        _stage = _CatStage.arriving;
-        _population.commit();
-        _fade.forward();
-      });
+      // Keep the existing character visible while replacing its placement.
+      // No empty timer and no unregister/recreate interval between surfaces.
+      _stage = _CatStage.arriving;
+      _population.commit();
+      _fade.forward();
     } else if (status == AnimationStatus.completed &&
         _stage == _CatStage.arriving) {
       _stage = _CatStage.idle;
@@ -322,6 +326,7 @@ class _LobbyCatHostState extends State<LobbyCatHost>
         population: _population,
         fade: _fade,
         namSprites: _sprites,
+        actorKeys: _actorKeys,
         child: widget.child,
       ),
     );
@@ -333,72 +338,55 @@ class _CatScope extends InheritedNotifier<CatPopulation> {
     required CatPopulation population,
     required this.fade,
     required this.namSprites,
+    required this.actorKeys,
     required super.child,
   }) : super(notifier: population);
   final Animation<double> fade;
   final Map<CatType, Future<NamSpriteSet>> namSprites;
+  final Map<CatType, GlobalKey> actorKeys;
   static _CatScope of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_CatScope>()!;
 }
 
 /// One depth band; all bands share the same population and scheduler.
 class LobbyCatLayer extends StatelessWidget {
-  const LobbyCatLayer({super.key, required this.depth});
-  final CatDepth depth;
+  const LobbyCatLayer({super.key, required this.paintDepth});
+  final int paintDepth;
   @override
   Widget build(BuildContext context) {
     final scope = _CatScope.of(context);
     final population = scope.notifier!;
     final cats =
         population.visible
-            .where(
-              (cat) =>
-                  LobbyCats.spawns[cat.spawnIndex!].depthFor(cat.type) == depth,
-            )
+            .where((cat) => cat.placement.paintDepth == paintDepth)
             .toList()
-          ..sort(
-            (a, b) => LobbyCats.spawns[a.spawnIndex!].y.compareTo(
-              LobbyCats.spawns[b.spawnIndex!].y,
-            ),
-          );
+          ..sort((a, b) => a.placement.y.compareTo(b.placement.y));
     return RepaintBoundary(
       child: Stack(
         children: [
           for (final cat in cats)
-            Positioned.fromRect(
-              key: ValueKey(cat.type),
-              rect: LobbyCats.spawns[cat.spawnIndex!]
-                  .rectFor(cat.type)
-                  .shift(
-                    LobbyCats.spawns[cat.spawnIndex!].viewportShift(
-                      MediaQuery.sizeOf(context),
-                    ),
-                  ),
+            PanoramaActor(
+              key: scope.actorKeys[cat.type],
+              contact: Offset(cat.placement.x, cat.placement.y),
+              size: cat.placement.rectFor(cat.type).size,
+              anchor: cat.placement.anchor,
               child: FadeTransition(
                 key: ValueKey('cat-population-fade-${cat.type.name}'),
                 opacity: population.pending?.involves(cat.type) ?? false
-                    ? scope.fade
+                    ? scope.fade.drive(Tween<double>(begin: .72, end: 1))
                     : kAlwaysCompleteAnimation,
                 child: IgnorePointer(
                   ignoring: (population.pending?.involves(cat.type) ?? false),
                   child: CatSprite(
                     key: ValueKey(cat.type),
                     cat: cat.sprite,
-                    anchor: LobbyCats.spawns[cat.spawnIndex!].anchor,
-                    placement: LobbyCats.spawns[cat.spawnIndex!],
+                    anchor: cat.placement.anchor,
+                    placement: cat.placement,
                     onNamPoseChanged: (pose) =>
                         population.setPose(cat.type, pose),
                     onNamBusyChanged: (value) =>
                         population.setBusy(cat.type, value),
                     namSprites: scope.namSprites[cat.type],
-                    sceneAnchor:
-                        Offset(
-                          LobbyCats.spawns[cat.spawnIndex!].x,
-                          LobbyCats.spawns[cat.spawnIndex!].y,
-                        ) +
-                        LobbyCats.spawns[cat.spawnIndex!].viewportShift(
-                          MediaQuery.sizeOf(context),
-                        ),
                   ),
                 ),
               ),

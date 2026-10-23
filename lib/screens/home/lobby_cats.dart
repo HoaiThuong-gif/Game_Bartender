@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
-import 'lobby_layout.dart';
+import 'lobby_furnishings.dart';
 
 enum CatType { black, orange, tuxedo }
 
@@ -77,51 +77,78 @@ class LobbyEnvironment extends InheritedWidget {
 }
 
 abstract final class LobbyCats {
-  static const minInterval = Duration(seconds: 12);
-  static const maxInterval = Duration(seconds: 25);
-  static const fadeDuration = Duration(milliseconds: 450);
-  static const emptyDuration = Duration(milliseconds: 900);
+  static const minInterval = Duration(seconds: 35);
+  static const maxInterval = Duration(seconds: 80);
+  static const fadeDuration = Duration(milliseconds: 1200);
+  static const sizeScale = 1.25;
+  static const raisedSizeScale = 1.25;
   static const groundAnchor = 0.9;
   static const relaxed = [CatPose.sitting, CatPose.sleeping, CatPose.resting];
   static const seated = [CatPose.sitting, CatPose.resting];
   static const lying = [CatPose.sleeping, CatPose.resting];
   static const spawns = [
     CatSpawn(
-      'arcadeArea',
-      x: 730,
-      y: 1195,
+      'tvSideFloor',
+      x: 1460,
+      y: 657,
       targetSize: Size(215, 220),
       onGround: true,
-      // On the courtyard in front of the cabinet, not behind its lower panel.
+      // Clear floor to the left of the TV console.
       depth: CatDepth.afterBartender,
+      region: [
+        Offset(1430, 665),
+        Offset(1655, 675),
+        Offset(1700, 790),
+        Offset(1380, 785),
+      ],
+      layerDepth: 50,
     ),
     CatSpawn(
-      'centerGround',
-      x: 485,
-      y: 1585,
+      'rugFloor',
+      x: 1050,
+      y: 713,
       targetSize: Size(285, 295),
       onGround: true,
+      region: [
+        Offset(840, 675),
+        Offset(1030, 665),
+        Offset(1060, 762),
+        Offset(820, 770),
+      ],
+      layerDepth: 50,
     ),
     CatSpawn(
-      'nearRubikTable',
-      x: 370,
-      y: 1645,
+      'nearSofaFloor',
+      x: 640,
+      y: 748,
       targetSize: Size(300, 300),
       onGround: true,
       depth: CatDepth.foreground,
+      region: [
+        Offset(600, 735),
+        Offset(770, 740),
+        Offset(800, 825),
+        Offset(575, 820),
+      ],
     ),
     CatSpawn(
-      'bartenderArea',
-      x: 260,
-      y: 1600,
+      'diningFloor',
+      x: 190,
+      y: 730,
       targetSize: Size(285, 290),
       onGround: true,
       depth: CatDepth.foreground,
+      region: [
+        Offset(225, 754),
+        Offset(439, 756),
+        Offset(460, 821),
+        Offset(205, 821),
+      ],
     ),
     CatSpawn(
-      'roofTop',
-      x: 445,
-      y: 364,
+      'sofaSeat',
+      x: 709,
+      y: 556,
       targetSize: Size(175, 170),
       poseSizes: {
         CatPose.sleeping: Size(175, 152),
@@ -129,44 +156,77 @@ abstract final class LobbyCats {
       },
       allowedPoses: relaxed,
       depth: CatDepth.behindGames,
+      region: [
+        Offset(673, 548),
+        Offset(755, 546),
+        Offset(779, 565),
+        Offset(668, 574),
+      ],
+      layerDepth: 27,
     ),
     CatSpawn(
-      'doorStep',
-      // Keep the entire body to the left of the arcade cabinet.
-      x: 495,
-      y: 900,
+      'windowCushion',
+      x: 1258,
+      y: 543,
       targetSize: Size(156, 166),
       allowedPoses: seated,
       depth: CatDepth.behindGames,
+      region: [
+        Offset(1204, 545),
+        Offset(1308, 530),
+        Offset(1318, 538),
+        Offset(1212, 553),
+      ],
+      layerDepth: 26,
     ),
     CatSpawn(
-      'chairLeft',
-      x: LobbyLayout.bartenderLeftSeatX,
-      y: LobbyLayout.bartenderLeftSeatY,
+      'diningLeftSeat',
+      x: 250,
+      y: 573,
       targetSize: Size(190, 195),
       allowedPoses: seated,
+      region: [
+        Offset(242, 569),
+        Offset(262, 572),
+        Offset(260, 578),
+        Offset(241, 575),
+      ],
+      layerDepth: 29,
     ),
     CatSpawn(
-      'chairRight',
-      x: LobbyLayout.bartenderRightSeatX,
-      y: LobbyLayout.bartenderRightSeatY,
+      'diningRightSeat',
+      x: 374,
+      y: 610,
       targetSize: Size(185, 190),
       allowedPoses: seated,
+      region: [
+        Offset(360, 604),
+        Offset(383, 607),
+        Offset(389, 614),
+        Offset(363, 617),
+      ],
+      layerDepth: 36,
     ),
     CatSpawn(
-      'foregroundBlueStool',
-      x: 610,
-      y: 1408,
+      'sofaChaise',
+      x: 902,
+      y: 574,
       targetSize: Size(232, 238),
       poseSizes: {CatPose.resting: Size(205, 211)},
-      allowedPoses: seated,
+      allowedPoses: relaxed,
       depth: CatDepth.afterBartender,
+      region: [
+        Offset(836, 558),
+        Offset(906, 558),
+        Offset(926, 576),
+        Offset(849, 591),
+      ],
+      layerDepth: 27,
     ),
     CatSpawn(
-      'foregroundRedStool',
-      // Centre the body's supporting paws on the visible red seat.
-      x: 780,
-      y: 1490,
+      'windowWoodStep',
+      x: 1334,
+      y: 581,
       targetSize: Size(210, 215),
       poseSizes: {
         CatPose.sitting: Size(210, 215),
@@ -176,15 +236,185 @@ abstract final class LobbyCats {
       },
       allowedPoses: seated,
       depth: CatDepth.foreground,
+      region: [
+        Offset(1244, 588),
+        Offset(1368, 564),
+        Offset(1380, 570),
+        Offset(1254, 596),
+      ],
+      layerDepth: 26,
     ),
     CatSpawn(
-      'rubikTable',
-      // Centre the larger silhouette over the tabletop, keeping contact height.
-      x: 680,
-      y: 1315,
+      'sofaCorner',
+      x: 804,
+      y: 548,
       targetSize: Size(210, 185),
       poseSizes: {CatPose.resting: Size(210, 200)},
       allowedPoses: lying,
+      region: [
+        Offset(783, 541),
+        Offset(813, 539),
+        Offset(831, 549),
+        Offset(798, 557),
+      ],
+      layerDepth: 27,
+    ),
+    // Contacts measured on the current furniture PNGs and the clear floor.
+    CatSpawn(
+      'hallFloor',
+      x: 521,
+      y: 640,
+      targetSize: Size(240, 245),
+      onGround: true,
+      region: [
+        Offset(505, 542),
+        Offset(537, 542),
+        Offset(551, 637),
+        Offset(607, 751),
+        Offset(477, 751),
+        Offset(491, 634),
+      ],
+      layerDepth: 23,
+    ),
+    CatSpawn(
+      'windowFloor',
+      x: 1240,
+      y: 738,
+      targetSize: Size(280, 290),
+      onGround: true,
+      region: [
+        Offset(1140, 673),
+        Offset(1377, 669),
+        Offset(1410, 790),
+        Offset(1095, 790),
+      ],
+      layerDepth: 50,
+    ),
+    CatSpawn(
+      'sofaBack',
+      x: 721,
+      y: 478,
+      targetSize: Size(165, 170),
+      allowedPoses: [CatPose.sitting],
+      region: [
+        Offset(653, 475),
+        Offset(783, 474),
+        Offset(789, 480),
+        Offset(655, 482),
+      ],
+      layerDepth: 27,
+    ),
+    CatSpawn(
+      'sofaLeftArm',
+      x: 619,
+      y: 531,
+      targetSize: Size(155, 160),
+      allowedPoses: [CatPose.sitting],
+      region: [
+        Offset(610, 521),
+        Offset(626, 528),
+        Offset(632, 540),
+        Offset(615, 536),
+      ],
+      layerDepth: 27,
+    ),
+    CatSpawn(
+      'sofaRightArm',
+      x: 916,
+      y: 515,
+      targetSize: Size(155, 160),
+      allowedPoses: [CatPose.sitting],
+      region: [
+        Offset(904, 509),
+        Offset(923, 510),
+        Offset(924, 520),
+        Offset(908, 518),
+      ],
+      layerDepth: 27,
+    ),
+    CatSpawn(
+      'kitchenCounter',
+      x: 362,
+      y: 467,
+      targetSize: Size(165, 170),
+      allowedPoses: relaxed,
+      region: [
+        Offset(316, 463),
+        Offset(402, 469),
+        Offset(413, 474),
+        Offset(319, 469),
+      ],
+      layerDepth: 19,
+    ),
+    CatSpawn(
+      'diningTableLeft',
+      x: 253,
+      y: 538,
+      targetSize: Size(170, 175),
+      allowedPoses: relaxed,
+      region: [
+        Offset(235, 532),
+        Offset(260, 521),
+        Offset(274, 532),
+        Offset(251, 544),
+      ],
+      layerDepth: 34,
+    ),
+    CatSpawn(
+      'diningTableRight',
+      x: 407,
+      y: 527,
+      targetSize: Size(155, 160),
+      allowedPoses: seated,
+      region: [
+        Offset(402, 520),
+        Offset(421, 513),
+        Offset(424, 523),
+        Offset(402, 534),
+      ],
+      layerDepth: 34,
+    ),
+    CatSpawn(
+      'consoleTop',
+      x: 1532,
+      y: 535,
+      targetSize: Size(165, 170),
+      allowedPoses: relaxed,
+      region: [
+        Offset(1475, 523),
+        Offset(1577, 534),
+        Offset(1580, 545),
+        Offset(1473, 534),
+      ],
+      layerDepth: 28,
+    ),
+    CatSpawn(
+      'coffeeTableLeft',
+      x: 661,
+      y: 615,
+      targetSize: Size(145, 150),
+      allowedPoses: [CatPose.sitting],
+      region: [
+        Offset(650, 609),
+        Offset(670, 604),
+        Offset(679, 613),
+        Offset(658, 622),
+      ],
+      layerDepth: 37,
+    ),
+    CatSpawn(
+      'coffeeTableRight',
+      x: 763,
+      y: 616,
+      targetSize: Size(145, 150),
+      allowedPoses: [CatPose.sitting],
+      region: [
+        Offset(754, 608),
+        Offset(773, 611),
+        Offset(777, 619),
+        Offset(756, 622),
+      ],
+      layerDepth: 37,
     ),
   ];
 }
@@ -200,6 +430,8 @@ class CatSpawn {
     this.allowedPoses = CatPose.values,
     this.depth = CatDepth.afterBartender,
     this.onGround = false,
+    this.region = const [],
+    this.layerDepth,
   });
   final String name;
   final double x;
@@ -208,37 +440,71 @@ class CatSpawn {
   /// Maximum visible width/height in scene units, excluding transparent pixels.
   final Size targetSize;
   final Map<CatPose, Size> poseSizes;
-  Size sizeFor(CatPose pose) => poseSizes[pose] ?? targetSize;
+  double get displayScale =>
+      LobbyCats.sizeScale *
+      ((surfaceGroup == 'sofa' ||
+              name.startsWith('coffeeTable') ||
+              name.startsWith('diningTable'))
+          ? LobbyCats.raisedSizeScale
+          : 1);
+  Size sizeFor(CatPose pose) => (poseSizes[pose] ?? targetSize) * displayScale;
+  final List<Offset> region;
+  final int? layerDepth;
+  int get paintDepth =>
+      layerDepth ??
+      switch (depth) {
+        CatDepth.behindGames => 27,
+        CatDepth.afterBartender => 37,
+        CatDepth.foreground => 50,
+      };
+  CatSpawn at(Offset point) => CatSpawn(
+    name,
+    x: point.dx,
+    y: point.dy,
+    targetSize: targetSize,
+    poseSizes: poseSizes,
+    anchor: anchor,
+    allowedPoses: allowedPoses,
+    depth: depth,
+    onGround: onGround,
+    region: region,
+    layerDepth: layerDepth,
+  );
+
+  Offset sample(Random random) {
+    if (region.length < 3) return Offset(x, y);
+    final path = Path()..addPolygon(region, true);
+    final box = path.getBounds();
+    for (var i = 0; i < 80; i++) {
+      final p = Offset(
+        box.left + random.nextDouble() * box.width,
+        box.top + random.nextDouble() * box.height,
+      );
+      if (path.contains(p)) return p;
+    }
+    return Offset(x, y);
+  }
+
   final Offset anchor;
   final List<CatPose> allowedPoses;
   final CatDepth depth;
   final bool onGround;
-  Offset viewportShift(Size viewport) {
-    if (name == 'chairLeft' || name == 'chairRight') {
-      final bar = LobbyLayout.fitObject(LobbyLayout.bartender, viewport);
-      final source = name == 'chairLeft'
-          ? LobbyLayout.bartenderLeftSeat
-          : LobbyLayout.bartenderRightSeat;
-      return bar.imageRect.topLeft + source * bar.imageScale - Offset(x, y);
+  String get surfaceGroup {
+    if (name.startsWith('sofa')) return 'sofa';
+    if (name.startsWith('coffeeTable')) return 'coffeeTable';
+    if (!onGround && name.startsWith('dining')) return 'dining';
+    if (name == 'windowCushion' || name == 'windowWoodStep') {
+      return 'windowBench';
     }
-    if (!onGround ||
-        viewport.isEmpty ||
-        !viewport.width.isFinite ||
-        !viewport.height.isFinite) {
-      return Offset.zero;
-    }
-    final scene = LobbyLayout.designSize;
-    final cover = max(
-      viewport.width / scene.width,
-      viewport.height / scene.height,
-    );
-    final bottom = (scene.height + viewport.height / cover) / 2;
-    return Offset(0, min(0, bottom - 4 / cover - y));
+    return name;
   }
+
+  // Panorama contacts never move to fit the viewport.
+  Offset viewportShift(Size viewport) => Offset.zero;
 
   CatDepth depthFor(CatType type) => depth;
   double get renderedSize =>
-      max(targetSize.width / .82, targetSize.height / .8);
+      max(targetSize.width / .82, targetSize.height / .8) * displayScale;
   Rect get rect => Rect.fromLTWH(
     x - renderedSize * anchor.dx,
     y - renderedSize * anchor.dy,
@@ -247,12 +513,39 @@ class CatSpawn {
   );
   Rect rectFor(CatType type) => rect;
 
-  Rect get visualRect => Rect.fromLTWH(
-    x - targetSize.width / 2,
-    y - targetSize.height,
-    targetSize.width,
-    targetSize.height,
-  );
+  Rect get visualRect {
+    // Actor sizes use 1672 authoring units, not panorama pixels. Match the
+    // tangent-plane projection when checking separation between characters.
+    final latitude = (.5 - y / 887) * pi;
+    final unit = 1774 / (2 * pi) * 2 * tan(75 * pi / 360) / 1672;
+    final w =
+        targetSize.width *
+        displayScale *
+        unit /
+        cos(latitude).abs().clamp(.3, 1.0);
+    final h = targetSize.height * displayScale * unit;
+    // Resting sprites are anchored at the front paws, not the centre of the
+    // complete silhouette. Reserve the rear paws and tail as well.
+    return Rect.fromLTWH(x - w * .65, y - h, w * 1.5, h + 4);
+  }
+
+  bool supports(CatPose pose) {
+    if (!allowedPoses.contains(pose)) return false;
+    if (!onGround) return true;
+    // Read the same furniture placements used for drawing. A floor cat may
+    // cover a chair only when its paws are below that chair's floor contact.
+    // This also reserves the opaque upper chair area, not just a centre point.
+    final clearance = visualRect.inflate(8);
+    for (final layer in LobbyFurnishings.layers) {
+      if (!layer.id.startsWith('chair_') && layer.id != 'dining_table') {
+        continue;
+      }
+      final furniture = layer.placement.bounds;
+      final floor = max(layer.placement.contact.dy, furniture.bottom);
+      if (clearance.overlaps(furniture) && y < floor + 10) return false;
+    }
+    return true;
+  }
 }
 
 class LobbyCat {
@@ -278,38 +571,38 @@ class CatCharacter {
   final CatType type;
   CatPose pose = CatPose.sitting;
   int? spawnIndex;
+  CatSpawn? positioned;
+  late DateTime nextChangeAt;
+  CatSpawn get placement => positioned ?? LobbyCats.spawns[spawnIndex!];
   LobbyCat get sprite => LobbyCat(type, pose);
 }
 
 class CatChange {
-  const CatChange({this.outgoing, this.incoming, this.spawnIndex, this.pose});
+  const CatChange({
+    this.outgoing,
+    this.incoming,
+    this.spawnIndex,
+    this.pose,
+    this.placement,
+  });
   final CatType? outgoing;
   final CatType? incoming;
   final int? spawnIndex;
   final CatPose? pose;
+  final CatSpawn? placement;
   bool involves(CatType type) => outgoing == type || incoming == type;
 }
 
 class CatPopulation extends ChangeNotifier {
   CatPopulation(this.random) {
-    final types = CatType.values.toList()..shuffle(random);
-    final count = 1 + random.nextInt(3);
-    for (final type in types.take(count)) {
-      final free = availableSpawns()
-          .where(
-            (slot) =>
-                type != CatType.black ||
-                LobbyCats.spawns[slot].allowedPoses.contains(CatPose.sitting),
-          )
-          .toList();
-      final slot = free[random.nextInt(free.length)];
+    const seats = {CatType.black: 4, CatType.orange: 7, CatType.tuxedo: 5};
+    for (final type in CatType.values) {
       final cat = characters[type]!;
-      cat.spawnIndex = slot;
-      cat.pose =
-          type == CatType.black &&
-              LobbyCats.spawns[slot].allowedPoses.contains(CatPose.sitting)
-          ? CatPose.sitting
-          : randomPose(slot);
+      cat.spawnIndex = seats[type];
+      cat.pose = CatPose.sitting;
+      cat.nextChangeAt = DateTime.now().add(
+        Duration(seconds: 25 + random.nextInt(26)),
+      );
     }
   }
   final Random random;
@@ -381,83 +674,111 @@ class CatPopulation extends ChangeNotifier {
     final choices = LobbyCats.spawns[slot].allowedPoses
         .where((pose) => pose != excluding)
         .toList();
-    return choices[random.nextInt(choices.length)];
+    return choices.isEmpty
+        ? excluding!
+        : choices[random.nextInt(choices.length)];
   }
 
-  Duration nextInterval() => Duration(
-    milliseconds:
-        LobbyCats.minInterval.inMilliseconds +
-        random.nextInt(
-          LobbyCats.maxInterval.inMilliseconds -
-              LobbyCats.minInterval.inMilliseconds +
-              1,
-        ),
-  );
+  Duration nextInterval() {
+    final free = visible.where((cat) => !busyCats.contains(cat.type)).toList();
+    if (free.isEmpty) return const Duration(seconds: 1);
+    final due = free
+        .map((cat) => cat.nextChangeAt)
+        .reduce((a, b) => a.isBefore(b) ? a : b);
+    return Duration(
+      milliseconds: max(750, due.difference(DateTime.now()).inMilliseconds),
+    );
+  }
 
   CatChange? planChange() {
-    final present = visible.toList();
-    final absent = characters.values
-        .where((cat) => cat.spawnIndex == null)
-        .toList();
-    final free = availableSpawns();
-    final action = random.nextInt(6);
-    if (action == 5) return null;
-    if (action == 1 && absent.isNotEmpty && free.isNotEmpty) {
-      final cat = absent[random.nextInt(absent.length)];
-      final slot = free[random.nextInt(free.length)];
-      return CatChange(
-        incoming: cat.type,
-        spawnIndex: slot,
-        pose: randomPose(slot),
-      );
-    }
-    final cat = present[random.nextInt(present.length)];
-    if (busyCats.contains(cat.type)) return null;
-    if (action == 2 && present.length > 1) return CatChange(outgoing: cat.type);
-    if (action == 3 && absent.isNotEmpty) {
-      return CatChange(
-        outgoing: cat.type,
-        incoming: absent[random.nextInt(absent.length)].type,
-        spawnIndex: cat.spawnIndex,
-        pose: randomPose(cat.spawnIndex!),
-      );
-    }
-    if (action == 4) {
-      final destinations = availableSpawns(excluding: cat.type)
-          .where((slot) => slot != cat.spawnIndex)
-          .toList();
-      if (destinations.isNotEmpty) {
-        final slot = destinations[random.nextInt(destinations.length)];
+    if (pending != null) return null;
+    final now = DateTime.now();
+    final ready =
+        visible
+            .where(
+              (cat) =>
+                  !busyCats.contains(cat.type) &&
+                  !cat.nextChangeAt.isAfter(now),
+            )
+            .toList()
+          ..sort((a, b) => a.nextChangeAt.compareTo(b.nextChangeAt));
+    if (ready.isEmpty) return null;
+    final cat = ready.first;
+    final slots = List.generate(LobbyCats.spawns.length, (i) => i)
+      ..shuffle(random);
+    // Usually change surface, sometimes settle into another authored pose.
+    if (random.nextInt(4) == 0) slots.insert(0, cat.spawnIndex!);
+    for (final slot in slots) {
+      for (var attempt = 0; attempt < 12; attempt++) {
+        final surface = LobbyCats.spawns[slot];
+        final point = surface.sample(random);
+        final placement = surface.at(point);
+        final pose = randomPose(slot, excluding: cat.pose);
+        if (!placement.supports(pose)) continue;
+        if (visible.any(
+          (other) =>
+              other.type != cat.type &&
+              ((!surface.onGround &&
+                      other.placement.surfaceGroup == surface.surfaceGroup) ||
+                  other.placement.visualRect
+                      .inflate(14)
+                      .overlaps(placement.visualRect.inflate(14))),
+        )) {
+          continue;
+        }
+        if (slot == cat.spawnIndex &&
+            (point - Offset(cat.placement.x, cat.placement.y)).distance < 5 &&
+            surface.allowedPoses.length < 2) {
+          continue;
+        }
         return CatChange(
           outgoing: cat.type,
           incoming: cat.type,
           spawnIndex: slot,
-          pose: randomPose(slot),
+          pose: pose,
+          placement: placement,
         );
       }
     }
-    return CatChange(
-      outgoing: cat.type,
-      incoming: cat.type,
-      spawnIndex: cat.spawnIndex,
-      pose: randomPose(cat.spawnIndex!, excluding: cat.pose),
-    );
+    cat.nextChangeAt = now.add(const Duration(seconds: 2));
+    return null;
   }
 
   void begin(CatChange change) {
     assert(pending == null);
+    // A scheduled change relocates one existing character. It must never add
+    // a fourth cat or remove one of the three identities.
+    if (change.incoming == null ||
+        change.incoming != change.outgoing ||
+        change.spawnIndex == null ||
+        change.pose == null) {
+      throw ArgumentError('A lobby change must retain the same cat.');
+    }
     pending = change;
     notifyListeners();
   }
 
-  /// Called only after opacity reaches zero AND the empty interval finishes.
+  /// Atomically replace a placement; all three characters remain registered.
   void commit() {
     final change = pending!;
-    if (change.outgoing case final type?) characters[type]!.spawnIndex = null;
     if (change.incoming case final type?) {
       final cat = characters[type]!;
       cat.spawnIndex = change.spawnIndex;
       cat.pose = change.pose!;
+      cat.positioned = change.placement;
+      final extra = cat.pose == CatPose.sleeping ? 18 : 0;
+      cat.nextChangeAt = DateTime.now().add(
+        Duration(
+          seconds:
+              LobbyCats.minInterval.inSeconds +
+              extra +
+              random.nextInt(
+                LobbyCats.maxInterval.inSeconds -
+                    LobbyCats.minInterval.inSeconds +
+                    1,
+              ),
+        ),
+      );
     }
     notifyListeners();
   }

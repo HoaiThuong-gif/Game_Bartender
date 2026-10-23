@@ -5,20 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nhom_bar/screens/home/lobby_cats.dart';
-import 'package:nhom_bar/screens/home/lobby_screen.dart';
 import 'package:nhom_bar/screens/home/nam_cat_assets.dart';
 import 'package:nhom_bar/screens/home/nam_cat_state_controller.dart';
 import 'package:nhom_bar/screens/home/widgets/nam_cat_character.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  late NamSpriteSet sprites;
   final allSprites = <CatType, NamSpriteSet>{};
   setUpAll(() async {
     for (final type in CatType.values) {
       allSprites[type] = await NamSpriteSet.load(type: type);
     }
-    sprites = allSprites[CatType.black]!;
   });
   tearDownAll(() {
     for (final set in allSprites.values) {
@@ -265,16 +262,6 @@ void main() {
       resting.dispose();
     },
   );
-
-  testWidgets('lobby has no pose test controls', (tester) async {
-    final population = CatPopulation(Random(5));
-    await tester.pumpWidget(
-      MaterialApp(home: LobbyScreen(catPopulation: population)),
-    );
-    expect(find.byType(PopupMenuButton<CatPose>), findsNothing);
-    await tester.pumpWidget(const SizedBox());
-    population.dispose();
-  });
 
   test(
     'all three cats load four complete poses and four expression slots each',
@@ -529,131 +516,4 @@ void main() {
     }
     population.dispose();
   });
-
-  testWidgets('all Nam poses stay inside cover viewport at the right stool', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(390, 844));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    final spawn = LobbyCats.spawns.firstWhere(
-      (spawn) => spawn.name == 'foregroundRedStool',
-    );
-    for (final pose in CatPose.values) {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: MediaQuery(
-            data: const MediaQueryData(
-              size: Size(390, 844),
-              devicePixelRatio: 1,
-            ),
-            child: ClipRect(
-              child: FittedBox(
-                fit: BoxFit.cover,
-                child: SizedBox(
-                  width: 941,
-                  height: 1672,
-                  child: Stack(
-                    children: [
-                      Positioned.fromRect(
-                        rect: spawn.rectFor(CatType.black),
-                        child: NamCatCharacter(
-                          pose: pose,
-                          anchor: spawn.anchor,
-                          targetSize: spawn.sizeFor(pose),
-                          sceneAnchor: Offset(spawn.x, spawn.y),
-                          sprites: Future.value(sprites),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-      final canvas = tester.getRect(
-        find.byKey(const ValueKey('nam-interaction')),
-      );
-      final frame = sprites.frames[(pose, CatExpression.neutral)]!;
-      final factor = canvas.width / frame.image.width;
-      final rect = Rect.fromLTWH(
-        canvas.left + frame.bounds.left * factor,
-        canvas.top + frame.bounds.top * factor,
-        frame.bounds.width * factor,
-        frame.bounds.height * factor,
-      );
-      expect(rect.left, greaterThanOrEqualTo(0));
-      expect(rect.right, lessThanOrEqualTo(390));
-      expect(rect.top, greaterThanOrEqualTo(0));
-      expect(rect.bottom, lessThanOrEqualTo(844));
-    }
-    await tester.pumpWidget(const SizedBox());
-  });
-
-  testWidgets(
-    'all ground poses keep their paws inside the connected Android aspect ratio',
-    (tester) async {
-      const viewport = Size(480, 768); // SM X520: 1440 x 2304.
-      await tester.binding.setSurfaceSize(viewport);
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      final spawn = LobbyCats.spawns.firstWhere(
-        (s) => s.name == 'nearRubikTable',
-      );
-      for (final type in CatType.values) {
-        for (final pose in CatPose.values) {
-          await tester.pumpWidget(
-            MaterialApp(
-              home: MediaQuery(
-                data: const MediaQueryData(size: viewport),
-                child: ClipRect(
-                  child: FittedBox(
-                    fit: BoxFit.cover,
-                    child: SizedBox(
-                      width: 941,
-                      height: 1672,
-                      child: Stack(
-                        children: [
-                          Positioned.fromRect(
-                            rect: spawn.rect.shift(
-                              spawn.viewportShift(viewport),
-                            ),
-                            child: NamCatCharacter(
-                              key: ValueKey(type),
-                              type: type,
-                              pose: pose,
-                              anchor: spawn.anchor,
-                              sceneAnchor:
-                                  Offset(spawn.x, spawn.y) +
-                                  spawn.viewportShift(viewport),
-                              targetSize: spawn.sizeFor(pose),
-                              sprites: Future.value(allSprites[type]!),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-          await tester.pump();
-          final box = tester.getRect(
-            find.byKey(ValueKey('${type.assetName.toLowerCase()}-interaction')),
-          );
-          final frame =
-              allSprites[type]!.frames[(pose, CatExpression.neutral)]!;
-          final scale = box.width / frame.image.width;
-          expect(
-            box.top + frame.bounds.bottom * scale,
-            lessThanOrEqualTo(viewport.height - 3.9),
-          );
-          expect(box.top + frame.bounds.top * scale, greaterThanOrEqualTo(0));
-        }
-      }
-      await tester.pumpWidget(const SizedBox());
-    },
-  );
 }

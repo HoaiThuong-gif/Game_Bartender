@@ -7,6 +7,7 @@ import '../lobby_cats.dart';
 import '../lobby_layout.dart';
 import '../nam_cat_assets.dart';
 import '../nam_cat_state_controller.dart';
+import 'lobby_panorama.dart';
 
 class NamCatCharacter extends StatefulWidget {
   const NamCatCharacter({
@@ -47,6 +48,7 @@ class _NamCatCharacterState extends State<NamCatCharacter>
   Duration? _strokeStart;
   double _travel = 0;
   int? _pointer;
+  ValueChanged<int>? _releaseCamera;
   bool _didStroke = false;
   LobbyAtmosphere? _atmosphere;
   int _environmentEvent = 0;
@@ -73,7 +75,7 @@ class _NamCatCharacterState extends State<NamCatCharacter>
     _state.setActive(_enabled && _resumed);
     _state.setIdleEnabled(!MediaQuery.disableAnimationsOf(context));
     if (!_enabled) {
-      _pointer = null;
+      _releasePointer();
       _didStroke = true;
       _resetStroke();
       widget.onBusyChanged?.call(false);
@@ -99,7 +101,7 @@ class _NamCatCharacterState extends State<NamCatCharacter>
     super.didUpdateWidget(oldWidget);
     if (widget.pose != _state.pose) {
       _resetStroke();
-      _pointer = null;
+      _releasePointer();
       _didStroke = true;
       _state.setPose(widget.pose, notify: false);
       widget.onBusyChanged?.call(false);
@@ -118,7 +120,7 @@ class _NamCatCharacterState extends State<NamCatCharacter>
     _resumed = state == AppLifecycleState.resumed;
     _state.setActive(_enabled && _resumed);
     if (!_resumed) {
-      _pointer = null;
+      _releasePointer();
       _didStroke = true;
       _resetStroke();
       widget.onBusyChanged?.call(false);
@@ -155,14 +157,22 @@ class _NamCatCharacterState extends State<NamCatCharacter>
 
   void _finishPointer(PointerEvent event) {
     if (event.pointer != _pointer) return;
-    _pointer = null;
+    _releasePointer();
     _resetStroke();
     _state.endHeadStroke();
     widget.onBusyChanged?.call(_state.busy);
   }
 
+  void _releasePointer() {
+    final pointer = _pointer;
+    _pointer = null;
+    if (pointer != null) _releaseCamera?.call(pointer);
+    _releaseCamera = null;
+  }
+
   @override
   void dispose() {
+    _releasePointer();
     _atmosphere?.removeListener(_environmentChanged);
     WidgetsBinding.instance.removeObserver(this);
     _state.removeListener(_changed);
@@ -270,6 +280,9 @@ class _NamCatCharacterState extends State<NamCatCharacter>
                       onPointerDown: (event) {
                         if (_pointer != null || !_enabled || !_resumed) return;
                         _pointer = event.pointer;
+                        final camera = LobbyCamera.maybeOf(context);
+                        _releaseCamera = camera?.onCatTouchEnd;
+                        camera?.onCatTouchStart?.call(event.pointer);
                         _didStroke = false;
                         _resetStroke();
                         _stroke(
@@ -297,6 +310,12 @@ class _NamCatCharacterState extends State<NamCatCharacter>
                       },
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
+                        // Claim a drag that starts on opaque cat pixels. Raw
+                        // pointer strokes still work; the parent scale/pan
+                        // recognizer must not drag the apartment as well.
+                        onPanStart: (_) {},
+                        onPanUpdate: (_) {},
+                        onPanEnd: (_) {},
                         onTapUp: (details) {
                           if (_didStroke) return;
                           _state.tap(

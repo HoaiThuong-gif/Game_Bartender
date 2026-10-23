@@ -73,20 +73,21 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  shaders:
+    - shaders/lobby_panorama.frag
+
   assets:
     # Package runtime WebViews only; npm uses the source modules when rebuilding.
-    - assets/song_cu/index.html
-    - assets/song_cu/song-cu.js
-    - assets/artifact/index.html
-    - assets/artifact/artifact.js
     - assets/rubik/index.html
     - assets/rubik/rubik.js
     - assets/rubik/interactive.html
     - assets/rubik/interactive.js
     - assets/images/lobby/background.png
-    # The TV game reads this sheet for its four authored seasonal pictures.
+    - assets/images/lobby/furniture/
+    - assets/images/lobby/bartender.png
+    - assets/images/lobby/rubik.png
+    - assets/images/lobby/picture.png
     - assets/images/lobby/tv.png
-    - assets/images/lobby/frames/
     - assets/images/character/Nam/Nam_dung.png
     - assets/images/character/Nam/Nam_ngoi.png
     - assets/images/character/Nam/Nam_nam.png

@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-
-import 'dart:math' as math;
 
 import '../../games/bartender/screens/bartender_screen.dart';
 import '../../games/rubik/screens/rubik_screen.dart';
-import '../../games/song_cu/screens/song_cu_screen.dart';
+import '../../games/spatial/spatial_screen.dart';
 import 'lobby_layout.dart';
+import 'lobby_furnishings.dart';
 import 'lobby_cats.dart';
-import 'widgets/animated_flag.dart';
+import 'widgets/lobby_panorama.dart';
 import 'widgets/lobby_object.dart';
 import 'widgets/lobby_cat_layer.dart';
 
@@ -31,7 +31,20 @@ class LobbyScreen extends StatefulWidget {
 }
 
 class _LobbyScreenState extends State<LobbyScreen> {
+  final _view = LobbyViewController();
+  final _shown = {for (final game in LobbyGame.values) game: true};
+  final _shownFurniture = {
+    for (final layer in LobbyFurnishings.layers) layer.id: true,
+  };
+  bool _showCats = true;
   bool _opening = false;
+  @override
+  void dispose() {
+    _view.dispose();
+    super.dispose();
+  }
+
+  Alignment _entryFocal = Alignment.center;
   bool _away = false;
   bool _active = true;
   LobbyEnvironment? _environment;
@@ -88,29 +101,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
   Route<void> _route(LobbyGame game, Widget screen) {
     final reduced = MediaQuery.disableAnimationsOf(context);
-    final placement = switch (game) {
-      LobbyGame.bartender => LobbyLayout.bartender,
-      LobbyGame.rubik => LobbyLayout.rubik,
-      LobbyGame.arcade => LobbyLayout.arcade,
-      LobbyGame.television => LobbyLayout.tv,
-    };
-    final viewport = MediaQuery.sizeOf(context);
-    final scene = LobbyLayout.designSize;
-    final cover = math.max(
-      viewport.width / scene.width,
-      viewport.height / scene.height,
-    );
-    final source = placement.visualRect.center;
-    final focal = Alignment(
-      ((source.dx - scene.width / 2) * cover / viewport.width * 2).clamp(
-        -1.0,
-        1.0,
-      ),
-      ((source.dy - scene.height / 2) * cover / viewport.height * 2).clamp(
-        -1.0,
-        1.0,
-      ),
-    );
+    final focal = _entryFocal;
     return PageRouteBuilder<void>(
       transitionDuration: reduced
           ? Duration.zero
@@ -152,36 +143,264 @@ class _LobbyScreenState extends State<LobbyScreen> {
     );
   }
 
-  void _comingSoon(BuildContext context, String game) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('$game đang được phát triển.')));
-  }
-
-  Widget _place(LobbyPlacement placement, Widget child) => Positioned.fromRect(
-    rect: LobbyLayout.fitObject(
-      placement,
-      MediaQuery.sizeOf(context),
-    ).imageRect,
-    child: child,
-  );
-
   Widget _game(
     LobbyPlacement placement,
     LobbyGame game,
     String label,
     VoidCallback onTap,
-  ) => _place(
-    placement,
-    Builder(
-      builder: (sceneContext) => LobbyObject(
-        asset: placement.asset,
-        game: game,
-        label: label,
-        onTap: () => _enter(sceneContext, game, onTap),
-      ),
-    ),
+  ) => Positioned.fill(
+    key: ValueKey(game),
+    child: !_shown[game]!
+        ? const SizedBox()
+        : Builder(
+            builder: (sceneContext) => LobbyObject(
+              asset: placement.asset,
+              placement: placement,
+              game: game,
+              label: label,
+              onTap: () {
+                final camera = LobbyCamera.of(sceneContext);
+                final matrix = camera.plane(
+                  Offset(placement.x, placement.y),
+                  Size.zero,
+                  Offset.zero,
+                );
+                if (matrix != null) {
+                  final w = matrix.entry(3, 3);
+                  _entryFocal = Alignment(
+                    (2 * matrix.entry(0, 3) / w / camera.viewport.width - 1)
+                        .clamp(-1.0, 1.0),
+                    (2 * matrix.entry(1, 3) / w / camera.viewport.height - 1)
+                        .clamp(-1.0, 1.0),
+                  );
+                }
+                _enter(sceneContext, game, onTap);
+              },
+            ),
+          ),
   );
+
+  Iterable<(int, Widget)> _furniture() sync* {
+    final layers = LobbyFurnishings.layers.toList()
+      ..sort((a, b) => a.depth.compareTo(b.depth));
+    for (final layer in layers) {
+      if (!_shownFurniture[layer.id]!) continue;
+      yield (
+        layer.depth,
+        Positioned.fill(
+          key: ValueKey(layer.id),
+          child: LobbyObject(
+            asset: layer.placement.asset,
+            placement: layer.placement,
+            label: layer.label,
+            onTap: null,
+          ),
+        ),
+      );
+    }
+  }
+
+  Iterable<Widget> _scene() {
+    final layers = <(int, Widget)>[
+      ..._furniture(),
+      (
+        17,
+        _game(
+          LobbyLayout.tv,
+          LobbyGame.television,
+          'Chơi AR / VR',
+          () => Navigator.of(context).push(
+            _route(LobbyGame.television, const SpatialScreen(expedition: true)),
+          ),
+        ),
+      ),
+      (
+        18,
+        _game(
+          LobbyLayout.arcade,
+          LobbyGame.arcade,
+          'Quét vật thể 3D',
+          widget.onArcadeTap ??
+              () {
+                final builder = widget.arcadeBuilder;
+                Navigator.of(context).push(
+                  _route(
+                    LobbyGame.arcade,
+                    builder?.call(context) ?? const SpatialScreen(),
+                  ),
+                );
+              },
+        ),
+      ),
+      (
+        33,
+        _game(
+          LobbyLayout.bartender,
+          LobbyGame.bartender,
+          'Quầy Bartender',
+          widget.onBartenderTap ??
+              () => Navigator.of(context)
+                  .push(_route(LobbyGame.bartender, const BartenderScreen())),
+        ),
+      ),
+      (
+        38,
+        _game(
+          LobbyLayout.rubik,
+          LobbyGame.rubik,
+          'Chơi Rubik',
+          () =>
+              Navigator.of(context)
+                  .push(_route(LobbyGame.rubik, const RubikScreen())),
+        ),
+      ),
+      if (_showCats)
+        for (final depth in LobbyCats.spawns.map((s) => s.paintDepth).toSet())
+          (
+            depth,
+            Positioned.fill(
+              key: ValueKey('cats-at-depth-$depth'),
+              child: LobbyCatLayer(paintDepth: depth),
+            ),
+          ),
+    ]..sort((a, b) => a.$1.compareTo(b.$1));
+    return layers.map((layer) => layer.$2);
+  }
+
+  void _inspect() {
+    const names = {
+      LobbyGame.arcade: 'Tranh / 3D',
+      LobbyGame.television: 'TV / AR VR',
+      LobbyGame.bartender: 'Khay / Bartender',
+      LobbyGame.rubik: 'Rubik',
+    };
+    const placements = {
+      LobbyGame.arcade: LobbyLayout.arcade,
+      LobbyGame.television: LobbyLayout.tv,
+      LobbyGame.bartender: LobbyLayout.bartender,
+      LobbyGame.rubik: LobbyLayout.rubik,
+    };
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, refresh) => SafeArea(
+          child: SizedBox(
+            height: MediaQuery.sizeOf(context).height * .82,
+            child: Column(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text(
+                    'Layers',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Text(_view.imageInfo, style: const TextStyle(fontSize: 11)),
+                Text(_view.gpuInfo, style: const TextStyle(fontSize: 11)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (final enabled in [false, true])
+                      TextButton.icon(
+                        icon: Icon(
+                          enabled ? Icons.visibility : Icons.visibility_off,
+                        ),
+                        label: Text(enabled ? 'Bat tat ca' : 'Phong trong'),
+                        onPressed: () {
+                          setState(() {
+                            for (final id in _shownFurniture.keys) {
+                              _shownFurniture[id] = enabled;
+                            }
+                            for (final game in _shown.keys) {
+                              _shown[game] = enabled;
+                            }
+                            _showCats = enabled;
+                          });
+                          refresh(() {});
+                        },
+                      ),
+                  ],
+                ),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      for (final entry in names.entries)
+                        Row(
+                          children: [
+                            Expanded(
+                              child: SwitchListTile(
+                                title: Text(entry.value),
+                                value: _shown[entry.key]!,
+                                onChanged: (value) {
+                                  setState(() => _shown[entry.key] = value);
+                                  refresh(() {});
+                                },
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.center_focus_strong),
+                              onPressed: () {
+                                _view.lookAt(
+                                  placements[entry.key]!.bounds.center,
+                                );
+                                Navigator.pop(sheetContext);
+                              },
+                            ),
+                          ],
+                        ),
+                      for (final layer in LobbyFurnishings.layers)
+                        Row(
+                          children: [
+                            Expanded(
+                              child: SwitchListTile(
+                                title: Text(layer.label),
+                                value: _shownFurniture[layer.id]!,
+                                onChanged: (value) {
+                                  setState(
+                                    () => _shownFurniture[layer.id] = value,
+                                  );
+                                  refresh(() {});
+                                },
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.center_focus_strong),
+                              onPressed: () {
+                                _view.lookAt(layer.placement.bounds.center);
+                                Navigator.pop(sheetContext);
+                              },
+                            ),
+                          ],
+                        ),
+                      SwitchListTile(
+                        title: const Text('Nam, Cam, Cho'),
+                        value: _showCats,
+                        onChanged: (value) {
+                          setState(() => _showCats = value);
+                          refresh(() {});
+                        },
+                      ),
+                      for (final slot in [4, 7, 5])
+                        ListTile(
+                          title: Text(LobbyCats.spawns[slot].name),
+                          trailing: const Icon(Icons.pets),
+                          onTap: () {
+                            final spawn = LobbyCats.spawns[slot];
+                            _view.lookAt(Offset(spawn.x, spawn.y - 25));
+                            Navigator.pop(sheetContext);
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -190,83 +409,23 @@ class _LobbyScreenState extends State<LobbyScreen> {
       child: LobbyCatHost(
         active: _active,
         population: widget.catPopulation,
-        child: ClipRect(
-          child: SizedBox.expand(
-            // Background and actors share one scene transform. The resized stall
-            // and its seated cats use the same authored seat contact points.
-            child: FittedBox(
-              fit: BoxFit.cover,
-              child: SizedBox(
-                width: LobbyLayout.designSize.width,
-                height: LobbyLayout.designSize.height,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    const Positioned.fill(
-                      child: Image(
-                        image: AssetImage(LobbyLayout.backgroundAsset),
-                        fit: BoxFit.cover,
-                        excludeFromSemantics: true,
-                      ),
-                    ),
-                    const Positioned.fill(
-                      child: LobbyCatLayer(depth: CatDepth.behindGames),
-                    ),
-                    _game(
-                      LobbyLayout.tv,
-                      LobbyGame.television,
-                      'Tivi thùng bí ẩn',
-                      () => Navigator.of(context).push(
-                        _route(LobbyGame.television, const SongCuScreen()),
-                      ),
-                    ),
-                    _game(
-                      LobbyLayout.arcade,
-                      LobbyGame.arcade,
-                      'Chơi Giải Mã Cổ Vật',
-                      widget.onArcadeTap ??
-                          () {
-                            final builder = widget.arcadeBuilder;
-                            if (builder == null) {
-                              _comingSoon(context, 'Arcade');
-                            } else {
-                              Navigator.of(context).push(
-                                _route(LobbyGame.arcade, builder(context)),
-                              );
-                            }
-                          },
-                    ),
-                    _game(
-                      LobbyLayout.bartender,
-                      LobbyGame.bartender,
-                      'Quầy Bartender',
-                      widget.onBartenderTap ??
-                          () => Navigator.of(context).push(
-                            _route(
-                              LobbyGame.bartender,
-                              const BartenderScreen(),
-                            ),
-                          ),
-                    ),
-                    const Positioned.fill(
-                      child: LobbyCatLayer(depth: CatDepth.afterBartender),
-                    ),
-                    _game(
-                      LobbyLayout.rubik,
-                      LobbyGame.rubik,
-                      'Chơi Rubik',
-                      () => Navigator.of(context)
-                          .push(_route(LobbyGame.rubik, const RubikScreen())),
-                    ),
-                    _place(LobbyLayout.flag, const AnimatedFlag()),
-                    const Positioned.fill(
-                      child: LobbyCatLayer(depth: CatDepth.foreground),
-                    ),
-                  ],
+        child: LobbyPanorama(
+          controller: _view,
+          children: [
+            ..._scene(),
+            if (kDebugMode)
+              Positioned(
+                top: 0,
+                right: 8,
+                child: SafeArea(
+                  child: IconButton.filledTonal(
+                    tooltip: 'Layers',
+                    icon: const Icon(Icons.layers_outlined),
+                    onPressed: _inspect,
+                  ),
                 ),
               ),
-            ),
-          ),
+          ],
         ),
       ),
     ),

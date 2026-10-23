@@ -6,7 +6,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:nhom_bar/games/rubik/widgets/rubik_interactive_preview.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-import 'lobby_interaction_device_test.dart' show snapshot, waitFor;
+import 'rubik_interactive_device_test.dart' as rubik;
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -16,10 +16,12 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(home: Scaffold(body: RubikInteractivePreview())),
       );
-      await waitFor(tester, 'window.rubikToySnapshot?.() ?? {}');
+      await rubik.ready(tester);
       await tester.pump(const Duration(seconds: 1));
-      Future<Map<String, dynamic>> state() =>
-          snapshot(tester, 'window.rubikToySnapshot()');
+      Future<Map<String, dynamic>> state() async =>
+          Map<String, dynamic>.from(
+            await rubik.js(tester, 'window.rubikToySnapshot()') as Map,
+          );
       final initial = await state();
       final rect = tester.getRect(find.byType(WebViewWidget));
 
@@ -74,7 +76,7 @@ void main() {
       }
       debugPrint('[RubikTouch] native roll 45/90/180 and recovery verified');
 
-      final targets = await snapshot(
+      final targets = await rubik.js(
         tester,
         '({items:window.rubikToyTouchTargets()})',
       );
