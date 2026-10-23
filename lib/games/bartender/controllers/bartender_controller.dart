@@ -9,6 +9,7 @@ import '../models/player.dart';
 import '../models/ring.dart';
 import '../models/room.dart';
 import '../models/station.dart';
+import '../services/bartender_haptics.dart';
 import '../services/fake_room_repository.dart';
 import '../services/firebase_room_repository.dart';
 import '../services/room_repository.dart';
@@ -242,6 +243,7 @@ class BartenderController extends ChangeNotifier {
         ringIndex: myRingIndex,
         itemId: item.id,
       );
+      unawaited(BartenderHaptics.itemTrashed());
       _showNotice('🗑️ Đã bỏ thùng rác!');
     } catch (e) {
       _errorMessage = 'Không thể xoá vật phẩm: $e';
@@ -292,6 +294,7 @@ class BartenderController extends ChangeNotifier {
         orderId: order.id,
         productId: product.itemId,
       );
+      unawaited(BartenderHaptics.orderSubmitted());
       _showNotice('🎉 +5s! Đã hoàn thành đơn hàng!');
     } catch (e) {
       _errorMessage = 'Không thể nộp đơn: $e';
@@ -323,6 +326,19 @@ class BartenderController extends ChangeNotifier {
   void _subscribeToRoom(String code) {
     _roomSubscription?.cancel();
     _roomSubscription = _repository.watchRoom(code).listen((updatedRoom) {
+      // D14: Nếu người chơi bị loại khỏi phòng (ví dụ qua ranh giới round khi mất kết nối)
+      if (myPlayerId != null &&
+          _room != null &&
+          !updatedRoom.players.containsKey(myPlayerId)) {
+        _stopTicker();
+        _roomSubscription?.cancel();
+        _roomSubscription = null;
+        _room = null;
+        _errorMessage = 'Bạn đã bị loại khỏi phòng do mất kết nối.';
+        notifyListeners();
+        return;
+      }
+
       final oldRound = _room?.currentRound?.number;
       _room = updatedRoom;
 
@@ -359,6 +375,7 @@ class BartenderController extends ChangeNotifier {
       // Fake: _endMatch nội bộ. Firebase: transaction trên results (D17).
       if (timeUp) {
         _stopTicker();
+        unawaited(BartenderHaptics.timeExpired());
         final code = _room?.code;
         if (code != null) {
           _repository.endMatch(code);

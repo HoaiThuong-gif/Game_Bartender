@@ -1,20 +1,30 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 
 import '../models/game_item.dart';
+import '../models/processing_rules.dart';
 import '../models/station.dart';
+import '../services/shake_detector.dart';
 
 /// Hiển thị trạm chế biến được phân cho người chơi trong round hiện tại.
 ///
-/// Xem PROJECT_SPEC.md & DECISIONS.md D5:
+/// Xem PROJECT_SPEC.md & DECISIONS.md D5 & D6:
 /// - Màn hình của mỗi người chỉ hiển thị MỘT trạm cố định cho round đó.
 /// - Có thể không có trạm nào (null) — lúc này người chơi đóng vai trò điều phối/chuyền đồ.
-class StationWidget extends StatelessWidget {
+/// - Trạm shaker sử dụng cảm biến lắc điện thoại (sensors_plus).
+/// - Có nút "Lắc giả lập" khi cảm biến không khả dụng (emulator / widget test).
+class StationWidget extends StatefulWidget {
   const StationWidget({
     super.key,
     required this.station,
     required this.items,
     required this.onProcessItem,
     required this.isBusy,
+    this.isSensorAvailable,
+    this.shakeDetector,
+    this.accelerometerStream,
   });
 
   final StationType? station;
@@ -22,15 +32,106 @@ class StationWidget extends StatelessWidget {
   final void Function(GameItem item) onProcessItem;
   final bool isBusy;
 
+  /// Cho phép ép tính khả dụng của cảm biến trong widget test hoặc emulator.
+  final bool? isSensorAvailable;
+
+  /// ShakeDetector tùy chỉnh (hoặc inject trong test).
+  final ShakeDetector? shakeDetector;
+
+  /// Accelerometer stream tùy chỉnh (cho test).
+  final Stream<UserAccelerometerEvent>? accelerometerStream;
+
+  @override
+  State<StationWidget> createState() => _StationWidgetState();
+}
+
+class _StationWidgetState extends State<StationWidget> {
+  StreamSubscription<UserAccelerometerEvent>? _sensorSub;
+  late final ShakeDetector _shakeDetector;
+  bool _sensorAvailable = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _shakeDetector = widget.shakeDetector ?? ShakeDetector();
+    _setupSensors();
+  }
+
+  @override
+  void didUpdateWidget(covariant StationWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.station != widget.station ||
+        oldWidget.isSensorAvailable != widget.isSensorAvailable) {
+      _setupSensors();
+    }
+  }
+
+  void _setupSensors() {
+    _sensorSub?.cancel();
+    _sensorSub = null;
+
+    if (widget.station != StationType.shaker) return;
+
+    if (widget.isSensorAvailable != null) {
+      _sensorAvailable = widget.isSensorAvailable!;
+    } else if (ShakeSensorConfig.isSensorAvailableOverride != null) {
+      _sensorAvailable = ShakeSensorConfig.isSensorAvailableOverride!;
+    } else {
+      final binding = WidgetsBinding.instance.runtimeType.toString();
+      _sensorAvailable =
+          !binding.contains('Test') && !binding.contains('Automated');
+    }
+
+    if (!_sensorAvailable) return;
+
+    final stream = widget.accelerometerStream ??
+        ShakeSensorConfig.customStream ??
+        userAccelerometerEventStream();
+
+    _sensorSub = stream.listen(
+      (event) {
+        if (!mounted || widget.isBusy) return;
+        final nowMs = event.timestamp.millisecondsSinceEpoch;
+        final didShake =
+            _shakeDetector.addSample(event.x, event.y, event.z, nowMs);
+        if (didShake) {
+          final processable = widget.items
+              .where((item) =>
+                  processItem(item.itemId, StationType.shaker) != null)
+              .toList();
+          if (processable.isNotEmpty) {
+            widget.onProcessItem(processable.first);
+          }
+        }
+      },
+      onError: (_) {
+        if (mounted) {
+          setState(() {
+            _sensorAvailable = false;
+          });
+        }
+      },
+      cancelOnError: false,
+    );
+  }
+
+  @override
+  void dispose() {
+    _sensorSub?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (station == null) {
+    if (widget.station == null) {
       return _buildNoStationBanner();
     }
 
+    final currentStation = widget.station!;
+
     // Lọc ra các item có thể chế biến tại trạm này
-    final processableItems = items
-        .where((item) => _canProcess(item, station!))
+    final processableItems = widget.items
+        .where((item) => _canProcess(item, currentStation))
         .toList();
 
     return Container(
@@ -73,7 +174,7 @@ class StationWidget extends StatelessWidget {
                         shape: BoxShape.circle,
                       ),
                       child: Text(
-                        station!.iconEmoji,
+                        currentStation.iconEmoji,
                         style: const TextStyle(fontSize: 22),
                       ),
                     ),
@@ -83,7 +184,7 @@ class StationWidget extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            station!.displayName.toUpperCase(),
+                            currentStation.displayName.toUpperCase(),
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
@@ -92,7 +193,7 @@ class StationWidget extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            'Thao tác: ${station!.actionVerb}',
+                            'Thao tác: ${currentStation.actionVerb}',
                             style: const TextStyle(
                               color: Colors.white54,
                               fontSize: 11,
@@ -104,7 +205,7 @@ class StationWidget extends StatelessWidget {
                   ],
                 ),
               ),
-              if (isBusy)
+              if (widget.isBusy)
                 const SizedBox(
                   width: 20,
                   height: 20,
@@ -130,7 +231,7 @@ class StationWidget extends StatelessWidget {
                 border: Border.all(color: Colors.white10),
               ),
               child: Text(
-                'Chưa có nguyên liệu phù hợp để ${station!.actionVerb.toLowerCase()}.\n'
+                'Chưa có nguyên liệu phù hợp để ${currentStation.actionVerb.toLowerCase()}.\n'
                 'Nhận hoặc xin từ đồng đội!',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white54, fontSize: 11),
@@ -138,7 +239,7 @@ class StationWidget extends StatelessWidget {
             )
           else ...[
             Text(
-              'Có ${processableItems.length} món có thể ${station!.actionVerb.toLowerCase()}:',
+              'Có ${processableItems.length} món có thể ${currentStation.actionVerb.toLowerCase()}:',
               style: const TextStyle(
                 color: Colors.amberAccent,
                 fontSize: 11,
@@ -146,31 +247,94 @@ class StationWidget extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: processableItems.map((item) {
-                return ElevatedButton.icon(
-                  onPressed: isBusy ? null : () => onProcessItem(item),
-                  icon: Text(
-                    station!.iconEmoji,
-                    style: const TextStyle(fontSize: 14),
+            if (currentStation == StationType.shaker && _sensorAvailable)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.deepPurple.shade900.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: Colors.amberAccent.withValues(alpha: 0.5),
                   ),
-                  label: Text('${station!.actionVerb} ${item.itemId}'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurpleAccent,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.vibration,
+                      color: Colors.amberAccent,
+                      size: 22,
                     ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        '📱 Lắc điện thoại để pha chế!\n(${processableItems.map((i) => i.itemId).join(', ')})',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (currentStation == StationType.shaker && !_sensorAvailable)
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ElevatedButton.icon(
+                    key: const Key('simulate-shake-button'),
+                    onPressed: widget.isBusy
+                        ? null
+                        : () => widget.onProcessItem(processableItems.first),
+                    icon: const Text('🫨', style: TextStyle(fontSize: 16)),
+                    label: const Text('Lắc giả lập'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.amber.shade800,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                     ),
                   ),
-                );
-              }).toList(),
-            ),
+                ],
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: processableItems.map((item) {
+                  return ElevatedButton.icon(
+                    onPressed: widget.isBusy
+                        ? null
+                        : () => widget.onProcessItem(item),
+                    icon: Text(
+                      currentStation.iconEmoji,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    label: Text('${currentStation.actionVerb} ${item.itemId}'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurpleAccent,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
           ],
         ],
       ),
@@ -226,16 +390,6 @@ class StationWidget extends StatelessWidget {
   }
 
   bool _canProcess(GameItem item, StationType station) {
-    final id = item.itemId;
-    switch (station) {
-      case StationType.juicer:
-        return id == 'orange' || id == 'lemon';
-      case StationType.cuttingBoard:
-        return id == 'strawberry' || id == 'lemon';
-      case StationType.blender:
-        return id == 'cut_strawberry' || id == 'strawberry';
-      case StationType.shaker:
-        return id == 'orange_juice' || id == 'lemonade' || id == 'ice';
-    }
+    return processItem(item.itemId, station) != null;
   }
 }

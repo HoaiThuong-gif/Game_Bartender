@@ -89,12 +89,15 @@ class OrderTrayWidget extends StatelessWidget {
                     ingredients: [],
                     steps: [],
                     difficulty: 1,
+                    productId: order.recipeId,
                   ),
                 );
 
                 // Kiểm tra người chơi có sẵn sản phẩm hoàn chỉnh của đơn này không
-                final matchingProduct = availableItems.cast<GameItem?>().firstWhere(
-                      (item) => item!.itemId == order.recipeId,
+                final matchingProduct = availableItems
+                    .cast<GameItem?>()
+                    .firstWhere(
+                      (item) => item!.itemId == recipe.productId,
                       orElse: () => null,
                     );
 
@@ -142,15 +145,15 @@ class _OrderCard extends StatelessWidget {
         color: order.isCompleted
             ? Colors.green.shade900.withValues(alpha: 0.3)
             : isReadyToSubmit
-                ? Colors.amber.shade900.withValues(alpha: 0.35)
-                : const Color(0xFF2C2C40),
+            ? Colors.amber.shade900.withValues(alpha: 0.35)
+            : const Color(0xFF2C2C40),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: order.isCompleted
               ? Colors.greenAccent.withValues(alpha: 0.6)
               : isReadyToSubmit
-                  ? Colors.amberAccent
-                  : Colors.white12,
+              ? Colors.amberAccent
+              : Colors.white12,
           width: isReadyToSubmit ? 2 : 1,
         ),
       ),
@@ -174,10 +177,17 @@ class _OrderCard extends StatelessWidget {
                 ),
               ),
               if (order.isCompleted)
-                const Icon(Icons.check_circle, size: 16, color: Colors.greenAccent)
+                const Icon(
+                  Icons.check_circle,
+                  size: 16,
+                  color: Colors.greenAccent,
+                )
               else
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.blueGrey.shade800,
                     borderRadius: BorderRadius.circular(4),
@@ -252,10 +262,7 @@ class _OrderCard extends StatelessWidget {
                 ),
                 child: const Text(
                   'NỘP ĐƠN (+5s) ✨',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
                 ),
               ),
             )
@@ -270,10 +277,7 @@ class _OrderCard extends StatelessWidget {
               ),
               child: const Text(
                 'Đang chế biến...',
-                style: TextStyle(
-                  color: Colors.white38,
-                  fontSize: 10,
-                ),
+                style: TextStyle(color: Colors.white38, fontSize: 10),
               ),
             ),
         ],

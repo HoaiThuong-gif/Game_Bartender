@@ -12,8 +12,9 @@ import '../models/recipe_pool.dart';
 import '../models/ring.dart';
 import '../models/room.dart';
 import '../models/round.dart';
+import '../models/round_setup.dart';
 import '../models/station.dart';
-import '../models/station_assigner.dart';
+import '../models/processing_rules.dart';
 import 'room_repository.dart';
 
 /// Bản triển khai trong bộ nhớ (in-memory) của [RoomRepository].
@@ -62,6 +63,9 @@ class FakeRoomRepository implements RoomRepository {
     }
   }
 
+  /// Helper dùng trong unit/widget test để phát ra trạng thái phòng giả lập.
+  void emitRoomForTest(Room room) => _emit(room);
+
   @override
   Future<Room> createRoom({
     required String hostPlayerName,
@@ -71,7 +75,7 @@ class FakeRoomRepository implements RoomRepository {
     final players = <String, Player>{};
 
     // Host luôn là ringIndex 0.
-    final hostId = 'p_0';
+    const hostId = 'p_0';
     _localPlayerId = hostId;
     players[hostId] = Player(
       id: hostId,
@@ -82,6 +86,7 @@ class FakeRoomRepository implements RoomRepository {
     );
 
     // Tạo các bot cho các vị trí còn lại trong vòng tròn (ringIndex 1, 2, ...).
+    // totalPlayers CHỈ dùng cho Fake (số bot) — không ghi lên Firebase (D13).
     final botNames = ['Bot Minh', 'Bot An', 'Bot Chi', 'Bot Dũng', 'Bot Hoa'];
     for (var i = 1; i < totalPlayers; i++) {
       final botId = 'p_$i';
@@ -135,10 +140,7 @@ class FakeRoomRepository implements RoomRepository {
 
     final updated = current.copyWith(
       players: newPlayers,
-      inbox: {
-        ...current.inbox,
-        newIndex: <GameItem>[],
-      },
+      inbox: {...current.inbox, newIndex: <GameItem>[]},
     );
 
     _emit(updated);
@@ -156,12 +158,24 @@ class FakeRoomRepository implements RoomRepository {
     final player = current.players[playerId];
     if (player == null) return;
 
-    // Giữ slot, chỉ set connected = false theo API.md
-    final updatedPlayers = Map<String, Player>.from(current.players);
-    updatedPlayers[playerId] = player.copyWith(connected: false);
-
-    final updated = current.copyWith(players: updatedPlayers);
-    _emit(updated);
+    if (current.status == RoomStatus.lobby) {
+      // D14 (lobby): xoá hẳn người chơi khỏi phòng
+      final updatedPlayers = Map<String, Player>.from(current.players)
+        ..remove(playerId);
+      final updatedInbox = Map<int, List<GameItem>>.from(current.inbox)
+        ..remove(player.ringIndex);
+      _emit(current.copyWith(players: updatedPlayers, inbox: updatedInbox));
+    } else {
+      // D14 (playing): chỉ set connected = false, giữ slot cho round này
+      final updatedPlayers = Map<String, Player>.from(current.players);
+      updatedPlayers[playerId] = player.copyWith(connected: false);
+      var updatedRoom = current.copyWith(players: updatedPlayers);
+      // D14: Nếu còn dưới 2 người connected: kết thúc trận
+      if (updatedRoom.connectedPlayerCount < 2) {
+        updatedRoom = _buildEndedRoom(updatedRoom);
+      }
+      _emit(updatedRoom);
+    }
   }
 
   @override
@@ -170,29 +184,42 @@ class FakeRoomRepository implements RoomRepository {
     final current = _currentRoom!;
     if (!current.canStart) return;
 
-    final playerCount = current.totalPlayerCount;
+    // D13: ring size = số người connected khi start (không dùng totalPlayers cố định)
+    final connectedPlayers =
+        current.players.values.where((p) => p.connected).toList()
+          ..sort((a, b) => a.ringIndex.compareTo(b.ringIndex));
 
-    // Khởi tạo Round 1
-    // StationAssigner.assign(playerCount:, random:) — xem station_assigner.dart
-    final stationAssignment = StationAssigner.assign(
-      playerCount: playerCount,
-      random: _rng,
+    final playerIds = connectedPlayers.map((p) => p.id).toList();
+
+    // D15: dùng RoundSetup.generate để đảm bảo round luôn làm được
+    final setup = RoundSetup.generate(
+      playerIds: playerIds,
+      roundNumber: 1,
+      rng: _rng,
     );
 
-    // Gán 3 đơn hàng từ RecipePool cho mỗi người chơi
-    final recipes = RecipePool.recipesForRound(1);
-    final playerOrders = <String, List<Order>>{};
+    // Compact ringIndex (D14): dồn về 0..k-1 giữ nguyên thứ tự
+    final newPlayers = <String, Player>{};
+    for (var i = 0; i < connectedPlayers.length; i++) {
+      final p = connectedPlayers[i];
+      newPlayers[p.id] = p.copyWith(ringIndex: i);
+    }
 
+    // Gán 3 đơn hàng từ feasibleRecipes cho mỗi người chơi
+    final playerOrders = <String, List<Order>>{};
     var orderCounter = 1;
-    for (final playerId in current.players.keys) {
+    for (final playerId in playerIds) {
       final orders = <Order>[];
       for (var i = 0; i < BartenderConfig.ordersPerPlayer; i++) {
-        final recipe = recipes[_rng.nextInt(recipes.length)];
-        orders.add(Order(
-          id: 'ord_${orderCounter++}',
-          recipeId: recipe.id,
-          status: OrderStatus.pending,
-        ));
+        final recipe =
+            setup.feasibleRecipes[_rng.nextInt(setup.feasibleRecipes.length)];
+        orders.add(
+          Order(
+            id: 'ord_${orderCounter++}',
+            recipeId: recipe.id,
+            status: OrderStatus.pending,
+          ),
+        );
       }
       playerOrders[playerId] = orders;
     }
@@ -200,7 +227,7 @@ class FakeRoomRepository implements RoomRepository {
     final initialRound = Round(
       number: 1,
       ordersPerPlayer: BartenderConfig.ordersPerPlayer,
-      stationAssignment: stationAssignment,
+      stationAssignment: setup.stationAssignment,
       playerOrders: playerOrders,
     );
 
@@ -210,15 +237,18 @@ class FakeRoomRepository implements RoomRepository {
     // Cung cấp 1 nguyên liệu ban đầu cho mỗi người chơi
     final initialInbox = <int, List<GameItem>>{};
     var itemCounter = 1;
-    for (var i = 0; i < playerCount; i++) {
+    for (var i = 0; i < playerIds.length; i++) {
       final items = <GameItem>[];
-      final ingredient = Ingredient.values[_rng.nextInt(Ingredient.values.length)];
-      items.add(GameItem(
-        id: 'item_${itemCounter++}',
-        type: GameItemType.ingredient,
-        itemId: ingredient.name,
-        fromRingIndex: i,
-      ));
+      final ingredient =
+          Ingredient.values[_rng.nextInt(Ingredient.values.length)];
+      items.add(
+        GameItem(
+          id: 'item_${itemCounter++}',
+          type: GameItemType.ingredient,
+          itemId: ingredient.name,
+          fromRingIndex: i,
+        ),
+      );
       initialInbox[i] = items;
     }
 
@@ -226,6 +256,7 @@ class FakeRoomRepository implements RoomRepository {
       status: RoomStatus.playing,
       timer: timer,
       currentRound: initialRound,
+      players: newPlayers,
       inbox: initialInbox,
     );
 
@@ -244,8 +275,7 @@ class FakeRoomRepository implements RoomRepository {
       if (room == null || room.status != RoomStatus.playing) return;
 
       // MatchTimer.isExpired(nowMs:) — cần truyền thời gian hiện tại
-      if (room.timer != null &&
-          room.timer!.isExpired(nowMs: _nowMs())) {
+      if (room.timer != null && room.timer!.isExpired(nowMs: _nowMs())) {
         _endMatch();
       }
     });
@@ -263,7 +293,7 @@ class FakeRoomRepository implements RoomRepository {
         );
 
         var changed = false;
-        for (var ring = 0; ring < room.totalPlayerCount; ring++) {
+        for (var ring = 0; ring < room.connectedPlayerCount; ring++) {
           final items = newInbox[ring] ?? [];
           if (items.length < 5) {
             final ingredient =
@@ -302,18 +332,83 @@ class FakeRoomRepository implements RoomRepository {
     final newInbox = Map<int, List<GameItem>>.from(
       room.inbox.map((k, v) => MapEntry(k, List<GameItem>.from(v))),
     );
+    var newPlayers = Map<String, Player>.from(room.players);
 
-    // Duyệt qua các bot (ringIndex > 0)
+    // Duyệt qua các bot (ringIndex > 0, hoặc bất kỳ ai không phải localPlayerId)
     for (final player in room.players.values) {
-      if (player.ringIndex == 0) continue; // Không can thiệp vào host (người thật)
+      if (player.id == _localPlayerId) {
+        continue; // Không can thiệp vào người thật
+      }
+      if (!player.connected) continue;
 
       final ring = player.ringIndex;
       final items = newInbox[ring] ?? [];
-      if (items.isEmpty) continue;
 
       final botStation = round.stationAssignment[ring];
+      final botOrders = round.playerOrders[player.id] ?? [];
+      final pendingOrders = botOrders.where((o) => !o.isCompleted).toList();
 
-      // Bot thử chế biến nếu có item phù hợp
+      // ─── Bot thử nộp đơn nếu có sản phẩm khớp với đơn pending ───
+      if (pendingOrders.isNotEmpty) {
+        for (final order in pendingOrders) {
+          // Lấy productId của recipe
+          final recipe = RecipePool.allRecipes.cast<dynamic>().firstWhere(
+            (r) => r.id == order.recipeId,
+            orElse: () => null,
+          );
+          if (recipe == null) continue;
+          final targetProductId = recipe.productId as String;
+
+          // Kiểm tra trong inbox có sản phẩm khớp không
+          final productIndex = items.indexWhere(
+            (i) =>
+                i.type == GameItemType.product && i.itemId == targetProductId,
+          );
+          if (productIndex != -1) {
+            // Bot nộp đơn này (với độ trễ giả lập hợp lý — thực ra submit ngay)
+            items.removeAt(productIndex);
+            newInbox[ring] = items;
+
+            // Cập nhật order status
+            final updatedOrders = List<Order>.from(botOrders);
+            final orderIdx = updatedOrders.indexWhere((o) => o.id == order.id);
+            if (orderIdx != -1) {
+              updatedOrders[orderIdx] = updatedOrders[orderIdx].copyWith(
+                status: OrderStatus.submitted,
+              );
+            }
+
+            final newPlayerOrders = Map<String, List<Order>>.from(
+              round.playerOrders,
+            );
+            newPlayerOrders[player.id] = updatedOrders;
+            final newRound = round.copyWith(playerOrders: newPlayerOrders);
+
+            // Cộng completedOrders và timer bonus
+            newPlayers[player.id] = player.copyWith(
+              completedOrders: player.completedOrders + 1,
+            );
+            final updatedTimer = room.timer?.withBonus();
+
+            var updatedRoom = room.copyWith(
+              inbox: newInbox,
+              players: newPlayers,
+              currentRound: newRound,
+              timer: updatedTimer,
+            );
+
+            // Kiểm tra round complete (chỉ tính người connected)
+            if (_isRoundCompleteForConnected(updatedRoom)) {
+              updatedRoom = _advanceRound(updatedRoom);
+            }
+
+            _emit(updatedRoom);
+            return;
+          }
+        }
+      }
+
+      // ─── Bot thử chế biến nếu có item phù hợp ───
       if (botStation != null) {
         for (var i = 0; i < items.length; i++) {
           final item = items[i];
@@ -327,21 +422,23 @@ class FakeRoomRepository implements RoomRepository {
         }
       }
 
-      // Hoặc bot chuyền bớt item cho đồng đội liền kề
+      // ─── Hoặc bot chuyền bớt item cho đồng đội liền kề ───
       if (items.length >= 2) {
         final itemToPass = items.removeAt(0);
         // Ring.leftNeighbor / Ring.rightNeighbor — xem ring.dart
         final targetRing = _rng.nextBool()
-            ? Ring.leftNeighbor(ring, room.totalPlayerCount)
-            : Ring.rightNeighbor(ring, room.totalPlayerCount);
+            ? Ring.leftNeighbor(ring, room.connectedPlayerCount)
+            : Ring.rightNeighbor(ring, room.connectedPlayerCount);
 
         final targetItems = newInbox[targetRing] ?? [];
-        targetItems.add(GameItem(
-          id: itemToPass.id,
-          type: itemToPass.type,
-          itemId: itemToPass.itemId,
-          fromRingIndex: ring,
-        ));
+        targetItems.add(
+          GameItem(
+            id: itemToPass.id,
+            type: itemToPass.type,
+            itemId: itemToPass.itemId,
+            fromRingIndex: ring,
+          ),
+        );
         newInbox[targetRing] = targetItems;
         _emit(room.copyWith(inbox: newInbox));
         return;
@@ -349,14 +446,111 @@ class FakeRoomRepository implements RoomRepository {
     }
   }
 
+  /// Kiểm tra round đã xong chưa theo người connected (D14).
+  bool _isRoundCompleteForConnected(Room room) {
+    final round = room.currentRound;
+    if (round == null) return false;
+    final connected = room.players.values.where((p) => p.connected).toList();
+    if (connected.isEmpty) return false;
+    return connected.every((p) {
+      final orders = round.playerOrders[p.id] ?? [];
+      if (orders.isEmpty) return true;
+      return orders.where((o) => o.isCompleted).length >= round.ordersPerPlayer;
+    });
+  }
+
+  /// Chuyển sang round mới (tất cả người connected, compact ring).
+  Room _advanceRound(Room room) {
+    final round = room.currentRound;
+    if (round == null) return room;
+
+    // Chỉ giữ người còn connected
+    final connectedPlayers =
+        room.players.values.where((p) => p.connected).toList()
+          ..sort((a, b) => a.ringIndex.compareTo(b.ringIndex));
+
+    if (connectedPlayers.length < 2) {
+      // Ít hơn 2 người → kết thúc trận
+      return _buildEndedRoom(room);
+    }
+
+    final nextRoundNumber = round.number + 1;
+    final playerIds = connectedPlayers.map((p) => p.id).toList();
+
+    // D15: RoundSetup đảm bảo round luôn làm được
+    final setup = RoundSetup.generate(
+      playerIds: playerIds,
+      roundNumber: nextRoundNumber,
+      rng: _rng,
+    );
+
+    // Compact ringIndex
+    final newPlayers = <String, Player>{};
+    for (var i = 0; i < connectedPlayers.length; i++) {
+      final p = connectedPlayers[i];
+      newPlayers[p.id] = p.copyWith(ringIndex: i);
+    }
+
+    final nextPlayerOrders = <String, List<Order>>{};
+    var count = 1;
+    for (final pId in playerIds) {
+      final pOrders = <Order>[];
+      for (var i = 0; i < BartenderConfig.ordersPerPlayer; i++) {
+        final r =
+            setup.feasibleRecipes[_rng.nextInt(setup.feasibleRecipes.length)];
+        pOrders.add(
+          Order(
+            id: 'ord_r${nextRoundNumber}_${count++}',
+            recipeId: r.id,
+            status: OrderStatus.pending,
+          ),
+        );
+      }
+      nextPlayerOrders[pId] = pOrders;
+    }
+
+    final newRound = Round(
+      number: nextRoundNumber,
+      ordersPerPlayer: BartenderConfig.ordersPerPlayer,
+      stationAssignment: setup.stationAssignment,
+      playerOrders: nextPlayerOrders,
+    );
+
+    // Sinh 1 nguyên liệu mới cho mỗi ring
+    final newInbox = <int, List<GameItem>>{};
+    for (var i = 0; i < playerIds.length; i++) {
+      final ingredient =
+          Ingredient.values[_rng.nextInt(Ingredient.values.length)];
+      newInbox[i] = [
+        GameItem(
+          id: 'spawn_r${nextRoundNumber}_$i',
+          type: GameItemType.ingredient,
+          itemId: ingredient.name,
+          fromRingIndex: i,
+        ),
+      ];
+    }
+
+    return room.copyWith(
+      players: newPlayers,
+      currentRound: newRound,
+      inbox: newInbox,
+    );
+  }
+
   void _endMatch() {
     _stopTimers();
     final room = _currentRoom;
     if (room == null || room.status != RoomStatus.playing) return;
 
+    final endedRoom = _buildEndedRoom(room);
+    _emit(endedRoom);
+  }
+
+  Room _buildEndedRoom(Room room) {
     final now = _nowMs();
-    // MatchTimer.totalSurvivalSeconds(nowMs:) — cần tham số
-    final survivalSec = room.timer?.totalSurvivalSeconds(nowMs: now) ??
+    final survivalSec =
+        room.timer?.totalSurvivalSeconds(nowMs: now) ??
         BartenderConfig.initialTimerSeconds;
 
     final results = MatchResult.fromPlayers(
@@ -364,12 +558,7 @@ class FakeRoomRepository implements RoomRepository {
       survivalSeconds: survivalSec,
     );
 
-    final endedRoom = room.copyWith(
-      status: RoomStatus.ended,
-      results: results,
-    );
-
-    _emit(endedRoom);
+    return room.copyWith(status: RoomStatus.ended, results: results);
   }
 
   @override
@@ -410,7 +599,9 @@ class FakeRoomRepository implements RoomRepository {
     required GameItem item,
   }) async {
     final room = _currentRoom;
-    if (room == null || room.code != code || room.status != RoomStatus.playing) {
+    if (room == null ||
+        room.code != code ||
+        room.status != RoomStatus.playing) {
       return;
     }
 
@@ -423,12 +614,14 @@ class FakeRoomRepository implements RoomRepository {
     newInbox[fromRingIndex] = sourceItems;
 
     final destItems = newInbox[toRingIndex] ?? [];
-    destItems.add(GameItem(
-      id: item.id,
-      type: item.type,
-      itemId: item.itemId,
-      fromRingIndex: fromRingIndex,
-    ));
+    destItems.add(
+      GameItem(
+        id: item.id,
+        type: item.type,
+        itemId: item.itemId,
+        fromRingIndex: fromRingIndex,
+      ),
+    );
     newInbox[toRingIndex] = destItems;
 
     _emit(room.copyWith(inbox: newInbox));
@@ -441,7 +634,9 @@ class FakeRoomRepository implements RoomRepository {
     required String itemId,
   }) async {
     final room = _currentRoom;
-    if (room == null || room.code != code || room.status != RoomStatus.playing) {
+    if (room == null ||
+        room.code != code ||
+        room.status != RoomStatus.playing) {
       return;
     }
 
@@ -481,74 +676,29 @@ class FakeRoomRepository implements RoomRepository {
     }
 
     final originalItem = items[itemIndex];
-    final processed = _deriveProcessedProduct(originalItem, station) ??
-        GameItem(
-          id: originalItem.id,
-          type: GameItemType.product,
-          itemId: '${originalItem.itemId}_processed',
-          fromRingIndex: ringIndex,
-        );
-
-    items[itemIndex] = processed;
-    newInbox[ringIndex] = items;
-
-    _emit(room.copyWith(inbox: newInbox));
-    return processed;
+    final processed = _deriveProcessedProduct(originalItem, station);
+    if (processed != null) {
+      items[itemIndex] = processed;
+      newInbox[ringIndex] = items;
+      _emit(room.copyWith(inbox: newInbox));
+      return processed;
+    }
+    return originalItem;
   }
 
   /// Suy luận kết quả sau khi một vật phẩm được chế biến tại trạm.
+  ///
+  /// Dùng chung quy tắc chế biến [processItem] (D19).
   GameItem? _deriveProcessedProduct(GameItem item, StationType station) {
-    final id = item.itemId;
+    final resultId = processItem(item.itemId, station);
+    if (resultId == null) return null;
 
-    if (station == StationType.juicer) {
-      if (id == Ingredient.orange.name) {
-        return GameItem(
-          id: item.id,
-          type: GameItemType.product,
-          itemId: 'orange_juice',
-          fromRingIndex: item.fromRingIndex,
-        );
-      }
-      if (id == Ingredient.lemon.name) {
-        return GameItem(
-          id: item.id,
-          type: GameItemType.product,
-          itemId: 'lemonade',
-          fromRingIndex: item.fromRingIndex,
-        );
-      }
-    } else if (station == StationType.cuttingBoard) {
-      if (id == Ingredient.strawberry.name) {
-        return GameItem(
-          id: item.id,
-          type: GameItemType.product,
-          itemId: 'cut_strawberry',
-          fromRingIndex: item.fromRingIndex,
-        );
-      }
-    } else if (station == StationType.blender) {
-      if (id == 'cut_strawberry' || id == Ingredient.strawberry.name) {
-        return GameItem(
-          id: item.id,
-          type: GameItemType.product,
-          itemId: 'strawberry_smoothie',
-          fromRingIndex: item.fromRingIndex,
-        );
-      }
-    } else if (station == StationType.shaker) {
-      if (id == 'orange_juice' ||
-          id == 'lemonade' ||
-          id == Ingredient.ice.name) {
-        return GameItem(
-          id: item.id,
-          type: GameItemType.product,
-          itemId: 'citrus_cocktail',
-          fromRingIndex: item.fromRingIndex,
-        );
-      }
-    }
-
-    return null;
+    return GameItem(
+      id: item.id,
+      type: GameItemType.product,
+      itemId: resultId,
+      fromRingIndex: item.fromRingIndex,
+    );
   }
 
   @override
@@ -559,7 +709,9 @@ class FakeRoomRepository implements RoomRepository {
     required String productId,
   }) async {
     final room = _currentRoom;
-    if (room == null || room.code != code || room.status != RoomStatus.playing) {
+    if (room == null ||
+        room.code != code ||
+        room.status != RoomStatus.playing) {
       return;
     }
 
@@ -575,13 +727,30 @@ class FakeRoomRepository implements RoomRepository {
     final orderIndex = orders.indexWhere((o) => o.id == orderId);
     if (orderIndex == -1 || orders[orderIndex].isCompleted) return;
 
+    // Kiểm tra productId khớp với recipeId hoặc productId của recipe
+    final order = orders[orderIndex];
+    final recipe = RecipePool.allRecipes.cast<dynamic>().firstWhere(
+      (r) => r.id == order.recipeId,
+      orElse: () => null,
+    );
+    final expectedProductId = recipe?.productId as String? ?? order.recipeId;
+
+    // Cho phép nộp nếu productId khớp (hoặc dùng recipeId như fallback)
+    if (productId != expectedProductId && productId != order.recipeId) {
+      // Không khớp — không nộp
+      return;
+    }
+
     // Xoá sản phẩm hoàn thành khỏi inbox của người nộp
     final newInbox = Map<int, List<GameItem>>.from(
       room.inbox.map((k, v) => MapEntry(k, List<GameItem>.from(v))),
     );
     final playerItems = newInbox[player.ringIndex] ?? [];
     playerItems.removeWhere(
-      (i) => i.id == productId || i.itemId == productId,
+      (i) =>
+          i.id == productId ||
+          i.itemId == productId ||
+          i.itemId == expectedProductId,
     );
     newInbox[player.ringIndex] = playerItems;
 
@@ -595,7 +764,6 @@ class FakeRoomRepository implements RoomRepository {
     newPlayerOrders[playerId] = updatedOrders;
 
     // Cộng +5s vào đồng hồ chung
-    // MatchTimer.withBonus() — không nhận tham số, luôn +5s
     final updatedTimer = room.timer?.withBonus();
 
     // Cộng +1 completedOrders cho người chơi
@@ -606,45 +774,25 @@ class FakeRoomRepository implements RoomRepository {
 
     var updatedRound = round.copyWith(playerOrders: newPlayerOrders);
 
-    // Kiểm tra: tất cả người chơi đã xong hết đơn của round chưa?
-    if (updatedRound.isComplete) {
-      final nextRoundNumber = round.number + 1;
-      final newStations = StationAssigner.assign(
-        playerCount: room.totalPlayerCount,
-        random: _rng,
-      );
-
-      final nextRecipes = RecipePool.recipesForRound(nextRoundNumber);
-      final nextPlayerOrders = <String, List<Order>>{};
-
-      var count = 1;
-      for (final pId in room.players.keys) {
-        final pOrders = <Order>[];
-        for (var i = 0; i < BartenderConfig.ordersPerPlayer; i++) {
-          final r = nextRecipes[_rng.nextInt(nextRecipes.length)];
-          pOrders.add(Order(
-            id: 'ord_r${nextRoundNumber}_${count++}',
-            recipeId: r.id,
-            status: OrderStatus.pending,
-          ));
-        }
-        nextPlayerOrders[pId] = pOrders;
-      }
-
-      updatedRound = Round(
-        number: nextRoundNumber,
-        ordersPerPlayer: BartenderConfig.ordersPerPlayer,
-        stationAssignment: newStations,
-        playerOrders: nextPlayerOrders,
-      );
-    }
-
-    final updatedRoom = room.copyWith(
+    var updatedRoom = room.copyWith(
       timer: updatedTimer,
       players: updatedPlayers,
       currentRound: updatedRound,
       inbox: newInbox,
     );
+
+    // Kiểm tra: tất cả người CONNECTED đã xong hết đơn của round chưa? (D14)
+    if (_isRoundCompleteForConnected(updatedRoom)) {
+      // Kiểm tra còn đủ người để tiếp tục không
+      final connectedCount = updatedRoom.players.values
+          .where((p) => p.connected)
+          .length;
+      if (connectedCount < 2) {
+        updatedRoom = _buildEndedRoom(updatedRoom);
+      } else {
+        updatedRoom = _advanceRound(updatedRoom);
+      }
+    }
 
     _emit(updatedRoom);
   }

@@ -115,10 +115,7 @@ void main() {
     });
 
     test('assigns stations for 4 players', () {
-      final result = StationAssigner.assign(
-        playerCount: 4,
-        random: Random(42),
-      );
+      final result = StationAssigner.assign(playerCount: 4, random: Random(42));
       expect(result.length, 4);
     });
 
@@ -151,11 +148,7 @@ void main() {
           break;
         }
       }
-      expect(
-        hasDuplicate,
-        isTrue,
-        reason: 'Expected at least one duplicate',
-      );
+      expect(hasDuplicate, isTrue, reason: 'Expected at least one duplicate');
     });
   });
 
@@ -320,17 +313,28 @@ void main() {
     });
 
     test('server offset correction', () {
-      final timer = MatchTimer.start(nowMs: 0);
-      // Client clock is 2s behind server → offset = +2000ms.
-      // Real server time = nowMs + offset = 58000 + 2000 = 60000 → expired.
-      expect(timer.isExpired(nowMs: 58000, serverOffsetMs: 2000), isTrue);
-      // Without offset, 58s client time → 2s remaining.
-      expect(timer.isExpired(nowMs: 58000), isFalse);
+      final timer = MatchTimer(
+        endTime: 60000,
+        startedAt: 0,
+        serverOffsetMs: 2000,
+      );
+      // Client chậm 2s: 58000 + 2000 = 60000 → hết giờ.
+      expect(timer.isExpired(nowMs: 58000), isTrue);
+      // Không có offset: còn 2 giây.
+      expect(
+        MatchTimer(endTime: 60000, startedAt: 0).isExpired(nowMs: 58000),
+        isFalse,
+      );
     });
 
     test('totalSurvivalSeconds', () {
       final timer = MatchTimer.start(nowMs: 0);
-      expect(timer.totalSurvivalSeconds(nowMs: 65000), 65);
+      // Quá giờ: chỉ tính đến endTime (min(serverNow, endTime) − startedAt).
+      expect(timer.totalSurvivalSeconds(nowMs: 65000), 60);
+      // Đang chơi: tính đến hiện tại.
+      expect(timer.totalSurvivalSeconds(nowMs: 30000), 30);
+      // Có cộng giờ (+5s): sống tới 65 giây.
+      expect(timer.withBonus().totalSurvivalSeconds(nowMs: 65000), 65);
     });
   });
 
@@ -387,9 +391,7 @@ void main() {
       final room = Room(
         code: '1234',
         status: RoomStatus.lobby,
-        players: {
-          'p1': const Player(id: 'p1', name: 'A', ringIndex: 0),
-        },
+        players: {'p1': const Player(id: 'p1', name: 'A', ringIndex: 0)},
       );
       expect(room.canStart, isFalse);
     });
@@ -445,24 +447,9 @@ void main() {
     test('ranks players by completedOrders descending', () {
       final result = MatchResult.fromPlayers(
         players: [
-          const Player(
-            id: 'p1',
-            name: 'A',
-            ringIndex: 0,
-            completedOrders: 3,
-          ),
-          const Player(
-            id: 'p2',
-            name: 'B',
-            ringIndex: 1,
-            completedOrders: 7,
-          ),
-          const Player(
-            id: 'p3',
-            name: 'C',
-            ringIndex: 2,
-            completedOrders: 5,
-          ),
+          const Player(id: 'p1', name: 'A', ringIndex: 0, completedOrders: 3),
+          const Player(id: 'p2', name: 'B', ringIndex: 1, completedOrders: 7),
+          const Player(id: 'p3', name: 'C', ringIndex: 2, completedOrders: 5),
         ],
         survivalSeconds: 120,
       );

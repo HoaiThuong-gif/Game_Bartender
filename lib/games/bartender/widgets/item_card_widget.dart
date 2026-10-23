@@ -169,12 +169,15 @@ class ItemCardWidget extends StatelessWidget {
     switch (item.itemId) {
       case 'orange_juice':
         return '🍊🧃';
+      case 'lemon_juice':
       case 'lemonade':
         return '🍋🧃';
       case 'cut_strawberry':
         return '🍓🔪';
       case 'strawberry_smoothie':
         return '🍓🥤';
+      case 'strawberry_lemonade_blend':
+        return '🍓🍋';
       case 'citrus_cocktail':
         return '🍸';
       case 'strawberry_lemonade':
@@ -195,12 +198,15 @@ class ItemCardWidget extends StatelessWidget {
     switch (item.itemId) {
       case 'orange_juice':
         return 'Nước cam ép';
+      case 'lemon_juice':
       case 'lemonade':
         return 'Nước chanh ép';
       case 'cut_strawberry':
         return 'Dâu tây đã cắt';
       case 'strawberry_smoothie':
         return 'Sinh tố dâu';
+      case 'strawberry_lemonade_blend':
+        return 'Hỗn hợp chanh dâu';
       case 'citrus_cocktail':
         return 'Cocktail cam chanh';
       case 'strawberry_lemonade':
