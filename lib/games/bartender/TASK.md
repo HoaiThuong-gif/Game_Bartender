@@ -21,8 +21,8 @@
 
 ## Đã xong / Done
 
-- **Join-by-code flow (2026-10-28):** Thêm tab "Vào phòng" vào `BartenderLobbyScreen` với TextField nhập mã 4 chữ số, nút "VÀO PHÒNG", cùng nút chuyển đổi nhanh trực tiếp trên giao diện mặc định. Sửa màu chữ AppBar "QUẦY BARTENDER" sang trắng rõ nét trên nền tối. Nút "Rời phòng" có sẵn ở màn chờ lobby. Nhãn vai trò người chơi cập nhật đúng (Bạn/Host/Đồng đội/Bot). 5 test mới cho join flow thêm vào `test/bartender_controller_test.dart`. `BartenderConfig.useFakeRepository = true` giữ nguyên.
-  - Đề xuất sửa docs: `API.md` nên ghi rõ hành vi FakeRepository khi `joinRoom` với mã không tồn tại (hiện tạo phòng mới thay vì lỗi). Không sửa docs trong commit này.
+- **Sửa kiểm tra phòng tồn tại khi join (2026-10-28):** Sửa `FakeRoomRepository.joinRoom` để khi nhập mã phòng không tồn tại thì ném lỗi `StateError('Phòng #$code không tồn tại.')` đồng nhất với `FirebaseRoomRepository` và chuẩn `API.md:53` (thay vì tự tạo phòng mới với bot và mã ngẫu nhiên). Cập nhật unit test tương ứng trong `test/bartender_controller_test.dart`.
+- **Join-by-code flow (2026-10-28):** Thêm tab "Vào phòng" vào `BartenderLobbyScreen` với TextField nhập mã 4 chữ số, nút "VÀO PHÒNG", cùng nút chuyển đổi nhanh trực tiếp trên giao diện mặc định. Sửa màu chữ AppBar "QUẦY BARTENDER" sang trắng rõ nét trên nền tối. Nút "Rời phòng" có sẵn ở màn chờ lobby. Nhãn vai trò người chơi cập nhật đúng (Bạn/Host/Đồng đội/Bot). Bộ test join flow cập nhật trong `test/bartender_controller_test.dart`. `BartenderConfig.useFakeRepository = true` giữ nguyên.
 
 - **Giai đoạn 5 — FirebaseRoomRepository (phần code) (2026-10-15):** dùng chung dự án Firebase `nhom-bar` với đường dẫn `bartender/rooms` (D18); phân trạm và công thức khả thi (D15/D16); bỏ phụ thuộc totalPlayers, dồn ringIndex (D13/D14); submitOrder bằng một multi-path update có transaction chống nộp trùng, tìm đúng món trong inbox; chuyển round không cần host bằng transaction có kiểm tra progress (D17); endMatch ghi results trước status; giờ server; một bảng luật chế biến (D19). analyze và test sạch (chưa chạy với Firebase thật).
 - **Việc 6 — Màn hình kết quả và xử lý biên (Giai đoạn 8/9) (2026-10-15):**

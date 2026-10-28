@@ -316,6 +316,15 @@ void main() {
       repo.dispose();
     });
 
+    test('joinRoom with non-existent room throws StateError', () async {
+      final repo = FakeRoomRepository(rng: Random(31));
+      expect(
+        () => repo.joinRoom(code: '9999', playerName: 'Ghost'),
+        throwsStateError,
+      );
+      repo.dispose();
+    });
+
     test('joinRoom on started room throws StateError', () async {
       // FakeRepo: join phòng đang playing → StateError.
       final repo = FakeRoomRepository(rng: Random(33));
@@ -578,18 +587,15 @@ void main() {
       ctrl.dispose();
     });
 
-    test('joinRoom with no existing room creates a new room (FakeRepo behavior)',
-        () async {
-      // FakeRepo: nếu không có phòng nào đang mở thì tạo phòng mới
-      // thay vì báo lỗi — đây là hành vi FakeRepo; test này tài liệu hóa
-      // hành vi đó và đảm bảo không crash.
+    test('joinRoom with no existing room sets errorMessage', () async {
+      // Khi không có phòng khớp mã, controller bắt StateError và ghi errorMessage
       final repo = FakeRoomRepository(rng: Random(41));
       final ctrl = BartenderController(repository: repo);
 
       await ctrl.joinRoom(code: '9999', playerName: 'Ghost');
-      // Fake: tạo phòng mới với host là Ghost → không báo lỗi, room != null
-      expect(ctrl.room, isNotNull);
-      expect(ctrl.errorMessage, isNull);
+      expect(ctrl.room, isNull);
+      expect(ctrl.errorMessage, isNotNull);
+      expect(ctrl.errorMessage, contains('không tồn tại'));
 
       ctrl.dispose();
     });

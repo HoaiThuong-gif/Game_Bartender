@@ -116,15 +116,14 @@ class FakeRoomRepository implements RoomRepository {
     required String code,
     required String playerName,
   }) async {
-    // Với FakeRepository, nếu chưa có phòng thì tạo mới với mã đó.
+    // Kiểm tra phòng tồn tại (giống FirebaseRoomRepository)
     if (_currentRoom == null || _currentRoom!.code != code) {
-      final newRoom = await createRoom(hostPlayerName: playerName);
-      return newRoom;
+      throw StateError('Phòng #$code không tồn tại.');
     }
 
     final current = _currentRoom!;
     if (current.status != RoomStatus.lobby) {
-      throw StateError('Phòng đã bắt đầu hoặc kết thúc');
+      throw StateError('Phòng #$code đã bắt đầu hoặc kết thúc, không thể tham gia.');
     }
 
     final newIndex = current.totalPlayerCount;
@@ -805,3 +804,4 @@ class FakeRoomRepository implements RoomRepository {
     _roomStreamController = null;
   }
 }
+
