@@ -4,7 +4,7 @@
 
 ## Đang làm / In progress
 
-- Chờ tôi kiểm tra thủ công trên 2–4 thiết bị thật (xem mục 'Cần kiểm tra thủ công'). Chưa có việc code nào đang làm.
+- Chờ kiểm tra thủ công trên 2–4 thiết bị thật (xem mục 'Cần kiểm tra thủ công').
 
 ## Cần kiểm tra thủ công (2–4 thiết bị thật)
 
@@ -20,6 +20,9 @@
 *(Lưu ý: Chưa sẵn sàng production, cần hoàn tất kiểm tra thủ công trên thiết bị vật lý và nghiệm thu Firebase RTDB).*
 
 ## Đã xong / Done
+
+- **Join-by-code flow (2026-10-28):** Thêm tab "Vào phòng" vào `BartenderLobbyScreen` với TextField nhập mã 4 chữ số và nút "VÀO PHÒNG". Tab chỉ hiển thị khi `useFakeRepository = false` (chế độ Firebase thật), không hiển thị trong Fake mode để không phá test cũ. Nút "Rời phòng" thêm vào màn chờ lobby. Nhãn vai trò người chơi trong danh sách cập nhật đúng (Bạn/Host/Đồng đội/Bot). 5 test mới cho join flow (repo + controller level) thêm vào `test/bartender_controller_test.dart`. `BartenderConfig.useFakeRepository = true` giữ nguyên.
+  - Đề xuất sửa docs: `API.md` nên ghi rõ hành vi FakeRepository khi `joinRoom` với mã không tồn tại (hiện tạo phòng mới thay vì lỗi). Không sửa docs trong commit này.
 
 - **Giai đoạn 5 — FirebaseRoomRepository (phần code) (2026-10-15):** dùng chung dự án Firebase `nhom-bar` với đường dẫn `bartender/rooms` (D18); phân trạm và công thức khả thi (D15/D16); bỏ phụ thuộc totalPlayers, dồn ringIndex (D13/D14); submitOrder bằng một multi-path update có transaction chống nộp trùng, tìm đúng món trong inbox; chuyển round không cần host bằng transaction có kiểm tra progress (D17); endMatch ghi results trước status; giờ server; một bảng luật chế biến (D19). analyze và test sạch (chưa chạy với Firebase thật).
 - **Việc 6 — Màn hình kết quả và xử lý biên (Giai đoạn 8/9) (2026-10-15):**
