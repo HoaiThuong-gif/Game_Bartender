@@ -21,6 +21,7 @@
 
 ## Đã xong / Done
 
+- **Dọn dẹp UI chuẩn bị nhiều người chơi thật (2026-10-28):** Bỏ bộ chọn số người chơi/bot (2, 3, 4 ChoiceChips) khỏi form tạo phòng trong `BartenderLobbyScreen` theo đúng kiến trúc D13 (số người do người chơi thật tham gia thực tế quyết định, không cần cấu hình trước). Cập nhật câu hướng dẫn mời bạn bè.
 - **Sửa kiểm tra phòng tồn tại khi join (2026-10-28):** Sửa `FakeRoomRepository.joinRoom` để khi nhập mã phòng không tồn tại thì ném lỗi `StateError('Phòng #$code không tồn tại.')` đồng nhất với `FirebaseRoomRepository` và chuẩn `API.md:53` (thay vì tự tạo phòng mới với bot và mã ngẫu nhiên). Cập nhật unit test tương ứng trong `test/bartender_controller_test.dart`.
 - **Join-by-code flow (2026-10-28):** Thêm tab "Vào phòng" vào `BartenderLobbyScreen` với TextField nhập mã 4 chữ số, nút "VÀO PHÒNG", cùng nút chuyển đổi nhanh trực tiếp trên giao diện mặc định. Sửa màu chữ AppBar "QUẦY BARTENDER" sang trắng rõ nét trên nền tối. Nút "Rời phòng" có sẵn ở màn chờ lobby. Nhãn vai trò người chơi cập nhật đúng (Bạn/Host/Đồng đội/Bot). Bộ test join flow cập nhật trong `test/bartender_controller_test.dart`. `BartenderConfig.useFakeRepository = true` giữ nguyên.
 

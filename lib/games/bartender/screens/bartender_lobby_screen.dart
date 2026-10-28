@@ -29,7 +29,6 @@ class _BartenderLobbyScreenState extends State<BartenderLobbyScreen> {
   final _codeController = TextEditingController();
   /// 0 = tab Tạo phòng, 1 = tab Vào phòng.
   int _selectedTab = 0;
-  int _playerCount = 3;
 
   @override
   void dispose() {
@@ -116,7 +115,7 @@ class _BartenderLobbyScreenState extends State<BartenderLobbyScreen> {
             const SizedBox(height: 8),
             Text(
               _selectedTab == 0
-                  ? 'Tạo phòng, chọn số đồng đội, và bắt đầu pha chế!'
+                  ? 'Tạo phòng, chia sẻ mã cho bạn bè và bắt đầu pha chế!'
                   : 'Nhập mã 4 chữ số của phòng để tham gia!',
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.white54, fontSize: 13),
@@ -224,55 +223,7 @@ class _BartenderLobbyScreenState extends State<BartenderLobbyScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Chọn số người chơi (chỉ có ý nghĩa với Fake; Firebase tự detect)
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E1E2C),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white12),
-          ),
-          child: Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 12,
-            runSpacing: 8,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.group, color: Colors.amberAccent, size: 20),
-                  SizedBox(width: 8),
-                  Text(
-                    'Số người chơi',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                ],
-              ),
-              Row(
-                children: [2, 3, 4].map((n) {
-                  final isSelected = _playerCount == n;
-                  return Padding(
-                    padding: const EdgeInsets.only(left: 6),
-                    child: ChoiceChip(
-                      label: Text('$n'),
-                      selected: isSelected,
-                      onSelected: (_) => setState(() => _playerCount = n),
-                      selectedColor: Colors.amberAccent,
-                      backgroundColor: const Color(0xFF2C2C40),
-                      labelStyle: TextStyle(
-                        color: isSelected ? Colors.black : Colors.white70,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      side: BorderSide.none,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 8),
 
         SizedBox(
           width: double.infinity,
@@ -285,7 +236,6 @@ class _BartenderLobbyScreenState extends State<BartenderLobbyScreen> {
                       playerName: _nameController.text.trim().isEmpty
                           ? 'Bạn'
                           : _nameController.text.trim(),
-                      totalPlayers: _playerCount,
                     );
                   },
             icon: const Icon(Icons.add_circle_outline),
