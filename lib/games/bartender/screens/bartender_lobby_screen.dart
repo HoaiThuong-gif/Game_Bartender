@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../bartender_config.dart';
 import '../controllers/bartender_controller.dart';
 
 /// Màn hình lobby Bartender — chờ người chơi và bắt đầu trận.
@@ -29,11 +28,8 @@ class _BartenderLobbyScreenState extends State<BartenderLobbyScreen> {
   final _nameController = TextEditingController(text: 'Bạn');
   final _codeController = TextEditingController();
   /// 0 = tab Tạo phòng, 1 = tab Vào phòng.
-  /// Trong chế độ Fake, tab "Vào phòng" ẩn vì Fake không hỗ trợ mã phòng thật.
   int _selectedTab = 0;
   int _playerCount = 3;
-
-  bool get _isRealMode => !BartenderConfig.useFakeRepository;
 
   @override
   void dispose() {
@@ -49,9 +45,11 @@ class _BartenderLobbyScreenState extends State<BartenderLobbyScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F1A),
       appBar: AppBar(
+        foregroundColor: Colors.white,
         title: const Text(
           'QUẦY BARTENDER',
           style: TextStyle(
+            color: Colors.white,
             fontWeight: FontWeight.w900,
             letterSpacing: 2,
           ),
@@ -125,11 +123,9 @@ class _BartenderLobbyScreenState extends State<BartenderLobbyScreen> {
             ),
             const SizedBox(height: 32),
 
-            // Tab selector (chỉ hiện khi dùng Firebase thật)
-            if (_isRealMode) ...[
-              _buildTabSelector(),
-              const SizedBox(height: 20),
-            ],
+            // Tab selector (chọn Tạo phòng hoặc Vào phòng)
+            _buildTabSelector(),
+            const SizedBox(height: 20),
 
             // Tên người chơi (dùng chung cả 2 tab)
             _buildNameField(),
@@ -311,6 +307,19 @@ class _BartenderLobbyScreenState extends State<BartenderLobbyScreen> {
             ),
           ),
         ),
+        const SizedBox(height: 12),
+        TextButton.icon(
+          onPressed: () => setState(() => _selectedTab = 1),
+          icon: const Icon(Icons.login, color: Colors.amberAccent, size: 18),
+          label: const Text(
+            'Hoặc nhập mã để vào phòng có sẵn',
+            style: TextStyle(
+              color: Colors.amberAccent,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -390,6 +399,15 @@ class _BartenderLobbyScreenState extends State<BartenderLobbyScreen> {
               ),
               elevation: 4,
             ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextButton.icon(
+          onPressed: () => setState(() => _selectedTab = 0),
+          icon: const Icon(Icons.arrow_back, color: Colors.white54, size: 18),
+          label: const Text(
+            'Quay lại tạo phòng',
+            style: TextStyle(color: Colors.white54, fontSize: 13),
           ),
         ),
       ],
