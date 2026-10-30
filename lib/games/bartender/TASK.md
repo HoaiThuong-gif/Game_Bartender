@@ -6,26 +6,55 @@
 
 - Chờ kiểm tra thủ công trên 2–4 thiết bị thật (xem mục 'Cần kiểm tra thủ công').
 
-## Cần kiểm tra thủ công (2–4 thiết bị thật)
+## Cần kiểm tra thủ công (2–4 thiết bị thật với Backend Server Local / VPS)
 
-1. **2 máy tạo/vào phòng bằng mã**: Kiểm tra tạo phòng, vào phòng bằng mã 4 chữ số, cập nhật danh sách người chơi trong lobby.
-2. **Hết round 1 thì lên round 2 (không nhảy cóc)**: Kiểm tra hoàn thành đơn ở round 1 chuyển sang round 2 tuần tự, không bị nhảy cóc round.
-3. **Nộp đơn xong món biến khỏi inbox và không nộp lại được**: Xác nhận item đã nộp biến mất khỏi khay đồ (inbox) ngay lập tức và không thể tái nộp.
-4. **Tắt mạng một máy giữa trận thì các máy còn lại tiếp tục và đồ không lạc**: Ngắt kết nối 1 máy, máy còn lại tiếp tục chơi; sang round sau đồ của người bị ngắt/loại không làm tắc nghẽn hoặc thất lạc (D14).
-5. **Lắc điện thoại ở trạm bình lắc (shaker)**: Cảm biến gia tốc nhận diện lắc thật trên thiết bị thực tế; nút "Lắc giả lập" chỉ hiện khi không có cảm biến.
-6. **Thử phòng 2 người, 3–4 người**: Kiểm tra luồng chơi và phân bổ trạm công thức mỏ neo/khả thi ở quy mô 2 người, 3 người, 4 người.
-7. **Người cuối rời phòng thì trận kết thúc đúng**: Khi chỉ còn dưới 2 người chơi connected hoặc người cuối rời phòng, trận kết thúc đúng quy trình và chuyển sang kết quả.
-8. **Xem màn hình kết quả**: Hiển thị bảng xếp hạng, số đơn mỗi người, tổng đơn toàn đội, thời gian sống sót, thông báo kết thúc sớm nếu có; nút quay về lobby hoạt động mượt mà.
+### Thiết lập môi trường thử nghiệm với Local Server:
+- **Khởi động server**: Trên máy tính, chạy lệnh `dart run server/bin/server.dart` (mặc định lắng nghe trên cổng 8080).
+- **Cách 1 (Cùng mạng Wi-Fi)**: Kết nối điện thoại và máy tính vào cùng một mạng Wi-Fi. Xác định IP nội bộ của máy tính (ví dụ `192.168.1.15`). Chạy/build app với:
+  `flutter run --dart-define=API_BASE_URL=http://192.168.1.15:8080`
+- **Cách 2 (Cáp USB + adb reverse)**: Cắm điện thoại qua USB và bật gỡ lỗi USB, chạy lệnh:
+  `adb reverse tcp:8080 tcp:8080`
+  App chạy với `http://127.0.0.1:8080` sẽ tự động chuyển hướng về server trên máy tính.
+
+### Danh sách các bước kiểm tra thủ công:
+1. **2 máy tạo/vào phòng bằng mã**: Host tạo phòng nhận mã 4 chữ số, máy thứ hai nhập mã vào phòng thành công. Cả 2 máy cập nhật danh sách người chơi ngay lập tức qua WebSocket snapshot.
+2. **Chỉ chủ phòng mới bắt đầu được**: Khách thấy thông báo chờ chủ phòng, nút Bắt đầu chỉ bấm được trên máy chủ phòng khi đủ >= 2 người.
+3. **Cấp nguyên liệu & chuyền đồ**: Nhận nguyên liệu ban đầu, vuốt sang người bên cạnh và quan sát đồ bay sang khay của máy kia theo thời gian thực.
+4. **Chế biến tại trạm**: Đúng trạm (dao/thớt, máy ép, máy xay, bình lắc) chế biến ra sản phẩm mới; lắc điện thoại thật ở trạm bình lắc.
+5. **Nộp đơn và tăng điểm / cộng giờ**: Hoàn thành đơn hàng, kiểm tra thanh thời gian được cộng +5s và tiến độ đơn tăng.
+6. **Hết round 1 chuyển sang round 2**: Khi tất cả người chơi hoàn thành đơn, round tự động tăng tuần tự, đổi trạm và làm mới danh sách đơn.
+7. **Một máy ngắt kết nối**: Tắt app trên 1 máy, máy còn lại nhận cờ `connected=false`; nếu còn dưới 2 người thì trận đấu kết thúc ngay lập tức và hiển thị bảng xếp hạng kết quả.
+8. **Quay lại phòng sau khi thua**: Bấm "QUAY LẠI PHÒNG", người chơi trở về lobby phòng cũ, sẵn sàng cho trận kế tiếp.
 
 *(Lưu ý: Chưa sẵn sàng production, cần hoàn tất kiểm tra thủ công trên thiết bị vật lý và nghiệm thu Firebase RTDB).*
 
 ## Đề xuất sửa docs
 
-1. **`API.md` - Room snapshot (`players`)**: Đề xuất bổ sung trường `readyInLobby: bool` (mặc định `true`) vào schema của mỗi player trong `players`. Cờ này cần thiết để theo dõi người chơi nào đã bấm 'QUAY LẠI PHÒNG' sau khi thua trận, đảm bảo chỉ khi toàn bộ người chơi sẵn sàng thì chủ phòng mới có thể bắt đầu lại trận mới.
-2. **`API.md` - Room snapshot (`results.ranking`)**: Đề xuất bổ sung trường `ringIndex: int` trong danh sách `ranking` để client giữ được thông tin vị trí vòng tròn của người chơi khi hiển thị bảng xếp hạng cuối trận.
-3. **`API.md` & `ARCHITECTURE.md` - Deployment Target**: Loại bỏ Render theo yêu cầu; server sẽ chạy trực tiếp trên localhost khi phát triển và deploy trên máy chủ VPS tự thuê sau này. Đề xuất cập nhật Base URL và curl mẫu trong `API.md` từ `https://<service>.onrender.com` sang URL localhost/VPS.
+1. **`DECISIONS.md` - D17 & D18 superseded**:
+   - D17 (loại bỏ vai trò host, chống race condition bằng RTDB transaction) và D18 (dùng chung Firebase RTDB dự án `nhom-bar` tại `bartender/rooms`) được thay thế hoàn toàn bằng backend server tự host độc lập (Dart Shelf + WebSocket). Game loop và quản lý trạng thái phòng chạy in-memory đồng bộ trên server, loại bỏ nhu cầu client-side RTDB transactions.
+2. **`API.md` & `ARCHITECTURE.md` - Deployment Target**:
+   - Loại bỏ hoàn toàn Render khỏi tài liệu theo chỉ đạo của giảng viên; server sẽ chạy local trong giai đoạn dev và deploy lên máy chủ VPS tự thuê sau này.
+   - Đề xuất cập nhật Base URL trong `API.md` từ `https://<service>.onrender.com` sang `http://localhost:8080` (hoặc domain VPS).
+3. **`API.md` - Room snapshot (`players` & `results.ranking`)**:
+   - Đề xuất bổ sung trường `readyInLobby: bool` (mặc định `true`) vào schema `players` cho luồng quay lại phòng sau khi kết thúc trận.
+   - Đề xuất bổ sung trường `ringIndex: int` vào `ranking` trong `results`.
+4. **Báo cáo mã nguồn Firebase không còn sử dụng nhưng được giữ nguyên**:
+   - File `lib/games/bartender/services/firebase_room_repository.dart` và cấu hình Firebase trong `pubspec.yaml` hiện không còn là backend mặc định. Toàn bộ mã này được giữ nguyên an toàn, có thể chuyển đổi kích hoạt lại bất kỳ lúc nào qua `BartenderConfig.backend = BartenderBackend.firebase` mà không ảnh hưởng đến server API mới.
 
 ## Đã xong / Done
+
+- **Bước C.5: Triển khai Flutter `ApiRoomRepository` và tích hợp bộ chọn Backend (2026-10-30):**
+  - Viết `ApiRoomRepository` (`lib/games/bartender/services/api_room_repository.dart`) cài đặt trọn vẹn interface `RoomRepository`:
+    - Giao tiếp với HTTP server (`createRoom`, `joinRoom`, `leaveRoom`, `startMatch`, `sendItem`, `trashItem`, `processItemAtStation`, `submitOrder`).
+    - Lắng nghe WebSocket thời gian thực, tự động giải mã snapshot phòng và cập nhật `Stream<Room> watchRoom(code)`.
+    - Phản hồi `pong` khi nhận `ping` từ server.
+    - Ánh xạ toàn bộ mã lỗi từ server sang tiếng Việt thân thiện qua `mapApiError`.
+  - Bổ sung enum `BartenderBackend` (`fake`, `firebase`, `api`) và `BartenderConfig.apiBaseUrl` (mặc định `http://10.0.2.2:8080`, override được qua `--dart-define=API_BASE_URL`).
+  - Mặc định `BartenderConfig.backend` giữ nguyên là `BartenderBackend.fake` đảm bảo 100% test offline không bị ảnh hưởng.
+  - Cập nhật `BartenderController` tự động chọn repository theo `BartenderConfig.backend`.
+  - Cấu hình cho phép cleartext HTTP (`android:usesCleartextTraffic="true"`) DUY NHẤT trong bản debug (`android/app/src/debug/AndroidManifest.xml`), không mở trong release.
+  - Thêm unit test toàn diện `test/bartender_api_room_repository_test.dart` (3 tests pass) kiểm tra HTTP REST và WebSocket giả lập.
+  - Toàn bộ 222 test Flutter pass 100%; `flutter analyze` 0 lỗi 0 cảnh báo; server test 10/10 pass 100%.
 
 - **Bước C.4: Công cụ kiểm tra khói tự động hóa `server/tool/smoke.dart` (2026-10-30):**
   - Viết script `server/tool/smoke.dart` nhận tham số `baseUrl` (mặc định `http://localhost:8080`).
