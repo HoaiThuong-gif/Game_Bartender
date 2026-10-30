@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Nhombar frontend (Flutter)",
+      "type": "dart",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/nhombar",
+      "program": "${workspaceFolder}/nhombar/lib/main.dart",
+      "toolArgs": ["--dart-define=API_BASE_URL=http://127.0.0.1:3000/api/v1"]
+    },
+    {
+      "name": "Nhombar backend (Node.js)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/backend",
+      "program": "${workspaceFolder}/backend/src/server.js",
+      "console": "integratedTerminal"
+    }
+  ]
+}

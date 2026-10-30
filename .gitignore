@@ -30,11 +30,13 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
-/build/
-/coverage/
+**/build/
+**/coverage/
 
 # Local JavaScript dependencies used to rebuild the WebView bundles.
-/node_modules/
+node_modules/
+backend/data/
+backend/.env
 
 # Symbolication related
 app.*.symbols
@@ -43,9 +45,9 @@ app.*.symbols
 app.*.map.json
 
 # Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+/nhombar/android/app/debug
+/nhombar/android/app/profile
+/nhombar/android/app/release
 
 # Widget Preview related
 .widget_preview/
@@ -53,7 +55,7 @@ app.*.map.json
 # Firebase — chứa API key, KHÔNG commit lên git
 # Mỗi thành viên nhóm cần chạy `flutterfire configure` để tạo lại,
 # hoặc nhận file này riêng qua kênh bảo mật (không qua git).
-lib/firebase_options.dart
-android/app/google-services.json
-ios/Runner/GoogleService-Info.plist
+nhombar/lib/firebase_options.dart
+nhombar/android/app/google-services.json
+nhombar/ios/Runner/GoogleService-Info.plist
 .scan-runtime/
