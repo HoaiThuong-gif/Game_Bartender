@@ -19,9 +19,29 @@ enum BartenderBackend {
 class BartenderConfig {
   const BartenderConfig._();
 
+  /// Phân giải backend từ chuỗi cấu hình (ví dụ từ environment).
+  /// Bất kỳ giá trị nào không xác định đều fallback về [BartenderBackend.fake].
+  static BartenderBackend parseBackend(String raw) {
+    switch (raw.trim().toLowerCase()) {
+      case 'firebase':
+        return BartenderBackend.firebase;
+      case 'api':
+        return BartenderBackend.api;
+      case 'fake':
+      default:
+        return BartenderBackend.fake;
+    }
+  }
+
   /// Bộ chọn backend hiện tại.
-  /// MẶC ĐỊNH LUÔN LÀ fake TRONG MỌI COMMIT theo quy tắc bất biến.
-  static BartenderBackend backend = BartenderBackend.fake;
+  /// Khởi tạo từ --dart-define=BARTENDER_BACKEND=fake|firebase|api (mặc định 'fake').
+  /// MẶC ĐỊNH LUÔN LÀ fake KHI KHÔNG CÓ DEFINE theo quy tắc bất biến.
+  static BartenderBackend backend = parseBackend(
+    const String.fromEnvironment(
+      'BARTENDER_BACKEND',
+      defaultValue: 'fake',
+    ),
+  );
 
   /// Cờ tương thích ngược: true nếu backend == BartenderBackend.fake.
   static bool get useFakeRepository => backend == BartenderBackend.fake;

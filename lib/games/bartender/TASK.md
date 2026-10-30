@@ -11,10 +11,11 @@
 ### Thiết lập môi trường thử nghiệm với Local Server:
 - **Khởi động server**: Trên máy tính, chạy lệnh `dart run server/bin/server.dart` (mặc định lắng nghe trên cổng 8080).
 - **Cách 1 (Cùng mạng Wi-Fi)**: Kết nối điện thoại và máy tính vào cùng một mạng Wi-Fi. Xác định IP nội bộ của máy tính (ví dụ `192.168.1.15`). Chạy/build app với:
-  `flutter run --dart-define=API_BASE_URL=http://192.168.1.15:8080`
+  `flutter run --dart-define=BARTENDER_BACKEND=api --dart-define=API_BASE_URL=http://192.168.1.15:8080`
 - **Cách 2 (Cáp USB + adb reverse)**: Cắm điện thoại qua USB và bật gỡ lỗi USB, chạy lệnh:
   `adb reverse tcp:8080 tcp:8080`
-  App chạy với `http://127.0.0.1:8080` sẽ tự động chuyển hướng về server trên máy tính.
+  Chạy/build app với:
+  `flutter run --dart-define=BARTENDER_BACKEND=api --dart-define=API_BASE_URL=http://127.0.0.1:8080`
 
 ### Danh sách các bước kiểm tra thủ công:
 1. **2 máy tạo/vào phòng bằng mã**: Host tạo phòng nhận mã 4 chữ số, máy thứ hai nhập mã vào phòng thành công. Cả 2 máy cập nhật danh sách người chơi ngay lập tức qua WebSocket snapshot.
@@ -26,7 +27,6 @@
 7. **Một máy ngắt kết nối**: Tắt app trên 1 máy, máy còn lại nhận cờ `connected=false`; nếu còn dưới 2 người thì trận đấu kết thúc ngay lập tức và hiển thị bảng xếp hạng kết quả.
 8. **Quay lại phòng sau khi thua**: Bấm "QUAY LẠI PHÒNG", người chơi trở về lobby phòng cũ, sẵn sàng cho trận kế tiếp.
 
-*(Lưu ý: Chưa sẵn sàng production, cần hoàn tất kiểm tra thủ công trên thiết bị vật lý và nghiệm thu Firebase RTDB).*
 
 ## Đề xuất sửa docs
 

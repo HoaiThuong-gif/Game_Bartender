@@ -39,7 +39,7 @@ class _BartenderScreenState extends State<BartenderScreen> {
   }
 
   Future<void> _initController() async {
-    if (!BartenderConfig.useFakeRepository) {
+    if (BartenderConfig.backend == BartenderBackend.firebase) {
       try {
         // Khởi động Firebase với config từ firebase_options.dart.
         // File đó được tạo tự động bởi `flutterfire configure`
@@ -77,8 +77,8 @@ class _BartenderScreenState extends State<BartenderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Khi đang dùng FakeRepository, không cần chờ — khởi động ngay
-    if (BartenderConfig.useFakeRepository) {
+    // Khi đang dùng Fake hoặc API, không cần khởi tạo Firebase — khởi động ngay
+    if (BartenderConfig.backend != BartenderBackend.firebase) {
       _controller ??= BartenderController();
       return _buildApp(_controller!);
     }
