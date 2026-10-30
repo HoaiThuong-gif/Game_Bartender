@@ -42,19 +42,20 @@ abstract interface class RoomRepository {
   });
 
   /// Tham gia phòng đã có bằng mã phòng [code].
-  Future<Room> joinRoom({
-    required String code,
-    required String playerName,
-  });
+  Future<Room> joinRoom({required String code, required String playerName});
 
   /// Rời phòng.
-  Future<void> leaveRoom({
-    required String code,
-    required String playerId,
-  });
+  Future<void> leaveRoom({required String code, required String playerId});
 
   /// Bắt đầu trận đấu (chỉ gọi khi room.canStart == true).
-  Future<void> startMatch({required String code});
+  Future<void> startMatch({required String code, bool waitForScene = false});
+
+  /// Report one player's first playable frame for this exact preparation instance.
+  Future<void> markSceneReady({
+    required String code,
+    required String playerId,
+    required int preparationId,
+  });
 
   /// Lắng nghe stream thay đổi trạng thái của phòng.
   Stream<Room> watchRoom(String code);
@@ -94,10 +95,7 @@ abstract interface class RoomRepository {
   });
 
   /// Đánh dấu người chơi đã quay lại phòng chờ sau khi trận kết thúc.
-  Future<void> returnToLobby({
-    required String code,
-    required String playerId,
-  });
+  Future<void> returnToLobby({required String code, required String playerId});
 
   /// Kết thúc trận đấu. Ghi results và đặt status = ended.
   /// Idempotent: nếu trận đã kết thúc thì không làm gì.

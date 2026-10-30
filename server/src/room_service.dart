@@ -58,7 +58,9 @@ class RoomService {
   RoomService({
     Random? rng,
     bool enableTimers = true,
+    int Function()? nowMs,
   })  : _rng = rng ?? Random(),
+        _clock = nowMs ?? (() => DateTime.now().millisecondsSinceEpoch),
         _enableTimers = enableTimers {
     if (_enableTimers) {
       _startLoops();
@@ -66,6 +68,7 @@ class RoomService {
   }
 
   final Random _rng;
+  final int Function() _clock;
   final bool _enableTimers;
 
   final Map<String, Room> _rooms = {};
@@ -74,8 +77,10 @@ class RoomService {
   final Map<String, PlayerSession> _sessions = {}; // token -> PlayerSession
 
   // WebSocket connections
-  final Map<String, Set<_ClientSocket>> _roomSockets = {}; // roomCode -> sockets
-  final Map<String, Set<_ClientSocket>> _playerSockets = {}; // playerId -> sockets
+  final Map<String, Set<_ClientSocket>> _roomSockets =
+      {}; // roomCode -> sockets
+  final Map<String, Set<_ClientSocket>> _playerSockets =
+      {}; // playerId -> sockets
 
   Timer? _gameLoopTimer;
   Timer? _spawnTimer;
@@ -84,7 +89,7 @@ class RoomService {
 
   int get roomsCount => _rooms.length;
 
-  int _nowMs() => DateTime.now().millisecondsSinceEpoch;
+  int _nowMs() => _clock();
 
   String _generateToken() {
     final bytes = List<int>.generate(16, (_) => _rng.nextInt(256));
@@ -171,7 +176,7 @@ class RoomService {
     if (room == null) return;
     final message = jsonEncode({
       'type': 'snapshot',
-      'room': room.toJson(),
+      'room': room.copyWith(serverNowMs: _nowMs()).toJson(),
     });
     final sockets = _roomSockets[code];
     if (sockets != null) {
@@ -318,6 +323,7 @@ class RoomService {
       if (updatedRoom.connectedPlayerCount < 2) {
         endMatch(code);
       } else {
+        _finishPreparationIfReady(code);
         _broadcast(code);
       }
     } else {
@@ -332,7 +338,10 @@ class RoomService {
     }
   }
 
-  void startMatch({required String code, required String token}) {
+  void startMatch(
+      {required String code,
+      required String token,
+      bool waitForScene = false}) {
     final session = _authenticate(code, token);
     final room = _getRoomOrThrow(code);
     _getPlayerOrThrow(room, session.playerId);
@@ -341,7 +350,8 @@ class RoomService {
     if (room.status == RoomStatus.playing) return;
 
     if (room.status != RoomStatus.lobby && room.status != RoomStatus.ended) {
-      throw ApiException.invalidState('Cannot start match in status ${room.status.name}.');
+      throw ApiException.invalidState(
+          'Cannot start match in status ${room.status.name}.');
     }
 
     if (room.connectedPlayerCount < 2) {
@@ -349,7 +359,9 @@ class RoomService {
     }
 
     // Compact connected players into 0..k-1
-    final connectedPlayers = room.players.values.where((p) => p.connected).toList()
+    final connectedPlayers = room.players.values
+        .where((p) => p.connected)
+        .toList()
       ..sort((a, b) => a.ringIndex.compareTo(b.ringIndex));
 
     final compactedPlayers = <String, Player>{};
@@ -376,8 +388,8 @@ class RoomService {
     for (final pid in playerIds) {
       final orders = <Order>[];
       for (var i = 1; i <= 3; i++) {
-        final recipe = roundSetup.feasibleRecipes[
-            _rng.nextInt(roundSetup.feasibleRecipes.length)];
+        final recipe = roundSetup
+            .feasibleRecipes[_rng.nextInt(roundSetup.feasibleRecipes.length)];
         orders.add(Order(
           id: 'o_${pid}_1_$i',
           recipeId: recipe.id,
@@ -418,7 +430,9 @@ class RoomService {
     }
 
     final nowMs = _nowMs();
-    final timer = MatchTimer.start(nowMs: nowMs);
+    final timer = waitForScene
+        ? MatchTimer.prepare(nowMs: nowMs)
+        : MatchTimer.start(nowMs: nowMs);
 
     final updatedRoom = room.copyWith(
       status: RoomStatus.playing,
@@ -434,6 +448,52 @@ class RoomService {
     _broadcast(code);
   }
 
+  void markSceneReady(
+      {required String code,
+      required String token,
+      required int preparationId}) {
+    final session = _authenticate(code, token);
+    final room = _getRoomOrThrow(code);
+    final player = _getPlayerOrThrow(room, session.playerId);
+    if (!player.connected ||
+        room.status != RoomStatus.playing ||
+        room.timer?.isPreparing != true ||
+        room.timer!.startedAt != preparationId) return;
+    final timer = room.timer!.markSceneReady(
+        playerId: player.id,
+        connectedPlayerIds: room.players.values
+            .where((p) => p.connected)
+            .map((p) => p.id)
+            .toSet(),
+        nowMs: _nowMs());
+    _rooms[code] = room.copyWith(timer: timer, serverNowMs: _nowMs());
+    _broadcast(code);
+  }
+
+  void _requireStarted(Room room) {
+    if (room.timer != null && !room.timer!.hasStarted(nowMs: _nowMs())) {
+      throw ApiException.invalidState('Match is preparing or counting down.');
+    }
+  }
+
+  void _finishPreparationIfReady(String code) {
+    final room = _rooms[code];
+    final timer = room?.timer;
+    if (room == null ||
+        room.status != RoomStatus.playing ||
+        timer == null ||
+        !timer.isPreparing) return;
+    final connected =
+        room.players.values.where((p) => p.connected).map((p) => p.id).toSet();
+    if (connected.length < 2 || !connected.every(timer.readyPlayerIds.contains))
+      return;
+    _rooms[code] = room.copyWith(
+        timer: timer.markSceneReady(
+            playerId: connected.first,
+            connectedPlayerIds: connected,
+            nowMs: _nowMs()));
+  }
+
   void sendItem({
     required String code,
     required String token,
@@ -444,6 +504,7 @@ class RoomService {
     final room = _getRoomOrThrow(code);
     final player = _getPlayerOrThrow(room, session.playerId);
 
+    _requireStarted(room);
     if (room.status != RoomStatus.playing) {
       throw ApiException.invalidState('Action only allowed while playing.');
     }
@@ -451,8 +512,9 @@ class RoomService {
     final playerCount = room.connectedPlayerCount;
     final fromRing = player.ringIndex;
 
-    final isAdjacent = Ring.leftNeighbor(fromRing, playerCount) == toRingIndex ||
-        Ring.rightNeighbor(fromRing, playerCount) == toRingIndex;
+    final isAdjacent =
+        Ring.leftNeighbor(fromRing, playerCount) == toRingIndex ||
+            Ring.rightNeighbor(fromRing, playerCount) == toRingIndex;
 
     if (!isAdjacent) {
       throw ApiException.invalidMove(
@@ -499,6 +561,7 @@ class RoomService {
     final room = _getRoomOrThrow(code);
     final player = _getPlayerOrThrow(room, session.playerId);
 
+    _requireStarted(room);
     if (room.status != RoomStatus.playing) {
       throw ApiException.invalidState('Action only allowed while playing.');
     }
@@ -512,7 +575,8 @@ class RoomService {
 
     inbox.removeAt(idx);
 
-    final updatedInboxes = Map<int, List<GameItem>>.of(room.inbox)..[ring] = inbox;
+    final updatedInboxes = Map<int, List<GameItem>>.of(room.inbox)
+      ..[ring] = inbox;
 
     final updatedRoom = room.copyWith(
       serverNowMs: _nowMs(),
@@ -533,6 +597,7 @@ class RoomService {
     final room = _getRoomOrThrow(code);
     final player = _getPlayerOrThrow(room, session.playerId);
 
+    _requireStarted(room);
     if (room.status != RoomStatus.playing) {
       throw ApiException.invalidState('Action only allowed while playing.');
     }
@@ -575,7 +640,8 @@ class RoomService {
 
     inbox[idx] = newItem;
 
-    final updatedInboxes = Map<int, List<GameItem>>.of(room.inbox)..[ring] = inbox;
+    final updatedInboxes = Map<int, List<GameItem>>.of(room.inbox)
+      ..[ring] = inbox;
 
     final updatedRoom = room.copyWith(
       serverNowMs: _nowMs(),
@@ -598,6 +664,7 @@ class RoomService {
     final room = _getRoomOrThrow(code);
     final player = _getPlayerOrThrow(room, session.playerId);
 
+    _requireStarted(room);
     if (room.status != RoomStatus.playing) {
       throw ApiException.invalidState('Action only allowed while playing.');
     }
@@ -610,7 +677,8 @@ class RoomService {
     final orders = currentRound.playerOrders[player.id];
     final orderIdx = orders?.indexWhere((o) => o.id == orderId) ?? -1;
     if (orders == null || orderIdx == -1) {
-      throw ApiException.orderMismatch('Order $orderId does not belong to player.');
+      throw ApiException.orderMismatch(
+          'Order $orderId does not belong to player.');
     }
 
     final order = orders[orderIdx];
@@ -627,9 +695,8 @@ class RoomService {
     }
 
     final productItem = inbox[itemIdx];
-    final recipe = RecipePool.allRecipes
-        .where((r) => r.id == order.recipeId)
-        .firstOrNull;
+    final recipe =
+        RecipePool.allRecipes.where((r) => r.id == order.recipeId).firstOrNull;
 
     if (recipe == null ||
         (productItem.itemId != recipe.productId &&
@@ -643,7 +710,8 @@ class RoomService {
     inbox.removeAt(itemIdx);
 
     // Update order status
-    final updatedOrders = List<Order>.of(orders)..[orderIdx] = order.copyWith(
+    final updatedOrders = List<Order>.of(orders)
+      ..[orderIdx] = order.copyWith(
         status: OrderStatus.submitted,
       );
 
@@ -665,7 +733,8 @@ class RoomService {
     // Time bonus +5s
     final updatedTimer = room.timer?.withBonus();
 
-    final updatedInboxes = Map<int, List<GameItem>>.of(room.inbox)..[ring] = inbox;
+    final updatedInboxes = Map<int, List<GameItem>>.of(room.inbox)
+      ..[ring] = inbox;
 
     var updatedRound = currentRound.copyWith(
       playerOrders: updatedPlayerOrders,
@@ -685,7 +754,8 @@ class RoomService {
         nextRoom.players.values.where((p) => p.connected).toList();
 
     final allDone = connectedPlayers.every(
-      (p) => (updatedProgress[p.ringIndex] ?? 0) >= updatedRound.ordersPerPlayer,
+      (p) =>
+          (updatedProgress[p.ringIndex] ?? 0) >= updatedRound.ordersPerPlayer,
     );
 
     if (allDone) {
@@ -842,7 +912,8 @@ class RoomService {
 
   void _tickIngredientSpawn() {
     for (final room in List.of(_rooms.values)) {
-      if (room.status == RoomStatus.playing) {
+      if (room.status == RoomStatus.playing &&
+          (room.timer?.hasStarted(nowMs: _nowMs()) ?? false)) {
         var modified = false;
         final inboxes = Map<int, List<GameItem>>.of(room.inbox);
 
@@ -962,7 +1033,7 @@ class RoomService {
       // Send initial snapshot directly to this new socket
       socket.send(jsonEncode({
         'type': 'snapshot',
-        'room': _rooms[code]!.toJson(),
+        'room': _rooms[code]!.copyWith(serverNowMs: _nowMs()).toJson(),
       }));
     }
 
@@ -1007,6 +1078,7 @@ class RoomService {
               updatedRoom.connectedPlayerCount < 2) {
             endMatch(code);
           } else {
+            _finishPreparationIfReady(code);
             _broadcast(code);
           }
         }

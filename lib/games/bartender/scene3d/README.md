@@ -1,5 +1,36 @@
 # Bartender 3D — isolated presentation / giao diện tách biệt
 
+## Khởi động đồng bộ — 2026-10-31
+
+- Người dùng đã duyệt thay đổi logic: chờ mọi máy tải xong quầy, đếm chung
+  3–2–1, rồi mới dùng đủ 60 giây. Nút host gọi `startMatch(waitForScene: true)`.
+- Trong snapshot, `timer.preparing: true` giữ đồng hồ ở 60; `readyPlayers` chứa
+  ID các máy đã tải xong. WebGL báo `sceneReady` sau khi làm nóng shader và vẽ
+  xong cảnh/vật phẩm đầu tiên. Fallback báo sau frame Flutter đầu tiên.
+- `POST /rooms/:code/scene-ready` dùng Bearer token và JSON `{preparationId}`;
+  `preparationId` là `timer.startedAt` của lượt chuẩn bị. Báo trễ từ trận cũ hoặc
+  báo trùng không khởi động lại đồng hồ. Sau máy cuối cùng, backend đặt
+  `startedAt = now + 3000`, `endTime = startedAt + 60000` và phát cùng snapshot
+  cho cả phòng. Thao tác, bot và spawn chờ tới mốc bắt đầu.
+- Nếu peer rời phòng, vẫn áp dụng luật kết thúc khi dưới hai người; từ hai
+  người trở lên thì chỉ chờ những người còn kết nối. Giữ nguyên luồng mọi
+  player quay về lobby và host bắt đầu trận mới.
+- Fake, API/server và Firebase đều có luồng này. API cần khởi động lại/deploy
+  **server đã cập nhật** cùng client; server cũ chưa có endpoint báo tải xong.
+  Không nâng dependencies hay thay backend mặc định `fake`.
+- Tối ưu renderer: chỉ đổi kích thước bộ đệm khi viewport/chất lượng đổi;
+  snapshot busy/order không xếp lại pile; bỏ cập nhật nhãn ẩn mỗi frame;
+  tái dùng bộ nhớ cho bóng và chỉ cập nhật bóng khi có chuyển động. Làm nóng
+  geometry/shader trong bước chuẩn bị, giới hạn độ phân giải để giảm tải GPU.
+- Kiểm tra: 134 test Flutter Bartender (gồm ba test chuẩn bị mới), 14 test
+  server (gồm hai WebSocket cùng nhận mốc bắt đầu, tải chậm và rời phòng);
+  WebGL kiểm tra barrier, canvas không cấp lại khi cập nhật, pile ngủ khi đứng yên.
+  Android emulator đã thử cảnh tải giữ 01:00, ghi lại 3 → 2 → 1 và mở khóa vẫn
+  01:00 (`test-output/android-ready-6..9.png`); chưa đo FPS
+  bản profile/release trên điện thoại thật hoặc chạy Firebase nhiều máy thật.
+- Bản APK cũ bên dưới chưa chứa thay đổi khởi động này; dùng hot restart hoặc
+  build/run lại từ mã hiện tại.
+
 ## English
 
 The user requested warm cartoon 3D gameplay on 2026-10-30. The existing menu,
@@ -7,7 +38,7 @@ game rules, controller, room schema and repositories remain the integration base
 This is a first playable 3D implementation, not a claim of release readiness.
 
 - `scene.mjs`: procedural meshes, real 3D dragging, station/pass/trash/submit zones,
-  bounded item pages (8 visible), demand rendering, a lower resolution option,
+  one random stack containing every inbox item, demand rendering, a lower resolution option,
   pause/resume and GPU resource disposal.
 - `build_scene.cjs`: bundles the installed Three.js into `scene_bundle.dart`.
   Rebuild after editing JS. Commit source and generated Dart together. No CDN,
@@ -32,34 +63,52 @@ Screenshots and reports go in ignored `test-output/`.
 
 ## Tiếng Việt
 
-### Bản chỉnh hình ảnh ngày 2026-10-30
+### Giao diện mới và đống vật phẩm — 2026-10-30
 
-- Camera lấy chiều rộng quầy làm chuẩn trên điện thoại ngang; vật phẩm scale
-  1.25 thay vì 0.9, trạm scale 1.35. Tối đa 8 món/trang để giữ mục tiêu kéo rõ.
-- Không hiển thị hướng dẫn, tên nguyên liệu hoặc thanh đồng đội. HUD lớn chỉ
-  còn vòng, giờ và tổng đơn; đơn chờ nằm trên cảnh.
-- Vật phẩm mới rơi/nảy/lăn trong 1.25 giây rồi dừng. Có thể bắt kéo giữa lúc
-  rơi; cập nhật cùng ID không phát lại hiệu ứng. Không thêm physics engine hay
-  lưu vị trí vào Firebase. Idle/pause/dispose vẫn được kiểm tra bằng WebGL.
-- Màn kết quả dùng gỗ/kem/xanh lá, thống kê lớn và danh sách cuộn; ngang chia
-  hai cột, dọc xếp trên dưới. Dùng returnToLobby/leaveRoom của logic Zhoufen đã tích hợp.
-- Test kết quả hiện có: 6 test qua; ảnh kiểm tra bố cục ngang 800×360 qua.
-  Chưa chạy bản chỉnh hình ảnh này trên Android; dùng Hot Restart để nhận code.
+- Phát triển trên `dev/Zhoufen` theo quy ước người dùng. Controller, model,
+  repository và các luồng đã merge không bị sửa.
+- Một bàn chứa toàn bộ inbox: không phân trang, không giới hạn/xóa bớt vật phẩm.
+  Vị trí rơi ngẫu nhiên, lăn ngắn tới vị trí nghỉ thấp hơn ở gần; tiếp xúc được
+  xấp xỉ bằng khoảng cách để tạo đống nhiều lớp. Kéo món đỡ bên dưới hoặc mất
+  item theo snapshot sẽ làm các món phía trên hạ xuống. Đây là mô phỏng trình
+  bày nhẹ, không dùng physics engine hoặc đồng bộ tọa độ lên server.
+- Raycast chọn mesh thực sự phía trước; không có chọn xuyên qua vật che bằng
+  cách tìm tâm gần nhất. Có thể bắt vật đang rơi; thả/hủy kéo thì nó tiếp tục rơi.
+- Geometry màu gộp/cached theo loại: một mesh/vật phẩm. Bóng mềm trên mặt bàn
+  dùng chung một InstancedMesh; tài nguyên được giải phóng khi đóng cảnh.
+- Camera tự lấy khung cho đống cao, giữ toàn bộ item trong scene và dừng vẽ
+  khi rơi/nhấn xong. Đồ vẫn có thể che nhau như người dùng yêu cầu.
+- Máy ép có khay/côn/cần ép/ly riêng: trạng thái rỗng, đã nạp, nhấn cần ép.
+  Trái cây nằm trong khay, cần hạ và mực nước tăng theo từng nhấn; đủ bốn nhấn
+  mới gửi action chế biến cho Dart. Dao có chuyển động theo đường cắt.
+- Màn chơi dùng khung xanh/gỗ/vàng, đồng hồ lớn, phiếu đồ uống SVG phía trên;
+  không tên nguyên liệu, hướng dẫn vuốt hoặc nút chuyền/nộp.
+- Kết quả có nền xanh, cúp vẽ bằng Canvas, thẻ thống kê kem và hạng đầu màu vàng.
+  QUAY LẠI PHÒNG/THOÁT vẫn dùng returnToLobby/leaveRoom của Zhoufen.
 
 ### Cách chơi
 
-- Không hiện nhãn tên dưới vật phẩm hoặc nút chuyền/nộp trong cảnh 3D.
-- Kéo nguyên liệu vào trạm để đặt lên máy; máy ép/máy xay cần nhấn 4 lần.
-- Thớt cần 4 đường rạch ngang riêng trên trạm; chạm đơn thuần không cắt.
-- Đơn chờ nằm phía trên quầy. Kéo thành phẩm lên vùng trên (22% chiều cao)
-  để nộp đơn khớp; kéo xuống mép dưới (14%) để bỏ. Cần kéo ít nhất 45 px.
-- Vuốt trái/phải để chuyền. Bình lắc vẫn dùng cảm biến, chỉ có nút giả lập
-  khi thiếu cảm biến. Tiến độ chế biến gắn với vật phẩm trong cảnh hiện tại;
-  chỉ khi đủ 4 thao tác mới gọi controller. Không đổi API/schema của nhánh kia.
-- Nút Hình đổi độ phân giải. Mỗi trang tối đa 8 món.
-- Kiểm chứng bản sửa: WebGL test kiểm tra đặt vào máy chưa chế biến, đủ 4 lần
-  nhấn mới hoàn thành, 4 đường cắt (tap không tính), kéo lên/xuống/trái/phải,
-  không nhãn/nút nộp, cùng phân trang/pause/dispose. Cần thử lại trên Android.
+- Đặt nguyên liệu lên máy rồi nhấn 4 lần để ép; thớt cần 4 đường rạch riêng.
+- Kéo thành phẩm lên vùng trên để nộp đơn khớp, xuống dưới để bỏ, hai bên chuyền.
+- Bình lắc dùng cảm biến; nút giả lập chỉ hiện khi không có cảm biến.
+- Nút ◈/◇ đổi độ phân giải. Không có trang 2; dọn/chuyền đồ để tìm món bị che.
+
+### Kiểm chứng lượt giao diện này
+
+- 16 test Flutter về kết quả, entry/lobby/restart, bridge/nộp đơn và reconnect qua.
+  Ba ảnh kiểm tra bố cục kết quả 1100×420, 800×360, 390×844 qua.
+- Analyze ba file Dart UI mới/sửa: không issue.
+- WebGL qua kiểm tra máy ép rỗng/nạp/4 nhấn, cắt, nộp/chuyền/bỏ, bắt/thả khi rơi,
+  80 item không phân trang, snapshot không xáo đống đồ, mất vật đỡ, idle/pause/dispose.
+  Mẫu 80 item khoảng 134 draw calls và 108,260 tam giác; không phải đo FPS Android.
+- Android `emulator-5554` chạy code mới qua attach + Hot Restart/Hot Reload:
+  xác nhận HUD/quầy, kéo cam vào máy ép làm cần hạ/hiện trái cây và màn kết quả.
+  Ảnh `test-output/android-pile-live.png`, `android-pile-loaded.png`,
+  `android-pile-results.png`. Máy ảo không có hai thiết bị online trong lần này.
+- Ổ C thiếu chỗ cho file test, nên TEMP/TMP của tiến trình kiểm tra đặt tại
+  `<repo>/build/test-tmp` trên ổ D. Không xóa dữ liệu người dùng hay đổi env hệ thống.
+- Chưa đo độ mượt trên máy Android thật. APK tại đường dẫn build thuộc bản merge
+  trước; code giao diện mới đã chạy bằng Hot Reload, chưa đóng gói APK mới lần này.
 
 ### Tích hợp UI vào logic Zhoufen — 2026-10-30
 
@@ -95,7 +144,7 @@ Screenshots and reports go in ignored `test-output/`.
 ### Hiệu năng và kiểm chứng
 
 - Một WebView, cảnh nhỏ, hình học/material dùng lại; gộp nền tĩnh theo material.
-- Vẽ khi kéo/thay đổi trạng thái; không vòng RAF liên tục khi bàn đứng yên.
+- Vẽ khi kéo/rơi/nhấn/thay đổi trạng thái; không vòng RAF khi bàn đứng yên.
 - Không gửi tọa độ ngón tay hoặc frame 3D sang Dart/Firebase; ticker đồng hồ
   không làm tải lại WebView hoặc gửi lại cảnh không thay đổi.
 - Giới hạn pixel ratio và tổng pixel; không bóng động, vật lý, postprocessing,

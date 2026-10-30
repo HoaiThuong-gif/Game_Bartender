@@ -18,7 +18,11 @@ class BartenderSceneBridge {
     'round': controller.room?.currentRound?.number,
     'station': controller.myStation?.name,
     'stationName': controller.myStation?.displayName ?? 'Trạm điều phối',
-    'busy': controller.isBusy,
+    'busy': controller.isBusy || !controller.isGameplayActive,
+    'active': controller.isGameplayActive,
+    'preparationId': controller.isMatchPreparing
+        ? controller.room!.timer!.startedAt
+        : null,
     'items': [
       for (final item in controller.myItems)
         {
@@ -35,11 +39,11 @@ class BartenderSceneBridge {
     ],
   };
 
-  /// Includes only game state, so the 250 ms countdown does not resend the scene.
+  /// Includes only game state, so clock ticks do not resend the scene.
   String get encodedSnapshot => jsonEncode(snapshot);
 
   Future<bool> handle(String raw, {bool allowShake = false}) async {
-    if (!controller.isMatchPlaying || controller.isBusy) return false;
+    if (!controller.isGameplayActive || controller.isBusy) return false;
     Object? decoded;
     try {
       decoded = jsonDecode(raw);

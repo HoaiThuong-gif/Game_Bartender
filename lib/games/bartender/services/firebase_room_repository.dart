@@ -303,9 +303,7 @@ class FirebaseRoomRepository implements RoomRepository {
     required String code,
     required String playerId,
   }) async {
-    await _db
-        .ref('$_roomsRoot/$code/players/$playerId/readyInLobby')
-        .set(true);
+    await _db.ref('$_roomsRoot/$code/players/$playerId/readyInLobby').set(true);
   }
 
   @override
@@ -334,7 +332,10 @@ class FirebaseRoomRepository implements RoomRepository {
   }
 
   @override
-  Future<void> startMatch({required String code}) async {
+  Future<void> startMatch({
+    required String code,
+    bool waitForScene = false,
+  }) async {
     // Đọc room, guard lobby hoặc ended
     final roomSnap = await _roomRef(code).get();
     if (!roomSnap.exists) return;
@@ -418,22 +419,12 @@ class FirebaseRoomRepository implements RoomRepository {
       playersUpdate[e.key] = asMap(e.value);
     }
 
-    // Transaction trên status để chuyển lobby/ended → playing chỉ một lần (D17)
-    bool started = false;
-    await _roomRef(code).child('status').runTransaction((currentData) {
-      if (currentData != 'lobby' && currentData != 'ended') {
-        return Transaction.abort();
-      }
-      started = true;
-      return Transaction.success('playing');
-    });
-
-    if (!started) return; // Client khác đã start
-
     // Multi-path update: players compact + timer + round + orders + reset results (atomic hơn có thể)
     final updates = <String, dynamic>{
       '$_roomsRoot/$code/results': null,
-      '$_roomsRoot/$code/timer/startedAt': ServerValue.timestamp,
+      '$_roomsRoot/$code/timer/startedAt': correctedNow,
+      '$_roomsRoot/$code/timer/preparing': waitForScene ? true : null,
+      '$_roomsRoot/$code/timer/readyPlayers': null,
       '$_roomsRoot/$code/timer/endTime': endTime,
       '$_roomsRoot/$code/round': {
         'number': 1,
@@ -474,7 +465,30 @@ class FirebaseRoomRepository implements RoomRepository {
       };
     }
 
-    await _db.ref().update(updates);
+    // Publish status, timer, station, orders and items together. A partial playing
+    // snapshot could otherwise expose the old timer and end a restarted room.
+    await _roomRef(code).runTransaction((currentData) {
+      final data = Map<String, dynamic>.from(asMap(currentData));
+      if (data['status'] != 'lobby' && data['status'] != 'ended')
+        return Transaction.abort();
+      final prefix = '$_roomsRoot/$code/';
+      for (final entry in updates.entries) {
+        final path = entry.key.substring(prefix.length).split('/');
+        var parent = data;
+        for (final part in path.take(path.length - 1)) {
+          final child = Map<String, dynamic>.from(asMap(parent[part]));
+          parent[part] = child;
+          parent = child;
+        }
+        if (entry.value == null) {
+          parent.remove(path.last);
+        } else {
+          parent[path.last] = entry.value;
+        }
+      }
+      data['status'] = 'playing';
+      return Transaction.success(data);
+    });
 
     // Gán onDisconnect cho host (để bắt kết nối mất sau khi start)
     if (uid != null) {
@@ -482,6 +496,44 @@ class FirebaseRoomRepository implements RoomRepository {
         'connected': false,
       });
     }
+  }
+
+  @override
+  Future<void> markSceneReady({
+    required String code,
+    required String playerId,
+    required int preparationId,
+  }) async {
+    final uid = _myUid ?? _auth.currentUser?.uid;
+    if (uid == null || uid != playerId)
+      throw StateError('Chưa xác thực người chơi.');
+    final offset = await _getServerOffsetMs();
+    await _roomRef(code).runTransaction((currentData) {
+      final data = Map<String, dynamic>.from(asMap(currentData));
+      final rawTimer = asMap(data['timer']);
+      if (data['status'] != 'playing' ||
+          rawTimer['preparing'] != true ||
+          rawTimer['startedAt'] != preparationId)
+        return Transaction.abort();
+      final players = asMap(data['players']);
+      final connected = players.entries
+          .where((e) => asMap(e.value)['connected'] != false)
+          .map((e) => e.key)
+          .toSet();
+      if (!connected.contains(uid)) return Transaction.abort();
+      final previous = MatchTimer.fromJson(
+        Map<String, dynamic>.from(rawTimer),
+        serverOffsetMs: offset,
+      );
+      final next = previous.markSceneReady(
+        playerId: uid,
+        connectedPlayerIds: connected,
+        nowMs: DateTime.now().millisecondsSinceEpoch,
+      );
+      if (next == previous) return Transaction.abort();
+      data['timer'] = next.toJson();
+      return Transaction.success(data);
+    });
   }
 
   @override
@@ -519,7 +571,30 @@ class FirebaseRoomRepository implements RoomRepository {
           if (room.status == RoomStatus.playing) {
             _startSpawnTimerIfNeeded(code);
             // Kiểm tra chuyển round khi đang playing (D17: không host)
-            _checkAndTryAdvanceRound(room);
+            if (room.timer?.hasStarted(
+                  nowMs: DateTime.now().millisecondsSinceEpoch,
+                ) ??
+                false)
+              _checkAndTryAdvanceRound(room);
+            final timer = room.timer;
+            final uid = _myUid ?? _auth.currentUser?.uid;
+            final connected = room.players.values
+                .where((p) => p.connected)
+                .map((p) => p.id)
+                .toSet();
+            if (timer != null &&
+                timer.isPreparing &&
+                uid != null &&
+                connected.length >= 2 &&
+                connected.every(timer.readyPlayerIds.contains)) {
+              unawaited(
+                markSceneReady(
+                  code: code,
+                  playerId: uid,
+                  preparationId: timer.startedAt,
+                ).catchError((Object e) => debugPrint('Scene readiness: $e')),
+              );
+            }
           } else {
             _stopSpawnTimer(code);
           }
@@ -569,7 +644,13 @@ class FirebaseRoomRepository implements RoomRepository {
   /// và không phụ thuộc vào máy khác. Chỉ cấp nếu khay chưa đầy (< 5 món).
   Future<void> _spawnIngredientForMyRing(String code) async {
     final room = _latestRooms[code];
-    if (room == null || room.status != RoomStatus.playing) return;
+    if (room == null ||
+        room.status != RoomStatus.playing ||
+        !(room.timer?.hasStarted(
+              nowMs: DateTime.now().millisecondsSinceEpoch,
+            ) ??
+            false))
+      return;
 
     final uid = _myUid ?? _auth.currentUser?.uid;
     if (uid == null) return;
@@ -789,6 +870,18 @@ class FirebaseRoomRepository implements RoomRepository {
     await _db.ref().update(updates);
   }
 
+  Future<void> _requireSceneStarted(String code) async {
+    final snapshot = await _roomRef(code).child('timer').get();
+    final data = asMap(snapshot.value);
+    if (data.isEmpty) return;
+    final timer = MatchTimer.fromJson(
+      Map<String, dynamic>.from(data),
+      serverOffsetMs: _serverOffsetMs,
+    );
+    if (!timer.hasStarted(nowMs: DateTime.now().millisecondsSinceEpoch))
+      throw StateError('Trận chưa bắt đầu.');
+  }
+
   @override
   Future<void> sendItem({
     required String code,
@@ -796,6 +889,7 @@ class FirebaseRoomRepository implements RoomRepository {
     required int toRingIndex,
     required GameItem item,
   }) async {
+    await _requireSceneStarted(code);
     // Xoá rồi ghi trong cùng một multi-path update
     await _db.ref().update({
       '$_roomsRoot/$code/inbox/$fromRingIndex/${item.id}': null, // null = xoá
@@ -813,6 +907,7 @@ class FirebaseRoomRepository implements RoomRepository {
     required int ringIndex,
     required String itemId,
   }) async {
+    await _requireSceneStarted(code);
     await _inboxRef(code, ringIndex).child(itemId).remove();
   }
 
@@ -823,6 +918,7 @@ class FirebaseRoomRepository implements RoomRepository {
     required String itemId,
     required StationType station,
   }) async {
+    await _requireSceneStarted(code);
     final snap = await _inboxRef(code, ringIndex).child(itemId).get();
     if (!snap.exists) throw ArgumentError('Item $itemId không tồn tại');
 
@@ -862,6 +958,7 @@ class FirebaseRoomRepository implements RoomRepository {
     required String orderId,
     required String productId,
   }) async {
+    await _requireSceneStarted(code);
     // Lấy ringIndex
     final playerSnap = await _db
         .ref('$_roomsRoot/$code/players/$playerId')
@@ -949,7 +1046,9 @@ class FirebaseRoomRepository implements RoomRepository {
     final serverNow = now + offset;
     final endTime = (timerData['endTime'] as int?) ?? serverNow;
     // survivalSeconds = min(serverNow, endTime) − startedAt (Bước 6)
-    final survivalMs = serverNow.clamp(startedAt, endTime) - startedAt;
+    final survivalMs = timerData['preparing'] == true
+        ? 0
+        : serverNow.clamp(startedAt, endTime) - startedAt;
     final survivalSec = (survivalMs / 1000).round().clamp(
       0,
       BartenderConfig.initialTimerSeconds * 10,
@@ -999,9 +1098,7 @@ class FirebaseRoomRepository implements RoomRepository {
     if (!resultsWritten) return; // Đã có client khác ghi
 
     // Results đã ghi → set status = ended và đặt readyInLobby = false cho mọi người
-    final endUpdates = <String, dynamic>{
-      '$_roomsRoot/$code/status': 'ended',
-    };
+    final endUpdates = <String, dynamic>{'$_roomsRoot/$code/status': 'ended'};
     for (final pId in playersData.keys) {
       endUpdates['$_roomsRoot/$code/players/$pId/readyInLobby'] = false;
     }
@@ -1043,10 +1140,9 @@ class FirebaseRoomRepository implements RoomRepository {
     MatchTimer? timer;
     final timerData = asMap(data['timer']);
     if (timerData.isNotEmpty) {
-      timer = MatchTimer(
-        endTime: (timerData['endTime'] as int?) ?? 0,
-        startedAt: (timerData['startedAt'] as int?) ?? 0,
-        serverOffsetMs: _serverOffsetMs, // Dùng cached offset
+      timer = MatchTimer.fromJson(
+        Map<String, dynamic>.from(timerData),
+        serverOffsetMs: _serverOffsetMs,
       );
     }
 
@@ -1191,4 +1287,3 @@ Map<String, dynamic> compactRing(Map<String, dynamic> playersData) {
   }
   return result;
 }
-

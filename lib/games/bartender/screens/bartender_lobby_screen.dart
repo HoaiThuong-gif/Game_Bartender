@@ -657,7 +657,8 @@ class _BartenderLobbyScreenState extends State<BartenderLobbyScreen> {
                                       : Icons.hourglass_top_rounded,
                                   yellow: host,
                                   onPressed: host && allReady && !ctrl.isBusy
-                                      ? ctrl.startMatch
+                                      ? () =>
+                                            ctrl.startMatch(waitForScene: true)
                                       : null,
                                 ),
                               ),
