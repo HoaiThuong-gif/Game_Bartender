@@ -130,7 +130,7 @@ class _ProtectedNavigatorState extends State<_ProtectedNavigator> {
   final _navigator = GlobalKey<NavigatorState>();
   @override
   Widget build(BuildContext context) => NavigatorPopHandler<void>(
-    onPopWithResult: (_) => _navigator.currentState?.pop(),
+    onPopWithResult: (_) => _navigator.currentState?.maybePop(),
     child: Navigator(
       key: _navigator,
       onGenerateRoute: (_) => MaterialPageRoute<void>(builder: widget.builder),

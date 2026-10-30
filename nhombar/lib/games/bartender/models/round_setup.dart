@@ -66,7 +66,10 @@ class RoundSetup {
     }).toList();
 
     // Phải có ít nhất 1 mỏ neo (thiết kế đảm bảo: D16 = max 3 trạm, min 2 người)
-    assert(anchorCandidates.isNotEmpty, 'Không có công thức nào phù hợp cho $playerCount người');
+    assert(
+      anchorCandidates.isNotEmpty,
+      'Không có công thức nào phù hợp cho $playerCount người',
+    );
 
     // Chọn mỏ neo ngẫu nhiên
     final anchor = anchorCandidates[random.nextInt(anchorCandidates.length)];
@@ -105,7 +108,10 @@ class RoundSetup {
       }
     }
 
-    final feasible = feasibleFor(assignment: assignment, roundNumber: roundNumber);
+    final feasible = feasibleFor(
+      assignment: assignment,
+      roundNumber: roundNumber,
+    );
 
     // Đảm bảo luôn có mỏ neo trong feasible (kiểm tra logic)
     assert(

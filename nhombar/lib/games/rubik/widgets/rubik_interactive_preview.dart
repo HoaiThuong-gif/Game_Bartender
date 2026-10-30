@@ -4,7 +4,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+
 import '../../../shared/widgets/cozy_loading.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -312,7 +314,13 @@ class _InteractiveWebViewState extends State<_InteractiveWebView> {
           fit: StackFit.expand,
           children: [
             _webView,
-            if (!_ready) const Positioned.fill(child: ColoredBox(color: Color(0xFFFFF8F1), child: CozyLoading(label: 'Đang mở Rubik…'))),
+            if (!_ready)
+              const Positioned.fill(
+                child: ColoredBox(
+                  color: Color(0xFFFFF8F1),
+                  child: CozyLoading(label: 'Đang mở Rubik…'),
+                ),
+              ),
             if (widget.challengeMoves == null)
               Positioned(
                 top: 8,

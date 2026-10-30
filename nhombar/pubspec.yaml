@@ -34,6 +34,8 @@ dependencies:
 
   cuber: ^0.4.0
   webview_flutter: ^4.14.1
+  http: ^1.2.0
+  web_socket_channel: ^3.0.0
   camera: ^0.12.1
   image: ^4.10.1
   shared_preferences: ^2.5.5
@@ -66,6 +68,7 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   shared_preferences_platform_interface: ^2.4.2
+  stream_channel: ^2.1.4
   fake_cloud_firestore: ^4.4.0
   firebase_auth_mocks: ^0.15.2
 
@@ -84,6 +87,7 @@ flutter:
     - shaders/lobby_panorama.frag
 
   assets:
+    - assets/images/ui/
     - assets/loading/
     # Package runtime WebViews only; npm uses the source modules when rebuilding.
     - assets/rubik/index.html

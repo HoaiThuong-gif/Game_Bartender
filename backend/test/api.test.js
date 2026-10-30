@@ -71,6 +71,43 @@ test('two clients create, join, process, submit atomically, reject replay/forger
   assert.equal(ended.data.room.results.totalTeamOrders, 1);
 });
 
+test('real HTTP rematch preserves room code and waits for every connected player', async t => {
+  const { request, session, store } = await fixture(t);
+  const host = await session('Host'), guest = await session('Guest');
+  const created = await request('POST', '/api/v1/bartender/rooms', {}, host.token);
+  const code = created.data.code, route = `/api/v1/bartender/rooms/${code}`;
+  await request('POST', `${route}/join`, {}, guest.token);
+  assert.equal((await request('POST', `${route}/start`, {}, guest.token)).status, 403);
+  assert.equal((await request('POST', `${route}/start`, {}, host.token)).status, 200);
+  // Advance only this fixture's authoritative timer; no persisted player data is used.
+  store.data.bartender[code].timer.endTime = store.data.bartender[code].timer.startedAt - 1;
+  const ended = await request('GET', route, undefined, host.token);
+  assert.equal(ended.data.room.status, 'ended');
+  assert.equal(ended.data.room.players[guest.uid].readyInLobby, false);
+  assert.equal((await request('POST', `${route}/return`, {}, host.token)).status, 200);
+  assert.equal((await request('POST', `${route}/start`, {}, host.token)).status, 409);
+  await request('POST', `${route}/return`, {}, guest.token);
+  const restarted = await request('POST', `${route}/start`, {}, host.token);
+  assert.equal(restarted.status, 200);
+  assert.equal(restarted.data.code, code);
+  assert.equal(restarted.data.room.round.number, 1);
+  assert.equal(restarted.data.room.results, undefined);
+  assert.ok(Object.values(restarted.data.room.inbox).every(box => Object.keys(box).length === 1));
+});
+
+test('leaving host transfers the waiting-room seat without allowing guests to start', async t => {
+  const { request, session } = await fixture(t);
+  const host = await session('Host'), guest = await session('Guest'), third = await session('Third');
+  const created = await request('POST', '/api/v1/bartender/rooms', {}, host.token);
+  const route = `/api/v1/bartender/rooms/${created.data.code}`;
+  await request('POST', `${route}/join`, {}, guest.token);
+  await request('POST', `${route}/join`, {}, third.token);
+  const left = await request('POST', `${route}/leave`, {}, host.token);
+  assert.equal(left.data.room.players[guest.uid].ringIndex, 0);
+  assert.equal((await request('POST', `${route}/start`, {}, third.token)).status, 403);
+  assert.equal((await request('POST', `${route}/start`, {}, guest.token)).status, 200);
+});
+
 test('Rubik two-player ready, loaded, countdown, finish and rematch use backend time', async t => {
   const { request, session, advance } = await fixture(t);
   const a = await session('A'), b = await session('B');

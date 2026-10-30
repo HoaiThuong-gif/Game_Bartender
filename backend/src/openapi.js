@@ -8,7 +8,7 @@ const schemas = {
   Error: object({ error: object({ message: str }) }),
   SessionRequest: object({ name: { type: 'string', minLength: 1, maxLength: 24, example: 'Thuong' } }),
   Session: object({ token: str, uid: str, name: str, expiresAt: integer, serverTime: integer }),
-  Player: object({ name: str, ringIndex: integer, connected: boolean, completedOrders: integer }),
+  Player: object({ name: str, ringIndex: integer, connected: boolean, completedOrders: integer, readyInLobby: boolean }, ['name', 'ringIndex', 'connected', 'completedOrders']),
   Item: object({ type: { type: 'string', enum: ['ingredient', 'product'] }, itemId: str, fromRingIndex: integer }),
   Order: object({ recipeId: str, status: { type: 'string', enum: ['pending', 'submitted'] } }),
   Recipe: object({ id: str, productId: str, difficulty: integer, stations: { type: 'array', items: str } }),
@@ -52,6 +52,7 @@ for (const [game, tag] of [['bartender', 'Bartender'], ['rubik', 'Rubik']]) {
 }
 for (const [action, summary, body] of [
   ['start', 'Bắt đầu trận khi có ít nhất hai người', null],
+  ['return', 'Quay lại phòng sau trận; chủ phòng chờ mọi người sẵn sàng rồi chơi lại', null],
   ['leave', 'Rời phòng hiện tại', null],
   ['end', 'Kết thúc khi hết giờ hoặc thiếu người', null],
   ['send', 'Chuyền vật phẩm có thật cho người liền kề', object({ itemId: str, toRingIndex: integer })],

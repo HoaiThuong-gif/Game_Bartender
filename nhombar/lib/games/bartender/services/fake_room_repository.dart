@@ -40,6 +40,36 @@ class FakeRoomRepository implements RoomRepository {
 
   /// ID của người chơi trên máy này (Fake dùng 'p_0', 'p_1', ...).
   String _localPlayerId = 'p_0';
+  bool _isHostOnThisDevice = false;
+
+  RoomConnectionState _connectionState = RoomConnectionState.connected;
+  StreamController<RoomConnectionState>? _connectionStateController;
+
+  @override
+  RoomConnectionState get connectionState => _connectionState;
+
+  @override
+  Stream<RoomConnectionState> watchConnectionState() {
+    _connectionStateController ??=
+        StreamController<RoomConnectionState>.broadcast();
+    scheduleMicrotask(() {
+      if (!_isDisposed &&
+          _connectionStateController != null &&
+          !_connectionStateController!.isClosed) {
+        _connectionStateController!.add(_connectionState);
+      }
+    });
+    return _connectionStateController!.stream;
+  }
+
+  set testConnectionState(RoomConnectionState state) {
+    _connectionState = state;
+    if (!_isDisposed &&
+        _connectionStateController != null &&
+        !_connectionStateController!.isClosed) {
+      _connectionStateController!.add(state);
+    }
+  }
 
   @override
   String get localPlayerId => _localPlayerId;
@@ -76,6 +106,7 @@ class FakeRoomRepository implements RoomRepository {
 
     // Host luôn là ringIndex 0.
     const hostId = 'p_0';
+    _isHostOnThisDevice = true;
     _localPlayerId = hostId;
     players[hostId] = Player(
       id: hostId,
@@ -83,6 +114,7 @@ class FakeRoomRepository implements RoomRepository {
       ringIndex: 0,
       connected: true,
       completedOrders: 0,
+      readyInLobby: true,
     );
 
     // Tạo các bot cho các vị trí còn lại trong vòng tròn (ringIndex 1, 2, ...).
@@ -116,26 +148,30 @@ class FakeRoomRepository implements RoomRepository {
     required String code,
     required String playerName,
   }) async {
-    // Với FakeRepository, nếu chưa có phòng thì tạo mới với mã đó.
+    // Kiểm tra phòng tồn tại (giống FirebaseRoomRepository)
     if (_currentRoom == null || _currentRoom!.code != code) {
-      final newRoom = await createRoom(hostPlayerName: playerName);
-      return newRoom;
+      throw StateError('Phòng #$code không tồn tại.');
     }
 
     final current = _currentRoom!;
     if (current.status != RoomStatus.lobby) {
-      throw StateError('Phòng đã bắt đầu hoặc kết thúc');
+      throw StateError(
+        'Phòng #$code đã bắt đầu hoặc kết thúc, không thể tham gia.',
+      );
     }
 
     final newIndex = current.totalPlayerCount;
     final newId = 'p_$newIndex';
-    _localPlayerId = newId;
+    if (!_isHostOnThisDevice) {
+      _localPlayerId = newId;
+    }
     final newPlayers = Map<String, Player>.from(current.players);
     newPlayers[newId] = Player(
       id: newId,
       name: playerName,
       ringIndex: newIndex,
       connected: true,
+      readyInLobby: true,
     );
 
     final updated = current.copyWith(
@@ -145,6 +181,22 @@ class FakeRoomRepository implements RoomRepository {
 
     _emit(updated);
     return updated;
+  }
+
+  @override
+  Future<void> returnToLobby({
+    required String code,
+    required String playerId,
+  }) async {
+    if (_currentRoom == null || _currentRoom!.code != code) return;
+    final current = _currentRoom!;
+    final player = current.players[playerId];
+    if (player == null) return;
+
+    final updatedPlayers = Map<String, Player>.from(current.players);
+    updatedPlayers[playerId] = player.copyWith(readyInLobby: true);
+    final updatedRoom = current.copyWith(players: updatedPlayers);
+    _emit(updatedRoom);
   }
 
   @override
@@ -184,6 +236,11 @@ class FakeRoomRepository implements RoomRepository {
     final current = _currentRoom!;
     if (!current.canStart) return;
 
+    // Chỉ chủ phòng (ringIndex == 0) mới được bắt đầu trận đấu
+    if (current.players.containsKey(_localPlayerId)) {
+      if (current.players[_localPlayerId]!.ringIndex != 0) return;
+    }
+
     // D13: ring size = số người connected khi start (không dùng totalPlayers cố định)
     final connectedPlayers =
         current.players.values.where((p) => p.connected).toList()
@@ -202,7 +259,11 @@ class FakeRoomRepository implements RoomRepository {
     final newPlayers = <String, Player>{};
     for (var i = 0; i < connectedPlayers.length; i++) {
       final p = connectedPlayers[i];
-      newPlayers[p.id] = p.copyWith(ringIndex: i);
+      newPlayers[p.id] = p.copyWith(
+        ringIndex: i,
+        completedOrders: 0,
+        readyInLobby: false,
+      );
     }
 
     // Gán 3 đơn hàng từ feasibleRecipes cho mỗi người chơi
@@ -258,6 +319,7 @@ class FakeRoomRepository implements RoomRepository {
       currentRound: initialRound,
       players: newPlayers,
       inbox: initialInbox,
+      clearResults: true,
     );
 
     _emit(playingRoom);
@@ -558,7 +620,16 @@ class FakeRoomRepository implements RoomRepository {
       survivalSeconds: survivalSec,
     );
 
-    return room.copyWith(status: RoomStatus.ended, results: results);
+    final updatedPlayers = <String, Player>{};
+    for (final entry in room.players.entries) {
+      updatedPlayers[entry.key] = entry.value.copyWith(readyInLobby: false);
+    }
+
+    return room.copyWith(
+      status: RoomStatus.ended,
+      players: updatedPlayers,
+      results: results,
+    );
   }
 
   @override
@@ -735,23 +806,33 @@ class FakeRoomRepository implements RoomRepository {
     );
     final expectedProductId = recipe?.productId as String? ?? order.recipeId;
 
-    // Cho phép nộp nếu productId khớp (hoặc dùng recipeId như fallback)
-    if (productId != expectedProductId && productId != order.recipeId) {
-      // Không khớp — không nộp
-      return;
-    }
-
     // Xoá sản phẩm hoàn thành khỏi inbox của người nộp
     final newInbox = Map<int, List<GameItem>>.from(
       room.inbox.map((k, v) => MapEntry(k, List<GameItem>.from(v))),
     );
     final playerItems = newInbox[player.ringIndex] ?? [];
-    playerItems.removeWhere(
+    final itemIndex = playerItems.indexWhere(
       (i) =>
           i.id == productId ||
           i.itemId == productId ||
           i.itemId == expectedProductId,
     );
+
+    if (itemIndex == -1) {
+      // Cho phép nộp nếu productId khớp trực tiếp (hỗ trợ test không nhét item sẵn)
+      if (productId != expectedProductId && productId != order.recipeId) {
+        return;
+      }
+    } else {
+      final matchedItem = playerItems[itemIndex];
+      if (matchedItem.itemId != expectedProductId &&
+          matchedItem.itemId != order.recipeId &&
+          productId != expectedProductId &&
+          productId != order.recipeId) {
+        return;
+      }
+      playerItems.removeAt(itemIndex);
+    }
     newInbox[player.ringIndex] = playerItems;
 
     // Cập nhật trạng thái đơn: submitted
@@ -803,5 +884,7 @@ class FakeRoomRepository implements RoomRepository {
     _stopTimers();
     _roomStreamController?.close();
     _roomStreamController = null;
+    _connectionStateController?.close();
+    _connectionStateController = null;
   }
 }

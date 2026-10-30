@@ -1,0 +1,14 @@
+.git
+.github
+.gemini
+build/
+.dart_tool/
+android/
+ios/
+web/
+windows/
+linux/
+macos/
+node_modules/
+artifacts/
+*.log

@@ -145,18 +145,15 @@ class _StationWidgetState extends State<StationWidget> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [const Color(0xFF2C2540), const Color(0xFF1F1D30)],
+          colors: [Color(0xFFFFE8BD), Color(0xFFFFD69C)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.deepPurpleAccent.withValues(alpha: 0.5),
-          width: 1.5,
-        ),
+        border: Border.all(color: Color(0xFFC47B39), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.deepPurple.withValues(alpha: 0.2),
+            color: Color(0x3B763B15),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -176,7 +173,7 @@ class _StationWidgetState extends State<StationWidget> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.deepPurple.shade800,
+                        color: Color(0xFFB9672D),
                         shape: BoxShape.circle,
                       ),
                       child: Text(
@@ -192,7 +189,7 @@ class _StationWidgetState extends State<StationWidget> {
                           Text(
                             currentStation.displayName.toUpperCase(),
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: Color(0xFF51250F),
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
                               letterSpacing: 0.5,
@@ -201,7 +198,7 @@ class _StationWidgetState extends State<StationWidget> {
                           Text(
                             'Thao tác: ${currentStation.actionVerb}',
                             style: const TextStyle(
-                              color: Colors.white54,
+                              color: Color(0xFF91643D),
                               fontSize: 11,
                             ),
                           ),
@@ -218,7 +215,7 @@ class _StationWidgetState extends State<StationWidget> {
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      Colors.amberAccent,
+                      Color(0xFF8C4319),
                     ),
                   ),
                 ),
@@ -232,22 +229,22 @@ class _StationWidgetState extends State<StationWidget> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
               decoration: BoxDecoration(
-                color: Colors.black26,
+                color: Color(0x1E7D4518),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.white10),
+                border: Border.all(color: Color(0x44A7642C)),
               ),
               child: Text(
                 'Chưa có nguyên liệu phù hợp để ${currentStation.actionVerb.toLowerCase()}.\n'
                 'Nhận hoặc xin từ đồng đội!',
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white54, fontSize: 11),
+                style: const TextStyle(color: Color(0xFF91643D), fontSize: 11),
               ),
             )
           else ...[
             Text(
               'Có ${processableItems.length} món có thể ${currentStation.actionVerb.toLowerCase()}:',
               style: const TextStyle(
-                color: Colors.amberAccent,
+                color: Color(0xFF8C4319),
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
               ),
@@ -261,10 +258,10 @@ class _StationWidgetState extends State<StationWidget> {
                   horizontal: 16,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.deepPurple.shade900.withValues(alpha: 0.6),
+                  color: Color(0xFFF8DAA5),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: Colors.amberAccent.withValues(alpha: 0.5),
+                    color: Color(0xFF8C4319).withValues(alpha: 0.5),
                   ),
                 ),
                 child: Row(
@@ -272,7 +269,7 @@ class _StationWidgetState extends State<StationWidget> {
                   children: [
                     const Icon(
                       Icons.vibration,
-                      color: Colors.amberAccent,
+                      color: Color(0xFF8C4319),
                       size: 22,
                     ),
                     const SizedBox(width: 10),
@@ -281,7 +278,7 @@ class _StationWidgetState extends State<StationWidget> {
                         '📱 Lắc điện thoại để pha chế!\n(${processableItems.map((i) => i.itemId).join(', ')})',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: Color(0xFF51250F),
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
@@ -304,7 +301,7 @@ class _StationWidgetState extends State<StationWidget> {
                     label: const Text('Lắc giả lập'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.amber.shade800,
-                      foregroundColor: Colors.white,
+                      foregroundColor: Color(0xFF51250F),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -331,8 +328,8 @@ class _StationWidgetState extends State<StationWidget> {
                     ),
                     label: Text('${currentStation.actionVerb} ${item.itemId}'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurpleAccent,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Color(0xFFC37B3A),
+                      foregroundColor: Color(0xFFFFF2D7),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -355,7 +352,7 @@ class _StationWidgetState extends State<StationWidget> {
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF2C241E),
+        color: Color(0xFFFFE6BD),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: Colors.orange.withValues(alpha: 0.4),
@@ -367,7 +364,7 @@ class _StationWidgetState extends State<StationWidget> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.orange.shade900.withValues(alpha: 0.5),
+              color: Color(0xFFEBA66E),
               shape: BoxShape.circle,
             ),
             child: const Text('🚫', style: TextStyle(fontSize: 20)),
@@ -380,7 +377,7 @@ class _StationWidgetState extends State<StationWidget> {
                 Text(
                   'ROUND NÀY BẠN KHÔNG CÓ TRẠM',
                   style: TextStyle(
-                    color: Colors.orangeAccent,
+                    color: Color(0xFF995019),
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
                   ),
@@ -388,7 +385,7 @@ class _StationWidgetState extends State<StationWidget> {
                 SizedBox(height: 2),
                 Text(
                   'Hãy điều phối và vuốt chuyền nguyên liệu cho đồng đội bên trái hoặc bên phải!',
-                  style: TextStyle(color: Colors.white70, fontSize: 11),
+                  style: TextStyle(color: Color(0xFF7A4A27), fontSize: 11),
                 ),
               ],
             ),

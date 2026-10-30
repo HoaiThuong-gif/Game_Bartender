@@ -1,443 +1,371 @@
-import '../../../settings/app_theme.dart';
-
 import 'package:flutter/material.dart';
 
 import '../controllers/bartender_controller.dart';
+import '../models/match_result.dart';
 
-/// Màn hình kết quả trận đấu Bartender.
-///
-/// Xem PROJECT_SPEC.md & API.md:
-/// - Hiển thị xếp hạng người chơi, số đơn mỗi người, tổng đơn cả đội, thời gian sống sót.
-/// - Xử lý trường hợp results đang tải / chưa có (kèm nút quay về lobby).
-/// - Thông báo rõ khi trận kết thúc do < 2 người chơi kết nối (D14).
-/// - Nút "VỀ LOBBY" để dọn dẹp và quay về sảnh chính.
-/// - Đảm bảo không tràn bố cục ở 360x640 và 390x844.
+const _ink = Color(0xFF5B321F);
+const _cream = Color(0xFFFFF4DB);
+const _green = Color(0xFF287A63);
+
+/// Presentation only: ranking and actions still come from the room controller.
 class BartenderResultsScreen extends StatelessWidget {
   const BartenderResultsScreen({super.key, required this.controller});
-
   final BartenderController controller;
 
+  Future<void> _leave(BuildContext context) async {
+    await controller.leaveRoom();
+    if (context.mounted &&
+        controller.room == null &&
+        Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.arenaBackground,
-      body: ListenableBuilder(
-        listenable: controller,
-        builder: (context, _) {
-          final results = controller.room?.results;
-
-          // Xử lý khi results chưa có (đang chờ đồng bộ từ repository)
-          if (results == null) {
-            return SafeArea(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Colors.amberAccent,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Đang tải kết quả trận đấu...',
-                        style: TextStyle(color: Colors.white70, fontSize: 14),
-                      ),
-                      const SizedBox(height: 24),
-                      OutlinedButton.icon(
-                        key: const Key('back-to-lobby-button'),
-                        onPressed: () {
-                          controller.leaveRoom();
-                          Navigator.of(context).maybePop();
-                        },
-                        icon: const Icon(Icons.arrow_back),
-                        label: const Text('Quay về lobby'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white70,
-                          side: const BorderSide(color: Colors.white24),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+  Widget build(BuildContext context) => Scaffold(
+    body: DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF5B3020), Color(0xFFAD6839), Color(0xFF663A27)],
+        ),
+      ),
+      child: SafeArea(
+        child: ListenableBuilder(
+          listenable: controller,
+          builder: (context, _) {
+            final result = controller.room?.results;
+            if (result == null) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(color: Color(0xFFFFD27D)),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Đang tải kết quả trận đấu...',
+                      style: TextStyle(color: _cream, fontSize: 18),
+                    ),
+                    const SizedBox(height: 20),
+                    OutlinedButton.icon(
+                      key: const Key('back-to-lobby-button'),
+                      onPressed: () => _leave(context),
+                      icon: const Icon(Icons.arrow_back),
+                      label: const Text('THOÁT'),
+                      style: OutlinedButton.styleFrom(foregroundColor: _cream),
+                    ),
+                  ],
                 ),
-              ),
-            );
-          }
-
-          final isEarlyEndDueToDisconnect =
-              controller.room != null &&
-              controller.room!.connectedPlayerCount < 2;
-
-          return SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isSmall = constraints.maxHeight < 700;
-                final pad = isSmall ? 14.0 : 20.0;
-                final spacing = isSmall ? 10.0 : 16.0;
-
+              );
+            }
+            return LayoutBuilder(
+              builder: (context, box) {
+                final wide = box.maxWidth > 650 && box.maxWidth > box.maxHeight;
+                final tight = box.maxHeight < 380;
+                final summary = _summary(result, tight);
+                final ranking = _ranking(result);
                 return Padding(
-                  padding: EdgeInsets.symmetric(horizontal: pad, vertical: 8),
+                  padding: EdgeInsets.all(tight ? 12 : 20),
                   child: Column(
                     children: [
-                      SizedBox(height: isSmall ? 4 : 12),
-
-                      // Tiêu đề kết thúc
-                      Text(
-                        '🎉 HẾT GIỜ! 🎉',
-                        style: TextStyle(
-                          color: Colors.amberAccent,
-                          fontSize: isSmall ? 22 : 26,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 2,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'KẾT QUẢ TRẬN ĐẤU',
-                        style: TextStyle(
-                          color: Colors.white54,
-                          fontSize: 12,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                      SizedBox(height: spacing),
-
-                      // Cảnh báo nếu trận kết thúc vì < 2 người chơi
-                      if (isEarlyEndDueToDisconnect)
-                        Container(
-                          margin: EdgeInsets.only(bottom: spacing),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.shade900.withValues(
-                              alpha: 0.3,
-                            ),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: Colors.orangeAccent.withValues(alpha: 0.5),
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.info_outline,
-                                color: Colors.orangeAccent,
-                                size: 16,
-                              ),
-                              SizedBox(width: 8),
-                              Flexible(
-                                child: Text(
-                                  'Trận kết thúc sớm vì còn dưới 2 người chơi kết nối.',
-                                  style: TextStyle(
-                                    color: Colors.orangeAccent,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                      // Thống kê tổng quan (thời gian sống sót & tổng đơn cả đội)
                       Row(
                         children: [
-                          Expanded(
-                            child: _StatCard(
-                              icon: Icons.timer,
-                              label: 'THỜI GIAN\nSỐNG SÓT',
-                              value: '${results.totalSurvivalSeconds}s',
-                              color: Colors.cyanAccent,
-                              isSmall: isSmall,
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFD27D),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Icon(
+                              Icons.local_bar_rounded,
+                              color: _ink,
+                              size: tight ? 26 : 34,
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 14),
                           Expanded(
-                            child: _StatCard(
-                              icon: Icons.local_bar,
-                              label: 'TỔNG ĐƠN\nCẢ ĐỘI',
-                              value: '${results.totalTeamOrders}',
-                              color: Colors.amberAccent,
-                              isSmall: isSmall,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '🎉 HẾT GIỜ! 🎉',
+                                  style: TextStyle(
+                                    color: _cream,
+                                    fontSize: tight ? 24 : 30,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const Text(
+                                  'BẠN ĐÃ THUA GAME 😢',
+                                  style: TextStyle(
+                                    color: Color(0xFFFFD6A2),
+                                    fontSize: 13,
+                                    letterSpacing: 1.5,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                      SizedBox(height: spacing),
-
-                      // Tiêu đề bảng xếp hạng
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          '🏆 BẢNG XẾP HẠNG',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
+                      if (controller.room!.connectedPlayerCount < 2)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: Text(
+                            'Trận kết thúc sớm vì còn dưới 2 người chơi kết nối.',
+                            style: TextStyle(color: _cream, fontSize: 14),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Danh sách xếp hạng
+                      const SizedBox(height: 14),
                       Expanded(
-                        child: ListView.builder(
-                          itemCount: results.ranking.length,
-                          itemBuilder: (context, index) {
-                            final player = results.ranking[index];
-                            final isMe = player.id == controller.myPlayerId;
-                            final medal = index == 0
-                                ? '🥇'
-                                : index == 1
-                                ? '🥈'
-                                : index == 2
-                                ? '🥉'
-                                : '#${index + 1}';
-
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 6),
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: isSmall ? 8 : 12,
-                              ),
-                              decoration: BoxDecoration(
-                                gradient: isMe
-                                    ? LinearGradient(
-                                        colors: [
-                                          Colors.deepPurple.withValues(
-                                            alpha: 0.4,
-                                          ),
-                                          Colors.deepPurple.withValues(
-                                            alpha: 0.2,
-                                          ),
-                                        ],
-                                      )
-                                    : null,
-                                color: isMe ? null : AppTheme.arenaSurface,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: isMe
-                                      ? Colors.deepPurpleAccent
-                                      : Colors.white12,
-                                  width: isMe ? 2 : 1,
-                                ),
-                              ),
-                              child: Row(
+                        child: wide
+                            ? Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  // Thứ hạng / Huy chương
-                                  SizedBox(
-                                    width: 36,
-                                    child: Text(
-                                      medal,
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: index < 3 ? 20 : 14,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-
-                                  // Tên người chơi
-                                  Expanded(
-                                    child: Row(
-                                      children: [
-                                        Flexible(
-                                          child: Text(
-                                            player.name,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              color: isMe
-                                                  ? Colors.amberAccent
-                                                  : Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        ),
-                                        if (isMe) ...[
-                                          const SizedBox(width: 4),
-                                          const Text(
-                                            '(Bạn)',
-                                            style: TextStyle(
-                                              color: Colors.white38,
-                                              fontSize: 11,
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-
-                                  // Số đơn hoàn thành của cá nhân
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.amber.withValues(
-                                        alpha: 0.2,
-                                      ),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      '${player.completedOrders} đơn',
-                                      style: const TextStyle(
-                                        color: Colors.amberAccent,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ),
+                                  Expanded(flex: 4, child: summary),
+                                  const SizedBox(width: 16),
+                                  Expanded(flex: 6, child: ranking),
+                                ],
+                              )
+                            : Column(
+                                children: [
+                                  summary,
+                                  const SizedBox(height: 16),
+                                  Expanded(child: ranking),
                                 ],
                               ),
-                            );
-                          },
-                        ),
                       ),
-
-                      SizedBox(height: spacing),
-
-                      // Nút hành động: Quay về lobby và Chơi lại
+                      const SizedBox(height: 14),
                       Row(
                         children: [
                           Expanded(
                             child: SizedBox(
-                              height: 44,
+                              height: tight ? 46 : 52,
                               child: OutlinedButton.icon(
                                 key: const Key('back-to-lobby-button'),
-                                onPressed: () {
-                                  controller.leaveRoom();
-                                  Navigator.of(context).maybePop();
-                                },
-                                icon: const Icon(Icons.arrow_back, size: 16),
-                                label: const Text(
-                                  'VỀ LOBBY',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  ),
-                                ),
+                                onPressed: () => _leave(context),
+                                icon: const Icon(Icons.arrow_back_rounded),
+                                label: const Text('THOÁT'),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.white70,
-                                  side: const BorderSide(color: Colors.white24),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
+                                  foregroundColor: _cream,
+                                  side: const BorderSide(
+                                    color: Color(0xFFE6BF8C),
                                   ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
+                                  textStyle: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 12),
                           Expanded(
                             flex: 2,
                             child: SizedBox(
-                              height: 44,
-                              child: ElevatedButton.icon(
+                              height: tight ? 46 : 52,
+                              child: FilledButton.icon(
                                 key: const Key('play-again-button'),
                                 onPressed: controller.isBusy
                                     ? null
-                                    : controller.playAgain,
-                                icon: const Icon(Icons.replay, size: 16),
+                                    : controller.returnToLobby,
+                                icon: const Icon(Icons.meeting_room_rounded),
                                 label: Text(
                                   controller.isBusy
-                                      ? 'Đang tạo...'
-                                      : 'CHƠI LẠI!',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                  ),
+                                      ? 'Đang vào...'
+                                      : 'QUAY LẠI PHÒNG',
                                 ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.amberAccent,
-                                  foregroundColor: Colors.black,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: const Color(0xFFFFCD69),
+                                  foregroundColor: _ink,
+                                  textStyle: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900,
                                   ),
-                                  elevation: 4,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         ],
                       ),
-                      SizedBox(height: isSmall ? 4 : 8),
                     ],
                   ),
                 );
               },
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
-    );
-  }
-}
+    ),
+  );
 
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-    required this.isSmall,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-  final bool isSmall;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8, vertical: isSmall ? 8 : 12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: isSmall ? 22 : 26),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: isSmall ? 18 : 22,
-              fontWeight: FontWeight.w900,
-              fontFamily: 'monospace',
+  Widget _summary(MatchResult result, bool tight) => Container(
+    padding: EdgeInsets.all(tight ? 10 : 20),
+    decoration: BoxDecoration(
+      color: _cream,
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: const Color(0xFFFFD27D), width: 2),
+    ),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.auto_awesome_rounded,
+              color: Color(0xFFB87826),
+              size: 20,
             ),
+            const SizedBox(width: 8),
+            const Flexible(
+              child: Text(
+                'THÀNH QUẢ CẢ ĐỘI',
+                style: TextStyle(
+                  color: _ink,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        ),
+        Text(
+          '${result.totalTeamOrders}',
+          style: TextStyle(
+            color: _green,
+            fontSize: tight ? 42 : 64,
+            height: 1.1,
+            fontWeight: FontWeight.w900,
           ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white54,
-              fontSize: 9,
-              fontWeight: FontWeight.bold,
-            ),
+        ),
+        const Text(
+          'ĐƠN HOÀN THÀNH',
+          style: TextStyle(
+            color: _green,
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
           ),
-        ],
-      ),
-    );
-  }
+        ),
+        const SizedBox(height: 12),
+        const Divider(color: Color(0xFFE2CBA9), height: 1),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.timer_outlined, color: _ink, size: 24),
+            const SizedBox(width: 8),
+            Text(
+              '${result.totalSurvivalSeconds}s',
+              style: const TextStyle(
+                color: _ink,
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Flexible(
+              child: Text(
+                'cùng giữ quầy',
+                style: TextStyle(color: _ink, fontSize: 15),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+
+  Widget _ranking(MatchResult result) => Container(
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(
+      color: const Color(0xFFFFE6BB),
+      borderRadius: BorderRadius.circular(22),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '🏆 BẢNG XẾP HẠNG',
+          style: TextStyle(
+            color: _ink,
+            fontSize: 19,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Expanded(
+          child: ListView.separated(
+            itemCount: result.ranking.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final player = result.ranking[index];
+              final me = player.id == controller.myPlayerId;
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: me ? const Color(0xFFDAEBDD) : _cream,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: me ? _green : const Color(0xFFE3C392),
+                    width: me ? 2 : 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      index < 3 ? ['🥇', '🥈', '🥉'][index] : '#${index + 1}',
+                      style: const TextStyle(fontSize: 22, color: _ink),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 5,
+                        children: [
+                          Text(
+                            player.name,
+                            style: const TextStyle(
+                              color: _ink,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          if (me)
+                            const Text(
+                              '(Bạn)',
+                              style: TextStyle(color: _green, fontSize: 14),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${player.completedOrders} đơn',
+                      style: const TextStyle(
+                        color: _green,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    ),
+  );
 }

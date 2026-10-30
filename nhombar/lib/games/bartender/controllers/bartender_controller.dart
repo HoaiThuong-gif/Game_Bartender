@@ -11,8 +11,10 @@ import '../models/room.dart';
 import '../models/station.dart';
 import '../services/bartender_haptics.dart';
 import '../services/fake_room_repository.dart';
+import '../services/firebase_room_repository.dart';
 import '../services/api_room_repository.dart';
 import '../services/room_repository.dart';
+export '../services/room_repository.dart' show RoomConnectionState;
 
 /// Quản lý trạng thái trận đấu Bartender và giao tiếp giữa UI và RoomRepository.
 ///
@@ -27,25 +29,45 @@ class BartenderController extends ChangeNotifier {
   BartenderController({RoomRepository? repository})
     : _repository =
           repository ??
-          (BartenderConfig.useFakeRepository
-              ? FakeRoomRepository()
-              : ApiRoomRepository());
+          (switch (BartenderConfig.backend) {
+            BartenderBackend.fake => FakeRoomRepository(),
+            BartenderBackend.firebase => FirebaseRoomRepository(),
+            BartenderBackend.api => ApiRoomRepository(),
+          }) {
+    _connectionState = _repository.connectionState;
+    _connectionSubscription = _repository.watchConnectionState().listen((
+      state,
+    ) {
+      if (_isDisposed) return;
+      _connectionState = state;
+      notifyListeners();
+    });
+  }
 
   final RoomRepository _repository;
+
+  @visibleForTesting
+  RoomRepository get repository => _repository;
 
   Room? _room;
   String? _noticeMessage;
   String? _errorMessage;
   bool _isBusy = false;
   bool _isDisposed = false;
+  bool _hasReturnedToLobby = false;
 
   StreamSubscription<Room>? _roomSubscription;
+  StreamSubscription<RoomConnectionState>? _connectionSubscription;
+  RoomConnectionState _connectionState = RoomConnectionState.connected;
   Timer? _countdownTicker;
   Timer? _noticeTimer;
 
   // ─── Getters ──────────────────────────────────────────────────
 
   Room? get room => _room;
+
+  /// Trạng thái kết nối hiện tại của repository (connected / reconnecting / lost).
+  RoomConnectionState get connectionState => _connectionState;
 
   /// ID người chơi trên máy này — lấy từ repository (không đoán).
   String? get myPlayerId {
@@ -123,12 +145,16 @@ class BartenderController extends ChangeNotifier {
   /// Trạng thái trận đấu: đã kết thúc?
   bool get isMatchEnded => _room?.status == RoomStatus.ended;
 
+  /// Người chơi có đang ở màn hình kết quả hay không.
+  /// Khi trận kết thúc nhưng người chơi chưa bấm "Quay lại phòng" -> true.
+  bool get isViewingResults => isMatchEnded && !_hasReturnedToLobby;
+
   // ─── Actions ──────────────────────────────────────────────────
 
   /// Tạo phòng mới với vai trò chủ phòng (host).
   Future<void> createRoom({
     String playerName = 'Bạn',
-    int totalPlayers = 3,
+    int totalPlayers = 1,
   }) async {
     _setBusy(true);
     _clearMessages();
@@ -171,10 +197,15 @@ class BartenderController extends ChangeNotifier {
     }
   }
 
-  /// Bắt đầu trận đấu.
+  /// Bắt đầu trận đấu (chỉ chủ phòng myRingIndex == 0 mới có quyền).
   Future<void> startMatch() async {
     final code = _room?.code;
     if (code == null) return;
+    if (myRingIndex != 0) {
+      _errorMessage = 'Chỉ chủ phòng mới có thể bắt đầu trận đấu.';
+      notifyListeners();
+      return;
+    }
     _setBusy(true);
     _clearMessages();
     try {
@@ -290,7 +321,7 @@ class BartenderController extends ChangeNotifier {
         code: code,
         playerId: pId,
         orderId: order.id,
-        productId: product.itemId,
+        productId: product.id.isNotEmpty ? product.id : product.itemId,
       );
       unawaited(BartenderHaptics.orderSubmitted());
       _showNotice('🎉 +5s! Đã hoàn thành đơn hàng!');
@@ -301,22 +332,42 @@ class BartenderController extends ChangeNotifier {
     }
   }
 
-  /// Chơi lại từ đầu (tạo lại phòng mới).
-  Future<void> playAgain() async {
-    final name = me?.name ?? 'Bạn';
-    final count = _room?.totalPlayerCount ?? 3;
-    _resetRoom();
-    await createRoom(playerName: name, totalPlayers: count);
+  /// Quay lại phòng chờ ban đầu sau khi trận kết thúc (giữ nguyên mã phòng).
+  Future<void> returnToLobby() async {
+    final code = _room?.code;
+    final pId = myPlayerId;
+
+    if (code != null && pId != null) {
+      _setBusy(true);
+      try {
+        await _repository.returnToLobby(code: code, playerId: pId);
+        if (!_isDisposed) _hasReturnedToLobby = true;
+      } catch (e) {
+        _errorMessage = 'Chưa quay lại được phòng: $e';
+      } finally {
+        _setBusy(false);
+      }
+    }
   }
+
+  /// Chơi lại từ đầu (quay lại phòng chờ ban đầu).
+  Future<void> playAgain() => returnToLobby();
 
   /// Rời phòng hiện tại.
   Future<void> leaveRoom() async {
     final code = _room?.code;
     final pId = myPlayerId;
-    if (code != null && pId != null) {
-      await _repository.leaveRoom(code: code, playerId: pId);
+    _setBusy(true);
+    try {
+      if (code != null && pId != null) {
+        await _repository.leaveRoom(code: code, playerId: pId);
+      }
+      if (!_isDisposed) _resetRoom();
+    } catch (error) {
+      _errorMessage = 'Chưa rời được phòng: $error';
+    } finally {
+      _setBusy(false);
     }
-    _resetRoom();
   }
 
   // ─── Private Helpers ──────────────────────────────────────────
@@ -341,6 +392,9 @@ class BartenderController extends ChangeNotifier {
             }
 
             final oldRound = _room?.currentRound?.number;
+            if (updatedRoom.status != RoomStatus.ended) {
+              _hasReturnedToLobby = false;
+            }
             _room = updatedRoom;
 
             // Thông báo khi chuyển round
@@ -416,7 +470,7 @@ class BartenderController extends ChangeNotifier {
 
   void _setBusy(bool val) {
     _isBusy = val;
-    notifyListeners();
+    if (!_isDisposed) notifyListeners();
   }
 
   void _resetRoom() {
@@ -424,6 +478,7 @@ class BartenderController extends ChangeNotifier {
     _roomSubscription?.cancel();
     _roomSubscription = null;
     _room = null;
+    _hasReturnedToLobby = false;
     _clearMessages();
     notifyListeners();
   }
@@ -431,6 +486,7 @@ class BartenderController extends ChangeNotifier {
   @override
   void dispose() {
     _isDisposed = true;
+    _connectionSubscription?.cancel();
     _stopTicker();
     _noticeTimer?.cancel();
     _roomSubscription?.cancel();

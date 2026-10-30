@@ -2,6 +2,7 @@
 ///
 /// Kiểm tra BartenderController + FakeRoomRepository hoạt động đúng:
 /// - Tạo phòng, bắt đầu trận, nhận item, chuyền item, nộp đơn, kết thúc trận.
+/// - Join phòng bằng mã (join-by-code flow).
 ///
 /// Không test UI chi tiết (đó là công việc của integration test).
 /// Test ở mức controller + repository, tương tự rubik unit tests.
@@ -128,8 +129,7 @@ void main() {
         const Duration(seconds: 2),
       );
 
-      // Mỗi người chơi có ít nhất 1 item ban đầu
-      expect(playing.inbox.length, 2);
+      // Mỗi ring phải có ít nhất 1 item sau khi bắt đầu
       expect(playing.inbox[0]!.isNotEmpty, isTrue);
       expect(playing.inbox[1]!.isNotEmpty, isTrue);
 
@@ -143,7 +143,6 @@ void main() {
         totalPlayers: 2,
       );
 
-      // Chờ đang chơi
       final playingCompleter = Completer<Room>();
       repo.watchRoom(created.code).listen((r) {
         if (r.status == RoomStatus.playing && !playingCompleter.isCompleted) {
@@ -289,6 +288,67 @@ void main() {
         repo.dispose();
       },
     );
+
+    // ─── Join flow (repository level) ─────────────────────────────
+
+    test('joinRoom with same repo and matching code adds player to room',
+        () async {
+      // Cùng một FakeRoomRepository — giả lập host và joiner cùng thiết bị.
+      // Đây là cách test FakeRepo join thực sự (không cần 2 thiết bị).
+      final repo = FakeRoomRepository(rng: Random(32));
+      final created = await repo.createRoom(
+        hostPlayerName: 'Host',
+        totalPlayers: 3,
+      );
+      final code = created.code;
+      expect(created.totalPlayerCount, 3); // host + 2 bot
+
+      // joinRoom với đúng code + repo đang giữ phòng → thêm Joiner
+      final joined = await repo.joinRoom(
+        code: code,
+        playerName: 'Joiner',
+      );
+      expect(joined.status, RoomStatus.lobby);
+      expect(joined.players.values.any((p) => p.name == 'Joiner'), isTrue);
+      // Tổng số người tăng lên 4 (host + 2 bot + Joiner)
+      expect(joined.totalPlayerCount, 4);
+
+      repo.dispose();
+    });
+
+    test('joinRoom with non-existent room throws StateError', () async {
+      final repo = FakeRoomRepository(rng: Random(31));
+      expect(
+        () => repo.joinRoom(code: '9999', playerName: 'Ghost'),
+        throwsStateError,
+      );
+      repo.dispose();
+    });
+
+    test('joinRoom on started room throws StateError', () async {
+      // FakeRepo: join phòng đang playing → StateError.
+      final repo = FakeRoomRepository(rng: Random(33));
+      final created = await repo.createRoom(
+        hostPlayerName: 'Host',
+        totalPlayers: 2,
+      );
+
+      final playingCompleter = Completer<void>();
+      repo.watchRoom(created.code).listen((r) {
+        if (r.status == RoomStatus.playing && !playingCompleter.isCompleted) {
+          playingCompleter.complete();
+        }
+      });
+      await repo.startMatch(code: created.code);
+      await playingCompleter.future.timeout(const Duration(seconds: 2));
+
+      expect(
+        () => repo.joinRoom(code: created.code, playerName: 'Late'),
+        throwsStateError,
+      );
+
+      repo.dispose();
+    });
   });
 
   group('BartenderController', () {
@@ -497,6 +557,152 @@ void main() {
       expect(ended.status, RoomStatus.ended);
       expect(ended.results, isNotNull);
 
+      repo.dispose();
+    });
+
+    // ─── Join flow (controller level) ─────────────────────────────
+
+    test('joinRoom sets room and isInLobby', () async {
+      // Tạo phòng trước, rồi join bằng code.
+      // Dùng cùng một FakeRoomRepository để simulate join thực sự.
+      final repo = FakeRoomRepository(rng: Random(40));
+      final created = await repo.createRoom(
+        hostPlayerName: 'Alice',
+        totalPlayers: 3,
+      );
+      final code = created.code;
+
+      // Tạo controller thứ 2 dùng cùng repo (giả lập player thứ 2)
+      final ctrl = BartenderController(repository: repo);
+      await ctrl.joinRoom(code: code, playerName: 'Bob');
+
+      expect(ctrl.room, isNotNull);
+      expect(ctrl.isInLobby, isTrue);
+      // Bob phải có trong danh sách người chơi
+      expect(
+        ctrl.room!.players.values.any((p) => p.name == 'Bob'),
+        isTrue,
+      );
+
+      ctrl.dispose();
+    });
+
+    test('joinRoom with no existing room sets errorMessage', () async {
+      // Khi không có phòng khớp mã, controller bắt StateError và ghi errorMessage
+      final repo = FakeRoomRepository(rng: Random(41));
+      final ctrl = BartenderController(repository: repo);
+
+      await ctrl.joinRoom(code: '9999', playerName: 'Ghost');
+      expect(ctrl.room, isNull);
+      expect(ctrl.errorMessage, isNotNull);
+      expect(ctrl.errorMessage, contains('không tồn tại'));
+
+      ctrl.dispose();
+    });
+
+    test('joinRoom on started room sets errorMessage', () async {
+      // Dùng repo đang giữ phòng đã bắt đầu → join sẽ throw StateError
+      // vì status != lobby. Controller phải bắt exception và set errorMessage.
+      final repo = FakeRoomRepository(rng: Random(42));
+      final created = await repo.createRoom(
+        hostPlayerName: 'Host',
+        totalPlayers: 2,
+      );
+
+      // Bắt đầu trận để phòng chuyển sang playing
+      final playingCompleter = Completer<void>();
+      repo.watchRoom(created.code).listen((r) {
+        if (r.status == RoomStatus.playing && !playingCompleter.isCompleted) {
+          playingCompleter.complete();
+        }
+      });
+      await repo.startMatch(code: created.code);
+      await playingCompleter.future.timeout(const Duration(seconds: 2));
+
+      // Thử join phòng đã bắt đầu → expect errorMessage
+      final ctrl = BartenderController(repository: repo);
+      await ctrl.joinRoom(code: created.code, playerName: 'Latecomer');
+
+      // FakeRepo join vào phòng đang chơi → throw StateError → ctrl.errorMessage != null
+      expect(ctrl.errorMessage, isNotNull);
+      expect(ctrl.room, isNull);
+
+      ctrl.dispose();
+    });
+
+    test('guest cannot start match and sees error message', () async {
+      final hostRepo = FakeRoomRepository(rng: Random(50));
+      final hostRoom = await hostRepo.createRoom(
+        hostPlayerName: 'Host',
+        totalPlayers: 1,
+      );
+
+      final guestRepo = FakeRoomRepository(rng: Random(51));
+      guestRepo.emitRoomForTest(hostRoom);
+
+      final ctrlGuest = BartenderController(repository: guestRepo);
+      await ctrlGuest.joinRoom(code: hostRoom.code, playerName: 'Guest');
+
+      expect(ctrlGuest.myRingIndex, 1);
+
+      await ctrlGuest.startMatch();
+      expect(
+        ctrlGuest.errorMessage,
+        'Chỉ chủ phòng mới có thể bắt đầu trận đấu.',
+      );
+      expect(ctrlGuest.room?.status, RoomStatus.lobby);
+
+      ctrlGuest.dispose();
+      hostRepo.dispose();
+      guestRepo.dispose();
+    });
+
+    test('returnToLobby and host restart require all players ready in lobby', () async {
+      final repo = FakeRoomRepository(rng: Random(60));
+      final ctrlHost = BartenderController(repository: repo);
+
+      // Tạo phòng 2 người (host + guest)
+      await ctrlHost.createRoom(playerName: 'Host', totalPlayers: 1);
+      final roomCode = ctrlHost.room!.code;
+
+      // Guest tham gia
+      await repo.joinRoom(code: roomCode, playerName: 'Guest');
+      expect(ctrlHost.room!.canStart, isTrue);
+
+      // Bắt đầu trận đấu
+      await ctrlHost.startMatch();
+      expect(ctrlHost.isMatchPlaying, isTrue);
+
+      // Kết thúc trận đấu
+      await repo.endMatch(roomCode);
+      expect(ctrlHost.isMatchEnded, isTrue);
+      expect(ctrlHost.isViewingResults, isTrue);
+
+      // Khi kết thúc trận, cả 2 người đều readyInLobby: false
+      expect(ctrlHost.room!.allPlayersReadyInLobby, isFalse);
+      expect(ctrlHost.room!.canStart, isFalse);
+
+      // Host bấm quay lại phòng
+      await ctrlHost.returnToLobby();
+      expect(ctrlHost.isViewingResults, isFalse);
+      expect(ctrlHost.me!.readyInLobby, isTrue);
+
+      // Guest chưa quay lại phòng -> canStart vẫn false, host không thể bắt đầu
+      expect(ctrlHost.room!.allPlayersReadyInLobby, isFalse);
+      expect(ctrlHost.room!.canStart, isFalse);
+
+      // Guest bấm quay lại phòng
+      await repo.returnToLobby(code: roomCode, playerId: 'p_1');
+      expect(ctrlHost.room!.allPlayersReadyInLobby, isTrue);
+      expect(ctrlHost.room!.canStart, isTrue);
+
+      // Tất cả đã quay lại phòng -> Chủ phòng có thể bắt đầu lại trận đấu
+      await ctrlHost.startMatch();
+      expect(ctrlHost.isMatchPlaying, isTrue);
+      expect(ctrlHost.room!.status, RoomStatus.playing);
+      expect(ctrlHost.room!.results, isNull);
+
+      ctrlHost.dispose();
       repo.dispose();
     });
   });

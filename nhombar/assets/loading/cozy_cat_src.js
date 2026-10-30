@@ -25,7 +25,7 @@ window.loadCozyCat = (encoded, animate) => {
         const center = bounds.getCenter(new THREE.Vector3());
         const radius = bounds.getSize(new THREE.Vector3()).length() * .5;
         camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, .01, radius * 30);
-        camera.position.copy(center).add(new THREE.Vector3(0, radius * .3, -radius * 2.8));
+        camera.position.copy(center).add(new THREE.Vector3(radius * .15, radius * .3, radius * 1.9));
         camera.lookAt(center);
         renderer = new THREE.WebGLRenderer({alpha: true, antialias: true});
         renderer.setPixelRatio(Math.min(devicePixelRatio, 1.4));

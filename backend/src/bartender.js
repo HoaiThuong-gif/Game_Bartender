@@ -50,6 +50,7 @@ function roundSetup(room, number) {
 function end(room, now) {
   if (room.status !== 'playing') return;
   room.status = 'ended'; room.endedAt = now;
+  for (const player of Object.values(room.players)) player.readyInLobby = false;
   const ranking = Object.entries(room.players).map(([playerId, p]) => ({ playerId, ...p }))
     .sort((a, b) => b.completedOrders - a.completedOrders);
   room.results = {
@@ -82,12 +83,29 @@ function command(original, uid, action, body, now) {
   requireThat(p, 'Bạn không thuộc phòng này.', 403);
   if (action === 'leave') {
     if (room.status === 'lobby') delete room.players[uid]; else p.connected = false;
+    if (room.status !== 'playing') {
+      Object.values(room.players)
+        .sort((a, b) => Number(b.connected) - Number(a.connected) || a.ringIndex - b.ringIndex)
+        .forEach((player, index) => { player.ringIndex = index; });
+    }
     settle(room, now); return room;
   }
+  if (action === 'return') {
+    requireThat(room.status === 'ended', 'Trận chưa kết thúc.');
+    requireThat(p.connected, 'Bạn đã rời phòng.', 403);
+    p.readyInLobby = true;
+    return room;
+  }
   if (action === 'start') {
-    requireThat(room.status === 'lobby', 'Phòng không ở sảnh.');
+    requireThat(room.status === 'lobby' || room.status === 'ended', 'Phòng không ở sảnh.');
+    requireThat(p.connected && p.ringIndex === 0, 'Chỉ chủ phòng được bắt đầu.', 403);
+    requireThat(Object.values(room.players).filter(player => player.connected)
+      .every(player => player.readyInLobby !== false), 'Chờ mọi người quay lại phòng.');
     requireThat(Object.values(room.players).filter(p => p.connected).length >= 2, 'Cần ít nhất 2 người.');
     room.status = 'playing'; room.timer = { startedAt: now, endTime: now + 60000 };
+    delete room.results;
+    room.inbox = {};
+    for (const player of Object.values(room.players)) player.completedOrders = 0;
     room.lastSpawnAt = now; roundSetup(room, 1); return room;
   }
   if (action === 'end') {

@@ -62,4 +62,3 @@ extension IngredientExtension on Ingredient {
     }
   }
 }
-

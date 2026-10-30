@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../../core/api/api_client.dart';
 import '../models/game_item.dart';
 import '../models/match_result.dart';
@@ -17,11 +19,28 @@ class ApiRoomRepository implements RoomRepository {
   final ApiClient _api;
   String? _code;
   Room? _latest;
+  final _connectionChanges = StreamController<RoomConnectionState>.broadcast();
+  RoomConnectionState _connection = RoomConnectionState.reconnecting;
+  int _failures = 0;
+  @override
+  RoomConnectionState get connectionState => _connection;
+  @override
+  Stream<RoomConnectionState> watchConnectionState() =>
+      _connectionChanges.stream;
+
+  void _setConnection(RoomConnectionState state) {
+    if (_connection == state || _connectionChanges.isClosed) return;
+    _connection = state;
+    _connectionChanges.add(state);
+  }
+
   @override
   String get localPlayerId => _api.uid;
   String _path(String code) => '/bartender/rooms/$code';
 
   Room _decode(Map<String, dynamic> response) {
+    _failures = 0;
+    _setConnection(RoomConnectionState.connected);
     final data = _map(response['room']);
     if (data.isEmpty) throw StateError('Phòng không còn tồn tại.');
     final players = _map(data['players']).map((id, value) {
@@ -34,6 +53,7 @@ class ApiRoomRepository implements RoomRepository {
           ringIndex: p['ringIndex'] as int,
           connected: p['connected'] as bool,
           completedOrders: p['completedOrders'] as int,
+          readyInLobby: p['readyInLobby'] as bool? ?? true,
         ),
       );
     });
@@ -134,7 +154,27 @@ class ApiRoomRepository implements RoomRepository {
   }
 
   @override
-  Stream<Room> watchRoom(String code) => _api.watch(_path(code)).map(_decode);
+  Stream<Room> watchRoom(String code) => _api
+      .watch(_path(code))
+      .map(_decode)
+      .handleError((Object error, StackTrace stack) {
+        _failures++;
+        _setConnection(
+          _failures >= 5
+              ? RoomConnectionState.lost
+              : RoomConnectionState.reconnecting,
+        );
+        Error.throwWithStackTrace(error, stack);
+      });
+
+  @override
+  Future<void> returnToLobby({
+    required String code,
+    required String playerId,
+  }) async {
+    _decode(await _command(code, 'return'));
+  }
+
   @override
   Future<void> leaveRoom({
     required String code,
@@ -211,6 +251,7 @@ class ApiRoomRepository implements RoomRepository {
 
   @override
   void dispose() {
+    _connectionChanges.close();
     final code = _code;
     if (code == null) {
       _api.close();

@@ -99,7 +99,9 @@ class OrderTrayWidget extends StatelessWidget {
                 final matchingProduct = availableItems
                     .cast<GameItem?>()
                     .firstWhere(
-                      (item) => item!.itemId == recipe.productId,
+                      (item) =>
+                          item!.itemId == recipe.productId ||
+                          item.itemId == order.recipeId,
                       orElse: () => null,
                     );
 
@@ -111,6 +113,9 @@ class OrderTrayWidget extends StatelessWidget {
                     if (matchingProduct != null) {
                       onSubmitOrder(order, matchingProduct);
                     }
+                  },
+                  onDropProduct: (product) {
+                    onSubmitOrder(order, product);
                   },
                 );
               }).toList(),
@@ -128,18 +133,20 @@ class _OrderCard extends StatelessWidget {
     required this.recipe,
     required this.matchingProduct,
     required this.onSubmit,
+    required this.onDropProduct,
   });
 
   final Order order;
   final Recipe recipe;
   final GameItem? matchingProduct;
   final VoidCallback onSubmit;
+  final void Function(GameItem product) onDropProduct;
 
   @override
   Widget build(BuildContext context) {
     final isReadyToSubmit = matchingProduct != null && !order.isCompleted;
 
-    return Container(
+    final card = Container(
       width: 170,
       margin: const EdgeInsets.only(right: 10),
       padding: const EdgeInsets.all(10),
@@ -284,6 +291,27 @@ class _OrderCard extends StatelessWidget {
             ),
         ],
       ),
+    );
+
+    return DragTarget<GameItem>(
+      onWillAcceptWithDetails: (details) {
+        if (order.isCompleted) return false;
+        final item = details.data;
+        return item.itemId == recipe.productId || item.itemId == order.recipeId;
+      },
+      onAcceptWithDetails: (details) {
+        onDropProduct(details.data);
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isHovered = candidateData.isNotEmpty;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          transform: isHovered
+              ? Matrix4.diagonal3Values(1.04, 1.04, 1.0)
+              : Matrix4.identity(),
+          child: card,
+        );
+      },
     );
   }
 }

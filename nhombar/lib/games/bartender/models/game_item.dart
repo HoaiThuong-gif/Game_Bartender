@@ -25,6 +25,26 @@ class GameItem {
   /// Vị trí ring của người gửi (để UI có thể hiện "nhận từ ai").
   final int fromRingIndex;
 
+  /// Chuyển thành JSON map khớp với API.md.
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'type': type.name,
+    'itemId': itemId,
+    'fromRingIndex': fromRingIndex,
+  };
+
+  /// Khởi tạo từ JSON map.
+  factory GameItem.fromJson(Map<String, dynamic> json) {
+    return GameItem(
+      id: json['id'] as String,
+      type: json['type'] == 'product'
+          ? GameItemType.product
+          : GameItemType.ingredient,
+      itemId: json['itemId'] as String,
+      fromRingIndex: (json['fromRingIndex'] as num).toInt(),
+    );
+  }
+
   @override
   String toString() => 'GameItem($id, $type, $itemId, from=$fromRingIndex)';
 

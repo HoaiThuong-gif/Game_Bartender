@@ -24,10 +24,24 @@ class Order {
 
   /// Tạo bản sao với trạng thái mới.
   Order copyWith({OrderStatus? status}) {
+    return Order(id: id, recipeId: recipeId, status: status ?? this.status);
+  }
+
+  /// Chuyển thành JSON map khớp với API.md.
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'recipeId': recipeId,
+    'status': status.name,
+  };
+
+  /// Khởi tạo từ JSON map.
+  factory Order.fromJson(Map<String, dynamic> json) {
     return Order(
-      id: id,
-      recipeId: recipeId,
-      status: status ?? this.status,
+      id: json['id'] as String,
+      recipeId: json['recipeId'] as String,
+      status: json['status'] == 'submitted'
+          ? OrderStatus.submitted
+          : OrderStatus.pending,
     );
   }
 

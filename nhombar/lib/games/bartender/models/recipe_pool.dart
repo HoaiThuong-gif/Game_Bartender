@@ -35,9 +35,7 @@ class RecipePool {
       id: 'orange_juice',
       name: 'Nước cam',
       ingredients: [Ingredient.orange],
-      steps: [
-        RecipeStep(station: StationType.juicer, description: 'Ép cam'),
-      ],
+      steps: [RecipeStep(station: StationType.juicer, description: 'Ép cam')],
       difficulty: 1,
       // Đường chế biến: orange → (juicer) → orange_juice
       productId: 'orange_juice',
@@ -46,9 +44,7 @@ class RecipePool {
       id: 'lemonade',
       name: 'Nước chanh',
       ingredients: [Ingredient.lemon],
-      steps: [
-        RecipeStep(station: StationType.juicer, description: 'Ép chanh'),
-      ],
+      steps: [RecipeStep(station: StationType.juicer, description: 'Ép chanh')],
       difficulty: 1,
       // Đường chế biến: lemon → (juicer) → lemon_juice (= sản phẩm nộp)
       productId: 'lemon_juice',
@@ -61,7 +57,10 @@ class RecipePool {
       ingredients: [Ingredient.strawberry, Ingredient.milk],
       steps: [
         RecipeStep(station: StationType.cuttingBoard, description: 'Cắt dâu'),
-        RecipeStep(station: StationType.blender, description: 'Xay dâu đã cắt thành sinh tố'),
+        RecipeStep(
+          station: StationType.blender,
+          description: 'Xay dâu đã cắt thành sinh tố',
+        ),
       ],
       difficulty: 2,
       // Đường chế biến: strawberry → (cuttingBoard) → cut_strawberry → (blender) → strawberry_smoothie
@@ -74,11 +73,11 @@ class RecipePool {
       name: 'Cocktail cam chanh',
       ingredients: [Ingredient.orange, Ingredient.lemon, Ingredient.ice],
       steps: [
-        RecipeStep(station: StationType.juicer, description: 'Ép cam hoặc chanh'),
         RecipeStep(
-          station: StationType.shaker,
-          description: 'Lắc trộn với đá',
+          station: StationType.juicer,
+          description: 'Ép cam hoặc chanh',
         ),
+        RecipeStep(station: StationType.shaker, description: 'Lắc trộn với đá'),
       ],
       difficulty: 3,
       // Đường chế biến: orange → (juicer) → orange_juice → (shaker) → citrus_cocktail
@@ -126,8 +125,6 @@ class RecipePool {
   static List<Recipe> recipesForRound(int roundNumber) {
     // maxDifficulty tăng dần: round 1→1, round 2→2, round 3+→3.
     final maxDifficulty = roundNumber.clamp(1, 3);
-    return allRecipes
-        .where((r) => r.difficulty <= maxDifficulty)
-        .toList();
+    return allRecipes.where((r) => r.difficulty <= maxDifficulty).toList();
   }
 }

@@ -10,7 +10,25 @@ import '../models/station.dart';
 /// Xem ARCHITECTURE.md mục "Các lớp nội bộ":
 /// - [FakeRoomRepository]: in-memory, dùng cho local dev và single-device loop.
 /// - [FirebaseRoomRepository]: RTDB thật cho multi-device play (giai đoạn 5).
+/// Trạng thái kết nối của repository với máy chủ hoặc backend.
+enum RoomConnectionState {
+  /// Đang kết nối bình thường, nhận dữ liệu thời gian thực.
+  connected,
+
+  /// Mất kết nối tạm thời, đang tự động thử kết nối lại với máy chủ.
+  reconnecting,
+
+  /// Mất kết nối hoàn toàn (vượt quá thời gian chờ hoặc phiên bị hủy/không hợp lệ).
+  lost,
+}
+
 abstract interface class RoomRepository {
+  /// Trạng thái kết nối hiện tại của repository.
+  RoomConnectionState get connectionState;
+
+  /// Lắng nghe thay đổi trạng thái kết nối (connected / reconnecting / lost).
+  Stream<RoomConnectionState> watchConnectionState();
+
   /// ID của người chơi trên máy này.
   /// Fake: 'p_0' khi tạo phòng, id được gán khi join.
   /// Firebase: uid từ FirebaseAuth (anonymous).
@@ -24,16 +42,10 @@ abstract interface class RoomRepository {
   });
 
   /// Tham gia phòng đã có bằng mã phòng [code].
-  Future<Room> joinRoom({
-    required String code,
-    required String playerName,
-  });
+  Future<Room> joinRoom({required String code, required String playerName});
 
   /// Rời phòng.
-  Future<void> leaveRoom({
-    required String code,
-    required String playerId,
-  });
+  Future<void> leaveRoom({required String code, required String playerId});
 
   /// Bắt đầu trận đấu (chỉ gọi khi room.canStart == true).
   Future<void> startMatch({required String code});
@@ -74,6 +86,9 @@ abstract interface class RoomRepository {
     required String orderId,
     required String productId,
   });
+
+  /// Đánh dấu người chơi đã quay lại phòng chờ sau khi trận kết thúc.
+  Future<void> returnToLobby({required String code, required String playerId});
 
   /// Kết thúc trận đấu. Ghi results và đặt status = ended.
   /// Idempotent: nếu trận đã kết thúc thì không làm gì.

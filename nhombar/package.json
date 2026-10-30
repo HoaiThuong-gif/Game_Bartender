@@ -1,10 +1,14 @@
 {
   "scripts": {
+    "build:cozy-cat": "esbuild assets/loading/cozy_cat_src.js --bundle --minify --format=iife --outfile=assets/loading/cozy_cat.js",
     "build:rubik-toy": "esbuild assets/rubik/interactive-src.js --bundle --minify --format=iife --outfile=assets/rubik/interactive.js",
     "build:rubik": "esbuild assets/rubik/rubik-src.js --bundle --minify --format=iife --outfile=assets/rubik/rubik.js"
   },
   "dependencies": {
     "esbuild": "^0.28.2",
     "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "playwright": "^1.64.1"
   }
 }

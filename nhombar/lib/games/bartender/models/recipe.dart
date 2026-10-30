@@ -6,10 +6,7 @@ import 'station.dart';
 /// Mỗi bước yêu cầu một trạm cụ thể để thực hiện.
 /// Ví dụ: "ép chanh" cần trạm juicer.
 class RecipeStep {
-  const RecipeStep({
-    required this.station,
-    required this.description,
-  });
+  const RecipeStep({required this.station, required this.description});
 
   /// Trạm cần để thực hiện bước này.
   final StationType station;
@@ -68,8 +65,7 @@ class Recipe {
 
   /// Số loại trạm khác nhau cần để làm công thức này.
   /// Xem DECISIONS.md D16: không quá 3.
-  int get distinctStationCount =>
-      steps.map((s) => s.station).toSet().length;
+  int get distinctStationCount => steps.map((s) => s.station).toSet().length;
 
   @override
   String toString() =>

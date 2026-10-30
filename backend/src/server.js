@@ -124,7 +124,7 @@ function createServer({ store = new Store(process.env.DATA_FILE || path.join(__d
         if (game === 'bartender') rooms[code].players[uid].connected = body.online;
         maintain(clock());
       } else if (game === 'bartender') {
-        requireThat(['join', 'leave', 'start', 'end', 'send', 'trash', 'process', 'submit'].includes(action), 'Thao tác không hợp lệ.', 400);
+        requireThat(['join', 'leave', 'start', 'end', 'send', 'trash', 'process', 'submit', 'return'].includes(action), 'Thao tác không hợp lệ.', 400);
         rooms[code] = bartender.command(rooms[code], uid, action, { ...body, name: session.name }, clock());
       } else {
         requireThat(['join', 'commands'].includes(action), 'Thao tác không hợp lệ.', 400);

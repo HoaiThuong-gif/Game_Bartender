@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 
+import '../../../shared/widgets/cozy_loading.dart';
+
 import '../../../settings/app_settings.dart';
 import '../../../settings/app_theme.dart';
 
 import '../controllers/bartender_controller.dart';
+import '../services/room_repository.dart';
 import 'bartender_lobby_screen.dart';
 import 'bartender_match_screen.dart';
 import 'bartender_results_screen.dart';
 
 /// Entry point: UI/controller use the HTTP repository by default.
 class BartenderScreen extends StatefulWidget {
-  const BartenderScreen({super.key});
+  const BartenderScreen({super.key, this.repository});
+  final RoomRepository? repository;
 
   @override
   State<BartenderScreen> createState() => _BartenderScreenState();
@@ -22,7 +26,7 @@ class _BartenderScreenState extends State<BartenderScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = BartenderController();
+    _controller = BartenderController(repository: widget.repository);
   }
 
   @override
@@ -40,13 +44,33 @@ class _BartenderScreenState extends State<BartenderScreen> {
     child: ListenableBuilder(
       listenable: _controller,
       builder: (context, _) {
-        if (_controller.isMatchEnded) {
-          return BartenderResultsScreen(controller: _controller);
-        }
-        if (_controller.isMatchPlaying) {
-          return BartenderMatchScreen(controller: _controller);
-        }
-        return BartenderLobbyScreen(controller: _controller);
+        final screen = _controller.isViewingResults
+            ? BartenderResultsScreen(controller: _controller)
+            : _controller.isMatchPlaying
+            ? BartenderMatchScreen(controller: _controller)
+            : BartenderLobbyScreen(controller: _controller);
+        return PopScope<void>(
+          canPop: _controller.room == null && !_controller.isBusy,
+          onPopInvokedWithResult: (didPop, _) async {
+            if (didPop || _controller.isBusy) return;
+            await _controller.leaveRoom();
+            if (context.mounted && _controller.room == null) {
+              Navigator.of(context).pop();
+            }
+          },
+          child: Stack(
+            children: [
+              screen,
+              if (_controller.isBusy)
+                const Positioned.fill(
+                  child: ColoredBox(
+                    color: Color(0xFFFFF8F1),
+                    child: CozyLoading(label: 'Đang xử lý…'),
+                  ),
+                ),
+            ],
+          ),
+        );
       },
     ),
   );
