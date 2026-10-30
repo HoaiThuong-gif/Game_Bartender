@@ -206,7 +206,7 @@ class BartenderController extends ChangeNotifier {
 
   /// Tạo phòng mới với vai trò chủ phòng (host).
   Future<void> createRoom({
-    String playerName = 'Bạn',
+    String playerName = 'Người chơi',
     int totalPlayers = 1,
   }) async {
     _setBusy(true);

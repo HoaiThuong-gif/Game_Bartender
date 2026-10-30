@@ -11,17 +11,48 @@ const Color _coffee = Color(0xFF57290F);
 const Color _brown = Color(0xFF8F4A22);
 
 class BartenderLobbyScreen extends StatefulWidget {
-  const BartenderLobbyScreen({super.key, required this.controller});
+  const BartenderLobbyScreen({
+    super.key,
+    required this.controller,
+    this.playerName,
+  });
   final BartenderController controller;
+  final String? playerName;
 
   @override
   State<BartenderLobbyScreen> createState() => _BartenderLobbyScreenState();
 }
 
 class _BartenderLobbyScreenState extends State<BartenderLobbyScreen> {
-  final TextEditingController _name = TextEditingController(text: 'Bạn');
+  final TextEditingController _name = TextEditingController();
   final TextEditingController _joinCode = TextEditingController();
   int _count = 3;
+
+  @override
+  void initState() {
+    super.initState();
+    _name.text = _roomName(widget.playerName ?? '');
+  }
+
+  @override
+  void didUpdateWidget(covariant BartenderLobbyScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.playerName != widget.playerName) {
+      _name.text = _roomName(widget.playerName ?? '');
+    }
+  }
+
+  String _roomName(String name) {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return 'Người chơi';
+    // The existing game API accepts at most 24 UTF-16 code units.
+    var result = '';
+    for (final character in trimmed.characters) {
+      if (result.length + character.length > 24) break;
+      result += character;
+    }
+    return result.isEmpty ? 'Người chơi' : result;
+  }
 
   // Same authority as Zhoufen: host is ring 0; readiness comes from Room.
   String? _hostPlayerId(Room room) {
@@ -46,8 +77,7 @@ class _BartenderLobbyScreenState extends State<BartenderLobbyScreen> {
   Future<void> _leaveRoom(BartenderController ctrl) => ctrl.leaveRoom();
 
   String get _playerName {
-    final value = _name.text.trim();
-    return value.isEmpty ? 'Bạn' : value;
+    return _roomName(widget.playerName ?? _name.text);
   }
 
   @override
@@ -138,7 +168,10 @@ class _BartenderLobbyScreenState extends State<BartenderLobbyScreen> {
                         top: 523,
                         width: 554,
                         height: 67,
-                        child: _NameInput(controller: _name),
+                        child: _NameInput(
+                          controller: _name,
+                          readOnly: widget.playerName != null,
+                        ),
                       ),
                       const Positioned(
                         top: 601,
@@ -829,8 +862,9 @@ class _LittleHeading extends StatelessWidget {
 }
 
 class _NameInput extends StatelessWidget {
-  const _NameInput({required this.controller});
+  const _NameInput({required this.controller, this.readOnly = false});
   final TextEditingController controller;
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -856,7 +890,8 @@ class _NameInput extends StatelessWidget {
           Expanded(
             child: TextField(
               controller: controller,
-              maxLength: 20,
+              readOnly: readOnly,
+              maxLength: 24,
               textInputAction: TextInputAction.done,
               inputFormatters: [
                 FilteringTextInputFormatter.singleLineFormatter,
@@ -878,9 +913,13 @@ class _NameInput extends StatelessWidget {
               ),
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.only(right: 20),
-            child: Icon(Icons.edit_rounded, color: Color(0xFFC18347), size: 28),
+          Padding(
+            padding: const EdgeInsets.only(right: 20),
+            child: Icon(
+              readOnly ? Icons.person : Icons.edit_rounded,
+              color: const Color(0xFFC18347),
+              size: 28,
+            ),
           ),
         ],
       ),

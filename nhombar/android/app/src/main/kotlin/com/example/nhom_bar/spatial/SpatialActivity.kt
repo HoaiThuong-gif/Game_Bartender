@@ -38,6 +38,7 @@ class SpatialActivity : Activity(), GLSurfaceView.Renderer, SensorEventListener 
     private var session: Session? = null
     private var mode = "scan"
     private var modelId: String? = null
+    private var photoMesh: java.io.File? = null
     private var sourceMesh: ScanMesh? = null
     private var modelHeight = .3f
     private val renderer = SpatialRenderer()
@@ -85,6 +86,12 @@ class SpatialActivity : Activity(), GLSurfaceView.Renderer, SensorEventListener 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         mode = intent.getStringExtra("mode") ?: "scan"
         modelId = intent.getStringExtra("id")
+        intent.getStringExtra("photoMesh")?.let { name ->
+            require(mode == "view" && name.matches(Regex("triposr-[0-9]+\\.mesh")))
+            photoMesh = java.io.File(cacheDir, name).canonicalFile.also {
+                require(it.parentFile == cacheDir.canonicalFile && it.isFile)
+            }
+        }
         surface = GLSurfaceView(this).apply {
             setEGLContextClientVersion(2); setPreserveEGLContextOnPause(true)
             setRenderer(this@SpatialActivity)
@@ -151,8 +158,13 @@ class SpatialActivity : Activity(), GLSurfaceView.Renderer, SensorEventListener 
             busy=true
             Thread {
                 try {
-                    ModelStore.use(this,requireNotNull(modelId))
-                    val mesh=ModelStore.load(this,requireNotNull(modelId))
+                    val temporary = photoMesh
+                    val mesh = if (temporary != null) {
+                        java.io.DataInputStream(temporary.inputStream().buffered()).use { ModelStore.readMesh(it) }
+                    } else {
+                        ModelStore.use(this,requireNotNull(modelId))
+                        ModelStore.load(this,requireNotNull(modelId))
+                    }
                     sourceMesh=mesh;modelHeight=mesh.vertices.filterIndexed {i,_->i%3==1}.maxOrNull()?.coerceAtLeast(.1f)?:.3f
                     surface.queueEvent {renderer.setMesh(mesh);busy=false}
                     runOnUiThread {configureControls()}
@@ -190,7 +202,7 @@ class SpatialActivity : Activity(), GLSurfaceView.Renderer, SensorEventListener 
             "ar" -> {addControl("Xoay −15°") {yaw-=15};addControl("+15°") {yaw+=15};addControl("Nhỏ −") {scale=(scale-.05f).coerceAtLeast(.2f)};addControl("Lớn +") {scale=(scale+.05f).coerceAtMost(3f)}}
             "view" -> {
                 addControl("Đặt lại góc nhìn") {yaw=0f;pitch=18f;cameraDistance=1.2f}
-                addControl(if(sourceMesh?.texture!=null)"Xuất OBJ + texture" else "Xuất PLY") {exportModel()}
+                if(photoMesh==null)addControl(if(sourceMesh?.texture!=null)"Xuất OBJ + texture" else "Xuất PLY") {exportModel()}
             }
         }
     }
@@ -202,6 +214,12 @@ class SpatialActivity : Activity(), GLSurfaceView.Renderer, SensorEventListener 
         postStatus("1 · Đặt đồ vật vào giữa", "Để đồ vật đứng yên ở chỗ đủ sáng.",0)
     }
     private fun instructions(){
+        if(photoMesh!=null) {
+            postStatus("Mô hình từ ảnh", "Vuốt để xoay · Chụm để phóng to. Mặt khuất có thể khác vật thật.",100)
+            progress.visibility=android.view.View.GONE
+            primary.visibility=android.view.View.GONE
+            return
+        }
         if(mode=="scan") {
             postStatus("1 · Đặt đồ vật vào giữa", "Để đồ vật đứng yên ở chỗ đủ sáng.",0)
             return
@@ -267,7 +285,7 @@ class SpatialActivity : Activity(), GLSurfaceView.Renderer, SensorEventListener 
         sensorManager?.unregisterListener(this)
         surface.onPause();session?.pause();super.onPause()
     }
-    override fun onDestroy(){photoCapture?.close();ModelStore.release(this);surface.queueEvent {targetAnchor?.detach();placementAnchor?.detach()};session?.close();super.onDestroy()}
+    override fun onDestroy(){photoCapture?.close();ModelStore.release(this);surface.queueEvent {targetAnchor?.detach();placementAnchor?.detach()};session?.close();if(isFinishing)photoMesh?.delete();super.onDestroy()}
     override fun onSurfaceCreated(gl:GL10?,config:EGLConfig?){
         try{renderer.initialize();sourceMesh?.let {renderer.setMesh(it)}}catch(e:Exception){runOnUiThread{showError("Lỗi bộ dựng hình",e)}}
     }

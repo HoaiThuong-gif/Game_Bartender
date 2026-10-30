@@ -20,6 +20,34 @@ object SpatialBridge {
                     "arcore" to ArCoreApk.getInstance().checkAvailability(activity).toString(),
                     "platform" to "android"))
                 "models" -> result.success(ModelStore.list(activity))
+                "openPhotoModel" -> Thread {
+                    var file: File? = null
+                    try {
+                        val bytes = requireNotNull(call.argument<ByteArray>("mesh"))
+                        require(bytes.size in 7208..8_388_608)
+                        DataInputStream(java.io.ByteArrayInputStream(bytes)).use {
+                            ModelStore.readMesh(it)
+                            require(it.available() == 0)
+                        }
+                        val created = File.createTempFile("triposr-", ".mesh", activity.cacheDir)
+                        file = created
+                        created.writeBytes(bytes)
+                        val name = created.name
+                        activity.runOnUiThread {
+                            try {
+                                activity.startActivity(Intent(activity, SpatialActivity::class.java)
+                                    .putExtra("mode", "view").putExtra("photoMesh", name))
+                                result.success(null)
+                            } catch (error: Exception) {
+                                file?.delete()
+                                result.error("PHOTO_MODEL", "Chưa mở được mô hình.", null)
+                            }
+                        }
+                    } catch (error: Exception) {
+                        file?.delete()
+                        activity.runOnUiThread { result.error("PHOTO_MODEL", "Mô hình không hợp lệ.", null) }
+                    }
+                }.start()
                 "serverSettings" -> result.success(ScanServer.settings(activity))
                 "saveServerSettings" -> Thread {
                     try {

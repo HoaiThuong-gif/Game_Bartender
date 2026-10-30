@@ -1,0 +1,11 @@
+from pathlib import Path
+
+RUNTIME = Path(__file__).resolve().parents[2] / '.triposr-runtime'
+SOURCE_REVISION = '107cefdc244c39106fa830359024f6a2f1c78871'
+MCUBES_REVISION = 'a9ac95aa329957ba646e7bb057f825f5dfa77f38'
+MAX_BYTES = 8 * 1024 * 1024
+MAX_PIXELS = 16_000_000
+MAX_MESH_BYTES = 8 * 1024 * 1024
+INFERENCE_TIMEOUT = 600
+JOB_TTL = 15 * 60
+MESH_RESOLUTION = 96

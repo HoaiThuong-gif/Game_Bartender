@@ -156,13 +156,18 @@ class _ProfileBootstrap extends StatefulWidget {
 }
 
 class _ProfileBootstrapState extends State<_ProfileBootstrap> {
+  final _profiles = PlayerProfiles();
   late Future<void> _ready;
   late Stream<DocumentSnapshot<Map<String, dynamic>>> _profile;
   @override
   void initState() {
     super.initState();
-    _ready = PlayerProfiles().ensure(widget.user);
-    _profile = PlayerProfiles().reference(widget.user.uid).snapshots();
+    _reloadProfile();
+  }
+
+  void _reloadProfile() {
+    _ready = _profiles.ensure(widget.user);
+    _profile = _profiles.reference(widget.user.uid).snapshots();
   }
 
   @override
@@ -171,17 +176,20 @@ class _ProfileBootstrapState extends State<_ProfileBootstrap> {
         stream: _profile,
         builder: (context, snapshot) {
           final data = snapshot.data?.data();
-          final name =
-              data?['displayName'] as String? ??
-              widget.user.displayName ??
-              'Người chơi';
+          final profileName = (data?['displayName'] as String?)?.trim() ?? '';
+          final accountName = widget.user.displayName?.trim() ?? '';
+          final name = profileName.isNotEmpty
+              ? profileName
+              : accountName.isNotEmpty
+              ? accountName
+              : 'Người chơi';
           final photo = data?['photoURL'] as String? ?? widget.user.photoURL;
           return Stack(
             children: [
               widget.builder(name, photo),
               FutureBuilder<void>(
                 future: _ready,
-                builder: (context, snapshot) => snapshot.hasError
+                builder: (context, ready) => ready.hasError || snapshot.hasError
                     ? Positioned(
                         left: 12,
                         right: 12,
@@ -190,11 +198,17 @@ class _ProfileBootstrapState extends State<_ProfileBootstrap> {
                           child: Material(
                             borderRadius: BorderRadius.circular(16),
                             child: ListTile(
-                              title: const Text('Chưa đồng bộ được hồ sơ'),
+                              title: Text(
+                                PlayerProfiles.syncError(
+                                  ready.error ?? snapshot.error,
+                                ),
+                              ),
                               trailing: TextButton(
-                                onPressed: () => setState(() {
-                                  _ready = PlayerProfiles().ensure(widget.user);
-                                }),
+                                onPressed:
+                                    ready.connectionState ==
+                                        ConnectionState.waiting
+                                    ? null
+                                    : () => setState(_reloadProfile),
                                 child: const Text('Thử lại'),
                               ),
                             ),

@@ -114,6 +114,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.text('Bố cục Lobby'), findsOneWidget);
+      expect(find.textContaining('source='), findsNothing);
+      expect(find.textContaining('GL_MAX_TEXTURE_SIZE'), findsNothing);
       final toggle = find.byType(SwitchListTile).first;
       await tester.tap(toggle);
       await tester.pump();

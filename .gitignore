@@ -37,9 +37,30 @@ migrate_working_dir/
 # Local JavaScript dependencies used to rebuild the WebView bundles.
 node_modules/
 backend/data/
-backend/.env
+.env
+.env.*
+!.env.example
+!.env.*.example
 **/service-account*.json
 **/*adminsdk*.json
+**/*-admin.json
+**/credentials*.json
+**/client_secret*.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.safetensors
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
 
 # Symbolication related
 app.*.symbols
@@ -62,6 +83,6 @@ nhombar/lib/firebase_options.dart
 nhombar/android/app/google-services.json
 nhombar/ios/Runner/GoogleService-Info.plist
 .scan-runtime/
-backend/.yolo-runtime/
-backend/vision/*.egg-info/
-backend/vision/**/__pycache__/
+backend/.triposr-runtime/
+backend/photo3d/*.egg-info/
+backend/photo3d/**/__pycache__/

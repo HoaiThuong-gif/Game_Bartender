@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../../games/bartender/screens/bartender_screen.dart';
 import '../../games/rubik/screens/rubik_screen.dart';
 import '../../games/spatial/spatial_screen.dart';
-import '../../detection/detection_screen.dart';
+import '../../photo_scan/photo_scan_screen.dart';
 import '../../settings/settings_screen.dart';
 import '../../account/account_validation.dart';
 import 'lobby_layout.dart';
@@ -212,15 +211,15 @@ class _LobbyScreenState extends State<LobbyScreen> {
           child: LobbyObject(
             asset: layer.placement.asset,
             placement: layer.placement,
-            label: layer.id == 'camera' ? 'Nhận diện đồ vật' : layer.label,
-            onTap: layer.id == 'camera' ? _openDetection : null,
+            label: layer.id == 'camera' ? 'Ảnh thành 3D' : layer.label,
+            onTap: layer.id == 'camera' ? _openPhotoScan : null,
           ),
         ),
       );
     }
   }
 
-  Future<void> _openDetection() async {
+  Future<void> _openPhotoScan() async {
     if (_opening) return;
     _opening = true;
     setState(() => _active = false);
@@ -228,14 +227,14 @@ class _LobbyScreenState extends State<LobbyScreen> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         const SnackBar(
-          content: Text('Nhận diện đồ vật'),
+          content: Text('Ảnh thành 3D'),
           duration: Duration(seconds: 1),
         ),
       );
     try {
       await Navigator.of(
         context,
-      ).push(MaterialPageRoute<void>(builder: (_) => const DetectionScreen()));
+      ).push(MaterialPageRoute<void>(builder: (_) => const PhotoScanScreen()));
     } finally {
       if (mounted) {
         setState(() {
@@ -285,8 +284,12 @@ class _LobbyScreenState extends State<LobbyScreen> {
           LobbyGame.bartender,
           'Quầy Bartender',
           widget.onBartenderTap ??
-              () => Navigator.of(context)
-                  .push(_route(LobbyGame.bartender, const BartenderScreen())),
+              () => Navigator.of(context).push(
+                _route(
+                  LobbyGame.bartender,
+                  BartenderScreen(playerName: widget.playerName),
+                ),
+              ),
         ),
       ),
       (
@@ -342,10 +345,6 @@ class _LobbyScreenState extends State<LobbyScreen> {
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ),
-                if (kDebugMode)
-                  Text(_view.imageInfo, style: const TextStyle(fontSize: 11)),
-                if (kDebugMode)
-                  Text(_view.gpuInfo, style: const TextStyle(fontSize: 11)),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,

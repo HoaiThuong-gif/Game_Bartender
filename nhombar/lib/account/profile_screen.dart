@@ -31,6 +31,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    _reloadProfile();
+  }
+
+  void _reloadProfile() {
     _ready = _profiles.ensure(widget.user);
     _profile = _profiles
         .reference(widget.user.uid)
@@ -157,15 +161,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Widget _failure() => Column(
+  Widget _failure(Object? error) => Column(
     children: [
-      const Text(
-        'Chưa tải được hồ sơ. Hãy kiểm tra mạng hoặc báo người quản lý.',
-      ),
+      Text(PlayerProfiles.syncError(error)),
       TextButton(
-        onPressed: () => setState(() {
-          _ready = _profiles.ensure(widget.user);
-        }),
+        onPressed: () => setState(_reloadProfile),
         child: const Text('Thử lại'),
       ),
     ],
@@ -187,14 +187,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         FutureBuilder<void>(
           future: _ready,
           builder: (context, ready) {
-            if (ready.hasError) return _failure();
+            if (ready.hasError) return _failure(ready.error);
             if (ready.connectionState != ConnectionState.done) {
               return const LinearProgressIndicator();
             }
             return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
               stream: _profile,
               builder: (context, snapshot) {
-                if (snapshot.hasError) return _failure();
+                if (snapshot.hasError) return _failure(snapshot.error);
                 if (!snapshot.hasData) return const LinearProgressIndicator();
                 final data = snapshot.data!.data() ?? {};
                 if (!_editing) {

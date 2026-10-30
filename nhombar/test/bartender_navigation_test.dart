@@ -13,6 +13,39 @@ import 'package:nhom_bar/screens/home/lobby_screen.dart';
 import 'package:nhom_bar/screens/home/widgets/lobby_object.dart';
 
 void main() {
+  for (final name in [
+    'Tên hồ sơ',
+    '',
+    'Tên dài có dấu và nhiều ký tự 😀😀😀',
+  ]) {
+    testWidgets('profile name seeds and identifies the room player: $name', (
+      tester,
+    ) async {
+      final repo = FakeRoomRepository(rng: Random(200));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BartenderScreen(repository: repo, playerName: name),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final input = tester.widget<TextField>(find.byType(TextField));
+      expect(input.readOnly, isTrue);
+      final expected = input.controller!.text;
+      expect(expected, isNot('Bạn'));
+      expect(expected.length, lessThanOrEqualTo(24));
+      if (name.isEmpty) expect(expected, 'Người chơi');
+      if (name == 'Tên hồ sơ') expect(expected, name);
+      await tester.tap(find.text('TẠO PHÒNG MỚI'));
+      await tester.pumpAndSettle();
+      final ctrl = tester
+          .widget<BartenderLobbyScreen>(find.byType(BartenderLobbyScreen))
+          .controller;
+      expect(ctrl.room!.players[ctrl.myPlayerId]!.name, expected);
+      await tester.pumpWidget(const SizedBox());
+      repo.dispose();
+    });
+  }
+
   for (final size in [const Size(390, 844), const Size(360, 640)]) {
     testWidgets(
       'lobby opens Bartender, creates a room, plays and returns at $size',
@@ -51,7 +84,10 @@ void main() {
         expect(find.text('Bartender đang được phát triển.'), findsNothing);
         expect(tester.takeException(), isNull);
 
-        await tester.enterText(find.byType(TextField), 'Người chơi');
+        expect(
+          tester.widget<TextField>(find.byType(TextField)).controller!.text,
+          'Người chơi',
+        );
         await tester.tap(find.text('TẠO PHÒNG MỚI'));
         await tester.pumpAndSettle();
         expect(find.text('MÃ PHÒNG'), findsOneWidget);

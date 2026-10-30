@@ -5,12 +5,11 @@ Samsung A52s. Cần đăng nhập Firebase trước khi vào Lobby.
 
 ```text
 nhom_bar/
-├── AGENTS.md                  Quy tắc làm việc chung
 ├── backend/
 │   ├── src/                   API game Node.js
 │   ├── bartender_ws/          Module HTTP/WebSocket Dart của Zhoufen (tùy chọn)
 │   ├── tools/                 Máy xử lý quét 3D Python
-│   ├── vision/                API nhận diện YOLO Python
+│   ├── photo3d/               API TripoSR: một ảnh thành 3D
 │   └── firebase/              Backend Firebase game cũ, không cần chạy cho API HTTP
 └── nhombar/                   Ứng dụng Flutter, Android và asset
 ```
@@ -19,9 +18,9 @@ nhom_bar/
 |---|---|---|
 | API Node.js | 3000 | Tài khoản/OTP, Bartender và Rubik online |
 | Máy xử lý quét 3D | 8765, HTTPS | Tạo mô hình 3D |
-| API nhận diện YOLO | 8766, HTTP qua USB | Nhận diện đồ vật từ ảnh |
+| API TripoSR | 8766, HTTP qua USB | Tạo mô hình 3D từ một ảnh |
 
-Ba dịch vụ chạy riêng. Chỉ mở dịch vụ cần dùng; không cài thư viện YOLO vào môi
+Ba dịch vụ chạy riêng. Chỉ mở dịch vụ cần dùng; không cài thư viện TripoSR vào môi
 trường máy quét 3D. Trong các bước dưới, mỗi terminal mới bắt đầu ở thư mục gốc
 `nhom_bar/`, trừ chỗ có lệnh `cd` khác.
 
@@ -47,7 +46,7 @@ Cài các công cụ sau và cho phép sử dụng chúng từ PowerShell:
   Cấu hình hiện tại đã dùng Flutter 3.47.4 với Dart 3.13.3.
 - Android Studio, Android SDK Platform-Tools và SDK/build tools mà Flutter yêu cầu.
   Dùng JDK đi kèm Android Studio; để Flutter quản lý việc gọi Gradle của dự án.
-- Python 3.11 nếu cần quét 3D hoặc nhận diện YOLO. Khi cài Python trên Windows,
+- Python 3.11 nếu cần quét 3D hoặc dựng hình TripoSR. Khi cài Python trên Windows,
   cài cả Python Launcher để dùng được `py -3.11`.
 
 Mở PowerShell mới sau khi cài để nhận PATH. Xem môi trường còn thiếu gì:
@@ -164,7 +163,7 @@ nhớ riêng. Không có yêu cầu cài thêm MySQL/PostgreSQL hoặc chuyển 
 Backend cần Firebase Admin để kiểm tra phiên và OTP. Trong Firebase Console của
 đúng project `nhom-bar`: **Project settings → Service accounts → Firebase Admin
 SDK → Generate new private key → Generate key**. Đặt file JSON tải về ngoài repo,
-ví dụ `D:/FirebaseKeys/nhom-bar-admin.json`. Không thay `google-services.json`
+ví dụ `C:/private/nhom-bar-admin.json` (sửa theo nơi bạn lưu file). Không thay `google-services.json`
 bằng file này, không gửi khóa vào chat và không commit khóa lên Git.
 
 Nếu đã có `backend/.env`, mở và sửa file hiện có. Nếu chưa có, tại thư mục gốc:
@@ -177,7 +176,7 @@ Copy-Item backend/.env.example backend/.env
 
 ```dotenv
 FIREBASE_PROJECT_ID=nhom-bar
-GOOGLE_APPLICATION_CREDENTIALS=D:/FirebaseKeys/nhom-bar-admin.json
+GOOGLE_APPLICATION_CREDENTIALS=C:/private/nhom-bar-admin.json
 BREVO_API_KEY=API_KEY_CUA_BAN
 BREVO_SENDER_EMAIL=EMAIL_SENDER_DA_XAC_MINH
 OTP_HMAC_KEY=KHOA_NGAU_NHIEN_CUA_BAN
@@ -280,14 +279,14 @@ $deviceId = 'MA_THIET_BI'
 & $adb -s $deviceId reverse tcp:8766 tcp:8766
 ```
 
-Cổng 3000 dùng cho game; 8766 dùng khi bạn mở thêm YOLO ở bước 6. `adb reverse`
+Cổng 3000 dùng cho game; 8766 dùng khi bạn mở thêm TripoSR ở bước 6. `adb reverse`
 giúp `127.0.0.1` trên điện thoại truy cập dịch vụ trên máy tính qua USB.
 
 Chạy bản debug trên đúng điện thoại đó:
 
 ```powershell
 cd nhombar
-flutter run -d $deviceId --dart-define=API_BASE_URL=http://127.0.0.1:3000/api/v1 --dart-define=DETECTION_API_URL=http://127.0.0.1:8766
+flutter run -d $deviceId --dart-define=API_BASE_URL=http://127.0.0.1:3000/api/v1 --dart-define=PHOTO3D_API_URL=http://127.0.0.1:8766
 ```
 
 Đăng ký hoặc đăng nhập để vào Lobby. Hai điện thoại chơi online cần được reverse
@@ -305,7 +304,7 @@ trỏ Flutter SDK về `C:\src\flutter`. Mở **Run → Edit Configurations**, c
 Flutter với entrypoint `lib/main.dart`, thêm vào **Additional run args**:
 
 ```text
---dart-define=API_BASE_URL=http://127.0.0.1:3000/api/v1 --dart-define=DETECTION_API_URL=http://127.0.0.1:8766
+--dart-define=API_BASE_URL=http://127.0.0.1:3000/api/v1 --dart-define=PHOTO3D_API_URL=http://127.0.0.1:8766
 ```
 
 Chọn điện thoại đã reverse cổng rồi nhấn Run. Để dùng máy ảo, tự mở **Device
@@ -341,37 +340,43 @@ node lib/games/bartender/scene3d/build_scene.cjs
 tại `backend/` chạy `npm.cmd test`. Test API tự khởi động server trên cổng tạm
 và không cần sửa/xóa dữ liệu đang lưu trong `backend/data/`.
 
-## 6. Nhận diện đồ vật YOLO — tùy chọn
+## 6. Tạo mô hình 3D từ một ảnh — TripoSR
 
-Mở terminal mới ở thư mục gốc. Chỉ thực hiện phần cài đặt này lần đầu, hoặc khi
-cần tạo lại môi trường YOLO:
+Chức năng này chạy riêng với quét đa ảnh ở bước 7. Máy ảnh trên kệ TV mở
+**Ảnh thành 3D**: chụp/chọn một vật trên nền đơn giản, chờ xử lý rồi bấm
+**Xem mô hình 3D**. Vuốt để xoay, chụm để phóng to. Mặt khuất được AI ước lượng,
+không phải phép đo chính xác. Chưa yêu cầu texture.
 
-```powershell
-py -3.11 -m venv backend/.yolo-runtime
-.\backend\.yolo-runtime\Scripts\python.exe -m pip install torch==2.6.0+cpu torchvision==0.21.0+cpu --index-url https://download.pytorch.org/whl/cpu
-.\backend\.yolo-runtime\Scripts\python.exe -m pip install -e "./backend/vision[test]"
-.\backend\.yolo-runtime\Scripts\python.exe -m nhombar_vision.download_model
-```
-
-`[test]` cài thêm thư viện phục vụ test, không chạy test. Lệnh tải model lấy
-YOLO26n pretrained từ release Ultralytics chính thức và xác minh SHA-256. Không
-train hoặc fine-tune. Môi trường và trọng số nằm trong `backend/.yolo-runtime/`,
-được Git bỏ qua; cần Internet cho lần cài/tải đầu.
-
-Mỗi lần cần nhận diện, chỉ chạy lệnh sau và giữ terminal mở:
+Cài lần đầu từ thư mục gốc, dùng Python 3.11 và Visual Studio C++ Build Tools
+(kèm Windows SDK; có thể dùng Visual Studio Community với workload Desktop
+development with C++). Cần vài GB trống và Internet để tải pretrained chính thức:
 
 ```powershell
-.\backend\.yolo-runtime\Scripts\python.exe -m nhombar_vision
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\photo3d\setup.ps1
 ```
 
-Đợi server báo sẵn sàng. API chỉ nghe tại `127.0.0.1:8766` trên PC, kiểm tra
-trạng thái tại http://127.0.0.1:8766/health. Ứng dụng dùng ADB reverse ở bước 5;
-không đổi sang địa chỉ HTTP LAN hoặc công khai cổng ra Internet.
+Script tạo môi trường riêng `backend/.triposr-runtime/`, tải mã nguồn TripoSR và
+trọng số `stabilityai/TripoSR` theo revision cố định, cùng model tách nền u2netp.
+Trọng số và mã nguồn bên thứ ba trong runtime không đưa lên Git. Không train.
+RTX 3050 4 GB của máy phát triển dùng cấu hình CPU, lưới 96 và xử lý từng yêu
+cầu một để tránh vượt VRAM. CPU có thể mất vài phút mỗi ảnh.
 
-Trong Lobby, chạm **Máy ảnh trên kệ TV → Nhận diện đồ vật**. Chọn **Mở camera →
-Chụp ảnh**, hoặc **Chọn ảnh**. Có thể bắt đầu với táo, chuối, cốc, sách, ghế và
-chai. API `POST /api/v1/detect` nhận JPEG/PNG tối đa 8 MB; trả nhãn Việt/Anh,
-confidence và khung theo tọa độ ảnh. Model chỉ nhận các lớp pretrained hỗ trợ.
+Mỗi lần sử dụng, mở terminal ở thư mục gốc và giữ server chạy:
+
+```powershell
+.\backend\.triposr-runtime\Scripts\python.exe -m nhombar_photo3d
+```
+
+Đợi báo startup hoàn tất; kiểm tra http://127.0.0.1:8766/health. Server chỉ nghe
+localhost, điện thoại dùng `adb reverse tcp:8766 tcp:8766` ở bước 5. Node.js vẫn
+chạy riêng như bước 4; không đổi Firebase hoặc API game.
+
+API `POST /api/v1/photo-models` nhận JPEG/PNG tối đa 8 MB, 16 megapixel; trả
+202 kèm ID. `GET /api/v1/photo-models/{id}` trả trạng thái; khi `done`, tải
+`GET /api/v1/photo-models/{id}/mesh`. Mesh SCN1 dùng viewer Android hiện có;
+không tạo khối mẫu thay kết quả AI. Không lưu ảnh vào ổ đĩa; kết quả giữ trong
+RAM tối đa 15 phút, tối đa 8 phiên gần nhất. Inference giới hạn 10 phút; server
+khởi động lại worker khi quá hạn. Mở `/docs` trên localhost để xem API.
 
 ## 7. Quét mô hình 3D — tùy chọn
 
@@ -397,7 +402,7 @@ Kết nối lần đầu bằng một trong hai cách:
 
 Chờ app báo **Sẵn sàng quét**, sau đó bấm **Bắt đầu quét**. Máy xử lý dùng HTTPS
 cổng 8765 và kiểm tra chứng chỉ; không bỏ qua xác thực. App nhớ máy đã ghép nối;
-nếu IP/chứng chỉ đổi, dùng QR mới hoặc kết nối USB lại. YOLO và máy quét 3D dùng
+nếu IP/chứng chỉ đổi, dùng QR mới hoặc kết nối USB lại. TripoSR và máy quét 3D dùng
 hai terminal, hai môi trường riêng, không thay thế lẫn nhau.
 
 Khi dùng USB debug, launcher kiểm tra máy mới mỗi 3 giây. Nếu kết nối USB xong
@@ -409,7 +414,7 @@ nhưng app chưa nhận cấu hình, vào lại Quét 3D hoặc bấm Thử lạ
 Khi Node đang chạy, mở http://localhost:3000/docs. UI và file JavaScript được
 phục vụ local, không cần CDN. Các nhóm gồm System, Session, Account, Bartender,
 Rubik. Hợp đồng mô tả API Node; đăng ký/mật khẩu/ảnh qua Firebase SDK, không có
-REST endpoint thay thế. API YOLO riêng có `/docs` tại cổng 8766 khi đang chạy.
+REST endpoint thay thế. API TripoSR riêng có `/docs` tại cổng 8766 khi đang chạy.
 
 1. Mở **System → GET health → Execute**.
 2. Mở **Session → POST sessions**, nhập tên và Execute. Copy token trả về.
@@ -434,7 +439,7 @@ Firebase Admin thì API tài khoản trả 503 thay vì báo thành công.
 
 Chỉ thực hiện khi bạn muốn mở truy cập từ Internet. Mặc định hướng dẫn dùng
 Microsoft Dev Tunnels có đăng nhập, không cấp anonymous. Chỉ forward cổng API
-3000; không forward Firebase/Database, máy quét hay YOLO.
+3000; không forward Firebase/Database, máy quét hay TripoSR.
 
 ### Microsoft Dev Tunnels
 
@@ -517,7 +522,7 @@ Tại thư mục `nhombar/`:
 flutter pub get
 flutter analyze
 flutter test
-flutter build apk --debug --target-platform android-arm64 --dart-define=API_BASE_URL=http://127.0.0.1:3000/api/v1 --dart-define=DETECTION_API_URL=http://127.0.0.1:8766
+flutter build apk --debug --target-platform android-arm64 --dart-define=API_BASE_URL=http://127.0.0.1:3000/api/v1 --dart-define=PHOTO3D_API_URL=http://127.0.0.1:8766
 ```
 
 APK ở `nhombar/build/app/outputs/flutter-apk/app-debug.apk`. Build không tự cài
@@ -536,7 +541,7 @@ riêng trong test, không xác nhận thư Brevo đến hộp thư hay thiết b
 
 Trên điện thoại: đăng ký/OTP đúng-sai-hết hạn/gửi lại, đăng nhập lại, đổi tên/ảnh,
 Game ID không đổi, đăng xuất và sinh trắc học. Tiếp theo thử xoay/chạm/chỉnh
-bố cục Lobby, vào/ra game, Bartender và Rubik trên hai máy, quét 3D và YOLO.
+bố cục Lobby, vào/ra game, Bartender và Rubik trên hai máy, quét đa ảnh và TripoSR.
 Giữ dữ liệu cũ để kiểm tra hồ sơ/bộ sưu tập nếu tài khoản đã có; không tạo dữ
 liệu giả thay cho một chức năng chưa được tích hợp.
 
@@ -552,10 +557,10 @@ liệu giả thay cho một chức năng chưa được tích hợp.
 | Email chưa đến | Kiểm tra Spam, sender/domain Brevo đã xác minh, key có quyền transactional email, hạn mức và log giao thư trên Brevo. Không ghi OTP vào log để chẩn đoán. |
 | Link tunnel báo 401/403 hoặc yêu cầu đăng nhập | Dùng tài khoản đã được cấp quyền; kiểm tra organization/tenant. Không bật anonymous để che lỗi quyền. |
 | Link tunnel không tải | Kiểm tra laptop và Node/tunnel còn chạy, đúng ID/cổng 3000, thử localhost trước. |
-| App không gọi được API game/YOLO | Kiểm tra server tương ứng còn mở và chạy lại reverse cổng 3000/8766 cho đúng mã máy. |
+| App không gọi được API game/TripoSR | Kiểm tra server tương ứng còn mở và chạy lại reverse cổng 3000/8766 cho đúng mã máy. |
 | Google không đăng nhập được | Kiểm tra provider, SHA của khóa ký và file JSON có OAuth client của đúng project/app. |
 | Hồ sơ/ảnh báo thiếu quyền | Nhờ chủ project kiểm tra Firestore/Storage Rules theo UID; không mở quyền toàn bộ. |
-| YOLO báo thiếu model | Tại thư mục gốc, chạy lại lệnh `python.exe -m nhombar_vision.download_model` bằng Python trong `.yolo-runtime`. |
+| TripoSR báo thiếu model | Chạy lại `backend/photo3d/setup.ps1`; giữ đủ dung lượng và mạng cho lần tải đầu. |
 | Máy quét 3D chưa sẵn sàng | Xem lỗi ở cửa sổ launcher, kiểm tra thư viện/kết nối và ghép QR/USB lại; không mở camera xử lý khi server chưa sẵn sàng. |
 | Cài APK báo khác chữ ký | Dừng và dùng đúng khóa ký. Không gỡ app để chữa nhanh vì sẽ mất mô hình lưu trên điện thoại. |
 

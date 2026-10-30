@@ -5,26 +5,28 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import 'detection_api.dart';
-import 'detection_image.dart';
-import 'detection_models.dart';
-import 'detection_preview.dart';
+import 'photo_model_api.dart';
 
-class DetectionScreen extends StatefulWidget {
-  const DetectionScreen({super.key, this.detector, this.pickImage});
-  final ObjectDetector? detector;
-  final Future<DetectionImage?> Function()? pickImage;
+import 'package:flutter/services.dart';
+
+import 'photo_scan_image.dart';
+
+class PhotoScanScreen extends StatefulWidget {
+  const PhotoScanScreen({super.key, this.service, this.pickImage});
+  final PhotoModelService? service;
+  final Future<PhotoScanImage?> Function()? pickImage;
   @override
-  State<DetectionScreen> createState() => _DetectionScreenState();
+  State<PhotoScanScreen> createState() => _PhotoScanScreenState();
 }
 
-class _DetectionScreenState extends State<DetectionScreen>
+class _PhotoScanScreenState extends State<PhotoScanScreen>
     with WidgetsBindingObserver {
-  late final ObjectDetector _detector = widget.detector ?? DetectionApi();
+  late final PhotoModelService _service = widget.service ?? PhotoModelApi();
   CameraController? _camera;
-  DetectionImage? _photo;
-  DetectionResult? _result;
+  PhotoScanImage? _photo;
+  Uint8List? _mesh;
   String? _error;
+  String _stage = 'uploading';
   bool _busy = false, _foreground = true;
   int _cameraGeneration = 0;
 
@@ -50,7 +52,7 @@ class _DetectionScreenState extends State<DetectionScreen>
     WidgetsBinding.instance.removeObserver(this);
     _cameraGeneration++;
     _camera?.dispose();
-    _detector.close();
+    _service.close();
     super.dispose();
   }
 
@@ -71,11 +73,11 @@ class _DetectionScreenState extends State<DetectionScreen>
       await action();
     } catch (error) {
       debugPrint(
-        '[Detection] ${error is CameraException ? error.code : error.runtimeType}',
+        '[Photo3D] ${error is CameraException ? error.code : error.runtimeType}',
       );
       if (mounted) {
         setState(
-          () => _error = error is DetectionException
+          () => _error = error is PhotoModelException
               ? error.message
               : error is CameraException
               ? 'Chưa mở được máy ảnh. Hãy cấp quyền camera trong Cài đặt rồi thử lại.'
@@ -93,7 +95,7 @@ class _DetectionScreenState extends State<DetectionScreen>
     final cameras = await availableCameras();
     if (!mounted || !_foreground || generation != _cameraGeneration) return;
     if (cameras.isEmpty) {
-      throw const DetectionException(
+      throw const PhotoModelException(
         'Chưa tìm thấy máy ảnh. Bạn có thể chọn ảnh từ thư viện.',
       );
     }
@@ -120,32 +122,34 @@ class _DetectionScreenState extends State<DetectionScreen>
     setState(() {
       _camera = camera;
       _photo = null;
-      _result = null;
+      _mesh = null;
     });
   });
 
-  Future<DetectionImage> _prepare(XFile file) async {
+  Future<PhotoScanImage> _prepare(XFile file) async {
     if (await file.length() > 8 * 1024 * 1024) {
-      throw const DetectionException('Hãy chọn ảnh nhỏ hơn 8 MB.');
+      throw const PhotoModelException('Hãy chọn ảnh nhỏ hơn 8 MB.');
     }
-    return compute(prepareDetectionImage, await file.readAsBytes());
+    return compute(preparePhotoScanImage, await file.readAsBytes());
   }
 
-  Future<void> _recognize(DetectionImage image) async {
+  Future<void> _createModel(PhotoScanImage image) async {
     if (!mounted) return;
     setState(() {
       _photo = image;
-      _result = null;
+      _mesh = null;
     });
-    final result = await _detector.detect(image);
-    if (mounted) setState(() => _result = result);
+    final result = await _service.generate(image.bytes, (stage) {
+      if (mounted) setState(() => _stage = stage);
+    });
+    if (mounted) setState(() => _mesh = result);
   }
 
   Future<void> _capture() => _run(() async {
     final camera = _camera;
     if (camera == null || !camera.value.isInitialized) return;
     final file = await camera.takePicture();
-    DetectionImage image;
+    PhotoScanImage image;
     try {
       image = await _prepare(file);
     } finally {
@@ -155,12 +159,12 @@ class _DetectionScreenState extends State<DetectionScreen>
       } catch (_) {}
     }
     await _releaseCamera();
-    await _recognize(image);
+    await _createModel(image);
   });
 
   Future<void> _gallery() => _run(() async {
     await _releaseCamera();
-    DetectionImage? image;
+    PhotoScanImage? image;
     if (widget.pickImage != null) {
       image = await widget.pickImage!();
     } else {
@@ -173,12 +177,35 @@ class _DetectionScreenState extends State<DetectionScreen>
       );
       if (file != null) image = await _prepare(file);
     }
-    if (image != null) await _recognize(image);
+    if (image != null) await _createModel(image);
   });
+
+  Future<void> _view() => _run(() async {
+    final mesh = _mesh;
+    if (mesh == null) return;
+    try {
+      await const MethodChannel('meomeo/spatial')
+          .invokeMethod<void>('openPhotoModel', {'mesh': mesh});
+    } on PlatformException {
+      throw const PhotoModelException('Chưa mở được mô hình. Hãy thử lại.');
+    } on MissingPluginException {
+      throw const PhotoModelException(
+        'Hãy mở mô hình trên bản Android mới của ứng dụng.',
+      );
+    }
+  });
+
+  String get _stageText => switch (_stage) {
+    'preprocessing' => 'Đang tách đồ vật…',
+    'reconstructing' => 'Đang tạo hình 3D…',
+    'extracting' || 'exporting' => 'Đang hoàn thiện mô hình…',
+    'downloading' => 'Đang nhận mô hình…',
+    _ => 'Đang gửi ảnh…',
+  };
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Nhận diện đồ vật')),
+    appBar: AppBar(title: const Text('Ảnh thành 3D')),
     body: SafeArea(
       child: ListView(
         padding: const EdgeInsets.all(20),
@@ -187,43 +214,41 @@ class _DetectionScreenState extends State<DetectionScreen>
             borderRadius: BorderRadius.circular(20),
             child: ColoredBox(
               color: Theme.of(context).colorScheme.surfaceContainerLow,
-              child: _camera != null
-                  ? SizedBox(
-                      height: (MediaQuery.sizeOf(context).height * .42).clamp(
-                        180,
-                        420,
-                      ),
-                      child: Center(child: CameraPreview(_camera!)),
-                    )
-                  : _photo != null
-                  ? DetectionPreview(
-                      image: _photo!,
-                      result: _result,
-                      height: (MediaQuery.sizeOf(context).height * .42).clamp(
-                        180,
-                        420,
-                      ),
-                    )
-                  : SizedBox(
-                      height: (MediaQuery.sizeOf(context).height * .34).clamp(
-                        160,
-                        300,
-                      ),
-                      child: const Column(
+              child: SizedBox(
+                height: (MediaQuery.sizeOf(context).height * .4).clamp(
+                  180,
+                  380,
+                ),
+                child: _camera != null
+                    ? Center(child: CameraPreview(_camera!))
+                    : _photo != null
+                    ? Image.memory(_photo!.bytes, fit: BoxFit.contain)
+                    : const Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.photo_camera_outlined, size: 80),
+                          Icon(Icons.view_in_ar_outlined, size: 72),
                           SizedBox(height: 16),
-                          Text(
-                            'Cho mình xem một đồ vật nhé!',
-                            style: TextStyle(fontSize: 18),
-                          ),
+                          Text('Chụp một vật trên nền đơn giản'),
                         ],
                       ),
-                    ),
+              ),
             ),
           ),
           const SizedBox(height: 16),
+          if (_mesh != null) ...[
+            FilledButton.icon(
+              onPressed: _busy ? null : _view,
+              icon: const Icon(Icons.view_in_ar),
+              label: const Text('Xem mô hình 3D'),
+            ),
+            const Padding(
+              padding: EdgeInsets.all(8),
+              child: Text(
+                'Bản thử nghiệm: mặt khuất có thể khác vật thật.',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
           FilledButton.icon(
             onPressed: _busy
                 ? null
@@ -247,9 +272,9 @@ class _DetectionScreenState extends State<DetectionScreen>
           if (_busy) ...[
             const SizedBox(height: 16),
             const LinearProgressIndicator(),
-            const Padding(
-              padding: EdgeInsets.all(12),
-              child: Text('Đang nhìn đồ vật…', textAlign: TextAlign.center),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(_stageText, textAlign: TextAlign.center),
             ),
           ],
           if (_error != null) ...[
@@ -260,56 +285,16 @@ class _DetectionScreenState extends State<DetectionScreen>
             TextButton.icon(
               onPressed: _busy
                   ? null
-                  : () {
-                      if (_photo != null) {
-                        _run(() => _recognize(_photo!));
-                      } else {
-                        _openCamera();
-                      }
-                    },
+                  : _mesh != null
+                  ? _view
+                  : _photo != null
+                  ? () => _run(() => _createModel(_photo!))
+                  : _openCamera,
               icon: const Icon(Icons.refresh),
               label: const Text('Thử lại'),
             ),
           ],
-          if (_result != null && _result!.objects.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'Chưa tìm thấy đồ vật quen thuộc. Thử chụp rõ hơn nhé!',
-                textAlign: TextAlign.center,
-              ),
-            ),
-          if (_result != null)
-            for (var i = 0; i < _result!.objects.length; i++)
-              _resultTile(i, _result!.objects[i]),
-          if (_result == null && !_busy)
-            const Padding(
-              padding: EdgeInsets.all(12),
-              child: Text(
-                'Thử: táo, chuối, cốc, sách, ghế, chai.',
-                textAlign: TextAlign.center,
-              ),
-            ),
         ],
-      ),
-    ),
-  );
-
-  Widget _resultTile(int index, DetectedObject object) => Card(
-    child: ListTile(
-      leading: CircleAvatar(
-        backgroundColor: detectionColors[index % detectionColors.length],
-        foregroundColor: Colors.white,
-        child: Text('${index + 1}'),
-      ),
-      title: Text(
-        object.vietnamese,
-        style: const TextStyle(fontWeight: FontWeight.bold),
-      ),
-      subtitle: Text(object.english),
-      trailing: Text(
-        '${(object.confidence * 100).round()}%',
-        style: const TextStyle(fontSize: 20),
       ),
     ),
   );

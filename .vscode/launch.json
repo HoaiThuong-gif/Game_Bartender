@@ -7,7 +7,7 @@
       "request": "launch",
       "cwd": "${workspaceFolder}/nhombar",
       "program": "${workspaceFolder}/nhombar/lib/main.dart",
-      "toolArgs": ["--dart-define=API_BASE_URL=http://127.0.0.1:3000/api/v1"]
+      "toolArgs": ["--dart-define=API_BASE_URL=http://127.0.0.1:3000/api/v1", "--dart-define=PHOTO3D_API_URL=http://127.0.0.1:8766"]
     },
     {
       "name": "Nhombar backend (Node.js)",

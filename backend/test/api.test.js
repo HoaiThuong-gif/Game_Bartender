@@ -92,6 +92,21 @@ test('Swagger, schemas, validation and authentication are available over HTTP', 
   assert.equal((await fetch(`${base}/docs/swagger-ui-bundle.js`)).status, 200);
 });
 
+test('duplicate profile names remain separate players and synchronize by UID', async t => {
+  const { request, session } = await fixture(t);
+  const host = await session('Cùng tên'), guest = await session('Cùng tên');
+  assert.notEqual(host.uid, guest.uid);
+  const created = await request('POST', '/api/v1/bartender/rooms', {}, host.token);
+  const route = `/api/v1/bartender/rooms/${created.data.code}`;
+  await request('POST', `${route}/join`, {}, guest.token);
+  for (const viewer of [host, guest]) {
+    const state = (await request('GET', route, undefined, viewer.token)).data.room;
+    assert.deepEqual(Object.keys(state.players).sort(), [host.uid, guest.uid].sort());
+    assert.equal(state.players[host.uid].name, 'Cùng tên');
+    assert.equal(state.players[guest.uid].name, 'Cùng tên');
+  }
+});
+
 test('two clients create, join, process, submit atomically, reject replay/forgery, and finish on timeout', async t => {
   const { request, session, store, advance } = await fixture(t);
   const a = await session('A'), b = await session('B'), outsider = await session('C');

@@ -128,6 +128,18 @@ class PlayerProfiles {
   final FirebaseFirestore _db;
   final FirebaseStorage? storage;
 
+  static String syncError(Object? error) {
+    final code = error is FirebaseException ? error.code : 'unknown';
+    debugPrint('[Profile sync] $code');
+    return switch (code) {
+      'permission-denied' =>
+        'Hồ sơ chưa được cấp quyền truy cập. Hãy báo người quản lý.',
+      'unauthenticated' =>
+        'Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại để đồng bộ hồ sơ.',
+      _ => 'Chưa đồng bộ được hồ sơ. Hãy kiểm tra mạng và thử lại.',
+    };
+  }
+
   DocumentReference<Map<String, dynamic>> reference(String uid) =>
       _db.collection('players').doc(uid);
 

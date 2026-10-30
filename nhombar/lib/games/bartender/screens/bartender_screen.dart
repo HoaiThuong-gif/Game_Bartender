@@ -13,8 +13,9 @@ import 'bartender_results_screen.dart';
 
 /// Entry point: UI/controller use the HTTP repository by default.
 class BartenderScreen extends StatefulWidget {
-  const BartenderScreen({super.key, this.repository});
+  const BartenderScreen({super.key, this.repository, this.playerName});
   final RoomRepository? repository;
+  final String? playerName;
 
   @override
   State<BartenderScreen> createState() => _BartenderScreenState();
@@ -48,7 +49,10 @@ class _BartenderScreenState extends State<BartenderScreen> {
             ? BartenderResultsScreen(controller: _controller)
             : _controller.isMatchPlaying
             ? BartenderMatchScreen(controller: _controller)
-            : BartenderLobbyScreen(controller: _controller);
+            : BartenderLobbyScreen(
+                controller: _controller,
+                playerName: widget.playerName,
+              );
         return PopScope<void>(
           canPop: _controller.room == null && !_controller.isBusy,
           onPopInvokedWithResult: (didPop, _) async {
