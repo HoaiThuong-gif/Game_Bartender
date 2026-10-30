@@ -32,6 +32,9 @@ class BartenderController extends ChangeNotifier {
 
   final RoomRepository _repository;
 
+  @visibleForTesting
+  RoomRepository get repository => _repository;
+
   Room? _room;
   String? _noticeMessage;
   String? _errorMessage;
@@ -130,7 +133,7 @@ class BartenderController extends ChangeNotifier {
   /// Tạo phòng mới với vai trò chủ phòng (host).
   Future<void> createRoom({
     String playerName = 'Bạn',
-    int totalPlayers = 3,
+    int totalPlayers = 1,
   }) async {
     _setBusy(true);
     _clearMessages();

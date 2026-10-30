@@ -438,9 +438,6 @@ class _BartenderLobbyScreenState extends State<BartenderLobbyScreen> {
                 final String roleLabel;
                 if (isMe) {
                   roleLabel = isHost ? 'Bạn (Host)' : 'Bạn';
-                } else if (player.name.startsWith('Bot') ||
-                    player.id.startsWith('bot_')) {
-                  roleLabel = 'Bot';
                 } else {
                   roleLabel = isHost ? 'Host' : 'Đồng đội';
                 }

@@ -7,9 +7,9 @@
 class BartenderConfig {
   const BartenderConfig._();
 
-  /// true = dùng FakeRoomRepository trong bộ nhớ (mặc định cho giai đoạn 1-3).
-  /// false = dùng FirebaseRoomRepository thật (bắt đầu từ giai đoạn 5).
-  static const bool useFakeRepository = true;
+  /// true = dùng FakeRoomRepository trong bộ nhớ.
+  /// false = dùng FirebaseRoomRepository thật (mặc định khi chạy trên máy thật).
+  static bool useFakeRepository = false;
 
   /// URL của Firebase Realtime Database dùng chung với dự án nhom-bar (D18).
   ///

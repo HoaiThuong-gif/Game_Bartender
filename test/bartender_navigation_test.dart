@@ -36,7 +36,18 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('MÃ PHÒNG'), findsOneWidget);
         expect(find.text('Người chơi'), findsOneWidget);
-        expect(find.text('Bot'), findsNWidgets(2));
+
+        // Giả lập người chơi 2 tham gia để đủ 2+ người bắt đầu trận (không dùng bot)
+        final lobbyWidget = tester.widget<BartenderLobbyScreen>(
+          find.byType(BartenderLobbyScreen),
+        );
+        await lobbyWidget.controller.repository.joinRoom(
+          code: lobbyWidget.controller.room!.code,
+          playerName: 'Bạn 2',
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Bạn 2'), findsOneWidget);
+        expect(find.text('Bot'), findsNothing);
         expect(tester.takeException(), isNull);
 
         await tester.tap(find.text('BẮT ĐẦU TRẬN ĐẤU!'));
