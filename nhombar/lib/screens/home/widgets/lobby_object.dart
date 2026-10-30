@@ -9,7 +9,18 @@ import '../lobby_cats.dart';
 import '../lobby_layout.dart';
 import 'lobby_panorama.dart';
 
-final _program = ui.FragmentProgram.fromAsset('shaders/lobby_panorama.frag');
+/// Alpha is sufficient for hit testing; retaining RGBA would use four times the memory.
+Uint8List imageAlpha(ByteData pixels) {
+  final rgba = pixels.buffer.asUint8List(
+    pixels.offsetInBytes,
+    pixels.lengthInBytes,
+  );
+  final alpha = Uint8List(rgba.length ~/ 4);
+  for (var i = 0; i < alpha.length; i++) {
+    alpha[i] = rgba[i * 4 + 3];
+  }
+  return alpha;
+}
 
 /// An independently replaceable source-projected PNG, including its exact alpha
 /// silhouette. Both rendering and hit testing invert the same panorama camera.
@@ -33,7 +44,7 @@ class LobbyObject extends StatefulWidget {
 class _LobbyObjectState extends State<LobbyObject> {
   ui.Image? _image;
   ui.FragmentShader? _shader;
-  Uint8List? _rgba;
+  Uint8List? _alpha;
   bool _failed = false;
   int _generation = 0;
   bool _pressed = false;
@@ -57,40 +68,42 @@ class _LobbyObjectState extends State<LobbyObject> {
 
   Future<void> _load() async {
     final generation = ++_generation;
+    ui.Image? pending;
+    ui.FragmentShader? pendingShader;
     try {
-      final program = await _program;
+      final program = await lobbyShaderProgram;
       final data = await rootBundle.load(widget.asset);
       final codec = await ui.instantiateImageCodec(
         data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
       );
-      late ui.Image image;
       try {
-        image = (await codec.getNextFrame()).image;
+        pending = (await codec.getNextFrame()).image;
       } finally {
         codec.dispose();
       }
       final bytes = widget.onTap == null
           ? null
-          : await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-      if (!mounted || generation != _generation) {
-        image.dispose();
-        return;
-      }
-      final previous = _image;
-      _shader?.dispose();
+          : await pending.toByteData(format: ui.ImageByteFormat.rawRgba);
+      if (!mounted || generation != _generation) return;
+      final alpha = bytes == null ? null : imageAlpha(bytes);
+      pendingShader = program.fragmentShader();
+      final previousImage = _image, previousShader = _shader;
       setState(() {
-        _image = image;
-        _rgba = bytes?.buffer.asUint8List(
-          bytes.offsetInBytes,
-          bytes.lengthInBytes,
-        );
-        _shader = program.fragmentShader();
+        _image = pending;
+        _alpha = alpha;
+        _shader = pendingShader;
         _failed = false;
       });
-      previous?.dispose();
+      pending = null;
+      pendingShader = null;
+      previousShader?.dispose();
+      previousImage?.dispose();
     } catch (error) {
       debugPrint('[LobbyLayer] ${widget.asset}: $error');
       if (mounted && generation == _generation) setState(() => _failed = true);
+    } finally {
+      pendingShader?.dispose();
+      pending?.dispose();
     }
   }
 
@@ -101,7 +114,7 @@ class _LobbyObjectState extends State<LobbyObject> {
     if (!rect.inflate(widget.placement.hitPadding).contains(pixel)) {
       return false;
     }
-    if (_rgba == null || _image == null) return false;
+    if (_alpha == null || _image == null) return false;
     final uv = _mapUV(
       widget.placement,
       Offset(
@@ -119,7 +132,7 @@ class _LobbyObjectState extends State<LobbyObject> {
             py >= 0 &&
             px < _image!.width &&
             py < _image!.height &&
-            _rgba![(py * _image!.width + px) * 4 + 3] > 100) {
+            _alpha![py * _image!.width + px] > 100) {
           return true;
         }
       }

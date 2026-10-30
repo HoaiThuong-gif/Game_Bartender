@@ -7,10 +7,8 @@ import 'round.dart';
 /// Trạng thái phòng chơi — aggregate chứa tất cả dữ liệu của một trận.
 ///
 /// Khớp với schema Firebase gốc: rooms/{roomCode}/
-/// Xem API.md cho chi tiết đầy đủ.
 ///
 /// Đây là "source of truth" phía client — controller đọc/ghi Room qua
-/// RoomRepository interface (xem ARCHITECTURE.md).
 class Room {
   const Room({
     required this.code,
@@ -29,7 +27,6 @@ class Room {
   /// Trạng thái phòng hiện tại.
   final RoomStatus status;
 
-  /// Thời gian server (ms since epoch) nhận từ server snapshot (API.md).
   final int? serverNowMs;
 
   /// Danh sách người chơi. Key = playerId.
@@ -43,11 +40,9 @@ class Room {
 
   /// Hộp thư / vật phẩm trên màn hình của từng người chơi theo ringIndex.
   /// Key = ringIndex, Value = danh sách GameItem đang có trên màn hình.
-  /// Khớp với API.md schema: inbox/{ringIndex}/{itemId}/
   final Map<int, List<GameItem>> inbox;
 
   /// Kết quả trận đấu khi ended.
-  /// Khớp với API.md schema: results/
   final MatchResult? results;
 
   /// Số người chơi đang kết nối.
@@ -106,7 +101,6 @@ class Room {
     );
   }
 
-  /// Chuyển thành JSON map khớp với API.md schema room snapshot.
   Map<String, dynamic> toJson({int? currentServerNowMs}) {
     final nowMs =
         currentServerNowMs ??
@@ -182,7 +176,6 @@ class Room {
       'round=${currentRound?.number})';
 }
 
-/// Trạng thái phòng. Khớp với trường "status" trong API.md.
 enum RoomStatus {
   /// Đang chờ người chơi vào — chưa bắt đầu trận.
   lobby,

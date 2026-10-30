@@ -4,7 +4,6 @@
 /// Vuốt trái = gửi cho người liền trái, vuốt phải = gửi cho người liền phải.
 /// Vòng tròn wrap-around: người cuối nối với người đầu.
 ///
-/// Xem PROJECT_SPEC.md: "(index ± 1) mod playerCount"
 /// Logic tổng quát cho N người bất kỳ, không hard-code 4.
 class Ring {
   Ring._();

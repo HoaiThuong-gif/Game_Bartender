@@ -1,15 +1,11 @@
 /// Đồng hồ đếm ngược chung của trận đấu.
 ///
-/// Xem PROJECT_SPEC.md mục "Vòng lặp trận đấu":
 /// - Bắt đầu ở 60 giây.
 /// - Chỉ dùng để KẾT THÚC trận khi về 0.
 /// - Hoàn thành đơn → +5 giây.
 ///
-/// Xem ARCHITECTURE.md: "Đồng hồ chung đồng bộ dưới dạng mốc thời gian
 /// tuyệt đối endTime, mỗi client tự tính thời gian còn lại."
 ///
-/// Xem API.md: timer/endTime, timer/startedAt.
-/// Xem DECISIONS.md D17: endTime dùng ServerValue.timestamp + serverTimeOffset.
 class MatchTimer {
   const MatchTimer({
     required this.endTime,
@@ -26,15 +22,12 @@ class MatchTimer {
   final int startedAt;
 
   /// Độ lệch giữa đồng hồ client và server (ms).
-  /// Lấy từ Firebase .info/serverTimeOffset (ARCHITECTURE.md, Bước 6).
   /// Dương = server nhanh hơn client; âm = server chậm hơn client.
   /// Mặc định 0 (dùng khi Fake hoặc chưa fetch được).
   final int serverOffsetMs;
 
-  /// Thời gian ban đầu (mặc định 60 giây) — xem PROJECT_SPEC.md.
   static const int initialDurationMs = 60 * 1000;
 
-  /// Số giây được cộng mỗi khi hoàn thành một đơn — xem PROJECT_SPEC.md.
   static const int bonusMs = 5 * 1000;
 
   /// Tạo timer mới, bắt đầu từ bây giờ với 60 giây.
@@ -50,7 +43,6 @@ class MatchTimer {
     );
   }
 
-  /// Chuyển thành JSON map khớp với API.md.
   Map<String, dynamic> toJson() => {'startedAt': startedAt, 'endTime': endTime};
 
   /// Khởi tạo từ JSON map.
@@ -91,7 +83,6 @@ class MatchTimer {
   }
 
   /// Tổng thời gian sống sót (giây) — dùng cho màn hình kết quả.
-  /// survivalSeconds = min(serverNow, endTime) − startedAt (ARCHITECTURE.md, Bước 6)
   int totalSurvivalSeconds({required int nowMs}) {
     final serverNow = nowMs + serverOffsetMs;
     final effectiveEnd = serverNow < endTime ? serverNow : endTime;

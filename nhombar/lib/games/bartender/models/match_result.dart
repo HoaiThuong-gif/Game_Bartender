@@ -2,11 +2,9 @@ import 'player.dart';
 
 /// Kết quả cuối trận — hiển thị trên màn hình kết quả.
 ///
-/// Xem PROJECT_SPEC.md mục "Kết thúc trận":
 /// "Hiển thị tổng thời gian sống sót, tổng số đơn cả đội,
 /// và bảng xếp hạng cá nhân theo số đơn đã hoàn thành."
 ///
-/// Xem API.md: rooms/{code}/results/
 class MatchResult {
   const MatchResult({
     required this.totalSurvivalSeconds,
@@ -44,7 +42,6 @@ class MatchResult {
     );
   }
 
-  /// Chuyển thành JSON map khớp với API.md schema results.
   Map<String, dynamic> toJson() => {
     'totalSurvivalSeconds': totalSurvivalSeconds,
     'totalTeamOrders': totalTeamOrders,

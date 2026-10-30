@@ -1,7 +1,6 @@
 /// Dữ liệu một người chơi trong phòng.
 ///
 /// Khớp với schema Firebase: rooms/{code}/players/{playerId}/
-/// Xem API.md cho chi tiết các trường.
 class Player {
   const Player({
     required this.id,
@@ -19,7 +18,6 @@ class Player {
   final String name;
 
   /// Vị trí trong vòng tròn (0-based). Không đổi suốt trận.
-  /// Xem API.md: "ringIndex is assigned at room-creation/join time
   /// and does not change mid-match."
   final int ringIndex;
 
@@ -51,7 +49,6 @@ class Player {
     );
   }
 
-  /// Chuyển thành JSON map khớp với API.md.
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,

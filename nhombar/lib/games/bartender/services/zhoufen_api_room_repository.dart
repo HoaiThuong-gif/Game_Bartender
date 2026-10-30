@@ -12,7 +12,6 @@ import '../models/station.dart';
 import 'room_repository.dart';
 
 /// Bản triển khai [RoomRepository] giao tiếp với backend server tự host
-/// qua HTTP REST API và WebSocket snapshots theo hợp đồng API.md.
 enum _ReconnectOutcome { success, permanentFailure, retryableFailure }
 
 class ZhoufenApiRoomRepository implements RoomRepository {
@@ -119,7 +118,6 @@ class ZhoufenApiRoomRepository implements RoomRepository {
     }
   }
 
-  /// Ánh xạ mã lỗi chuẩn từ API.md sang thông điệp tiếng Việt thân thiện.
   static String mapApiError(String code, String fallback) {
     switch (code) {
       case 'INVALID_REQUEST':

@@ -29,7 +29,6 @@ const String _roomsRoot = 'bartender/rooms';
 
 /// Triển khai [RoomRepository] trên Firebase Realtime Database.
 ///
-/// Tuân theo schema trong API.md (bartender/rooms/{code}/... theo D18).
 /// Dùng xác thực ẩn danh (FirebaseAuth.signInAnonymously) để mỗi
 /// client có uid duy nhất, phục vụ làm playerId trong RTDB.
 ///
@@ -123,7 +122,6 @@ class FirebaseRoomRepository implements RoomRepository {
   // ─── Server time offset ─────────────────────────────────────────────────────
 
   /// Lấy và cache serverTimeOffset từ Firebase .info/connected
-  /// (ARCHITECTURE.md: dùng để tính endTime chính xác).
   Future<int> _getServerOffsetMs() async {
     if (_offsetFetched) return _serverOffsetMs;
     try {
@@ -404,7 +402,6 @@ class FirebaseRoomRepository implements RoomRepository {
       ordersData[playerId] = playerOrders;
     }
 
-    // Progress: key là ringIndex (String) theo API.md
     final progressData = <String, dynamic>{
       for (final e in compacted.entries)
         '${asMap(e.value)['ringIndex'] as int? ?? 0}': 0,
@@ -605,7 +602,6 @@ class FirebaseRoomRepository implements RoomRepository {
 
     // Kiểm tra tất cả connected đã đạt ordersPerPlayer chưa
     // Dùng round/progress từ room đã parse
-    // round.playerOrders không có progress — xem API.md: progress/{ringIndex}
     // Ta dùng completedOrders của player trong round (round counter reset per round)
     // Thực ra phải đọc progress từ Firebase — nhưng ta có thể estimate từ orderOrders
     // Cách đúng: đọc round/progress trực tiếp, hoặc dựa vào completedOrders

@@ -24,13 +24,24 @@ void main() {
         BartenderConfig.backend = BartenderBackend.fake;
         addTearDown(() => BartenderConfig.backend = previous);
         await tester.pumpWidget(const NhomBarApp(home: LobbyScreen()));
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 400)),
-        );
-        await tester.pump();
-
         final bartender = find.byWidgetPredicate(
           (widget) => widget is LobbyObject && widget.label == 'Quầy Bartender',
+        );
+        // Asset decoding uses real I/O; wait for readiness instead of a fixed delay.
+        for (
+          var attempt = 0;
+          attempt < 100 && bartender.evaluate().isEmpty;
+          attempt++
+        ) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 50)),
+          );
+          await tester.pump();
+        }
+        expect(
+          bartender,
+          findsOneWidget,
+          reason: 'Lobby did not finish loading its assets',
         );
         // Exercise the real route callback; projected object hit areas need a GPU/device.
         tester.widget<LobbyObject>(bartender).onTap!();

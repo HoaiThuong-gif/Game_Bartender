@@ -19,7 +19,6 @@ import 'room_repository.dart';
 
 /// Bản triển khai trong bộ nhớ (in-memory) của [RoomRepository].
 ///
-/// Dùng cho giai đoạn phát triển local (bước 1-3 trong DEVELOPMENT.md)
 /// và chạy thử toàn bộ vòng lặp trận đấu trên một máy duy nhất.
 ///
 /// Tự động mô phỏng các người chơi bot để tạo trải nghiệm cộng tác

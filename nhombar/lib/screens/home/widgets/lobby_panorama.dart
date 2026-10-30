@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -5,6 +6,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../lobby_layout.dart';
+
+ui.FragmentProgram? _cachedProgram;
+Future<ui.FragmentProgram>? _loadingProgram;
+
+/// Cache the compiled program; share only an in-progress compilation.
+Future<ui.FragmentProgram> get lobbyShaderProgram async {
+  if (_cachedProgram != null) return _cachedProgram!;
+  final pending = _loadingProgram ??= ui.FragmentProgram.fromAsset(
+    'shaders/lobby_panorama.frag',
+  );
+  try {
+    return _cachedProgram = await pending;
+  } finally {
+    if (identical(_loadingProgram, pending)) _loadingProgram = null;
+  }
+}
 
 /// One camera drives both the inverse panorama shader and forward actor planes.
 class LobbyCamera extends InheritedWidget {
@@ -218,6 +235,7 @@ class _LobbyPanoramaState extends State<LobbyPanorama>
   ui.Image? _image;
   ui.FragmentShader? _shader;
   Object? _error;
+  int _loadVersion = 0;
   double _yaw = 0, _pitch = -.28, _fov = 75 * math.pi / 180;
   double _startFov = 0;
   Size _viewport = Size.zero;
@@ -258,60 +276,59 @@ class _LobbyPanoramaState extends State<LobbyPanorama>
   }
 
   Future<void> _load() async {
+    final version = ++_loadVersion;
+    ui.Image? pending;
+    ui.FragmentShader? pendingShader;
     try {
-      final program = await ui.FragmentProgram.fromAsset(
-        'shaders/lobby_panorama.frag',
-      );
+      final program = await lobbyShaderProgram;
       final data = await rootBundle.load(LobbyLayout.backgroundAsset);
-      final buffer = await ui.ImmutableBuffer.fromUint8List(
+      final codec = await ui.instantiateImageCodec(
         data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
       );
-      final descriptor = await ui.ImageDescriptor.encoded(buffer);
-      final encoded = Size(
-        descriptor.width.toDouble(),
-        descriptor.height.toDouble(),
-      );
-      final codec = await descriptor.instantiateCodec();
-      late ui.Image image;
       try {
-        image = (await codec.getNextFrame()).image;
+        pending = (await codec.getNextFrame()).image;
       } finally {
         codec.dispose();
-        descriptor.dispose();
-        buffer.dispose();
       }
-      if (!mounted) {
-        image.dispose();
-        return;
-      }
+      if (!mounted || version != _loadVersion) return;
+      pendingShader = program.fragmentShader();
+      final previousImage = _image, previousShader = _shader;
       final info =
-          'source=${encoded.width.toInt()}x${encoded.height.toInt()} '
-          'decoded=${image.width}x${image.height} bilinear/no mipmap';
-      debugPrint('[LobbyPanorama] $info');
+          'source=${pending.width}x${pending.height} decoded=${pending.width}x${pending.height} bilinear/no mipmap';
       widget.controller?.imageInfo = info;
-      try {
-        final gpu = await const MethodChannel('meomeo/lobby')
-            .invokeMapMethod<String, dynamic>('gpuInfo');
-        final gpuInfo =
-            'GL_MAX_TEXTURE_SIZE=${gpu?['maxTextureSize']} ${gpu?['renderer']}';
-        debugPrint('[LobbyPanorama] $gpuInfo');
-        widget.controller?.gpuInfo = gpuInfo;
-      } on PlatformException catch (error) {
-        debugPrint('[LobbyPanorama] GPU query unavailable: ${error.message}');
-      } on MissingPluginException {
-        debugPrint('[LobbyPanorama] GPU query not supported on this platform');
-      }
-      if (!mounted) {
-        image.dispose();
-        return;
-      }
       setState(() {
-        _image = image;
-        _shader = program.fragmentShader();
+        _image = pending;
+        _shader = pendingShader;
+        _error = null;
       });
+      pending = null;
+      pendingShader = null;
+      previousShader?.dispose();
+      previousImage?.dispose();
+      debugPrint('[LobbyPanorama] $info');
+      // Diagnostics must not delay showing the decoded scene.
+      unawaited(_readGpuInfo());
     } catch (error) {
-      if (mounted) setState(() => _error = error);
+      if (mounted && version == _loadVersion) setState(() => _error = error);
+    } finally {
+      pendingShader?.dispose();
+      pending?.dispose();
     }
+  }
+
+  Future<void> _readGpuInfo() async {
+    try {
+      final gpu = await const MethodChannel('meomeo/lobby')
+          .invokeMapMethod<String, dynamic>('gpuInfo')
+          .timeout(const Duration(seconds: 3));
+      if (mounted) {
+        widget.controller?.gpuInfo =
+            'GL_MAX_TEXTURE_SIZE=${gpu?['maxTextureSize']} ${gpu?['renderer']}';
+      }
+    } on PlatformException catch (_) {
+      // Rendering does not depend on the optional native diagnostic.
+    } on MissingPluginException catch (_) {
+    } on TimeoutException catch (_) {}
   }
 
   void _move(Offset delta, Size size) {

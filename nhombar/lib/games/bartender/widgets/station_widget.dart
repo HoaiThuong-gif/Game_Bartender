@@ -10,7 +10,6 @@ import '../services/shake_detector.dart';
 
 /// Hiển thị trạm chế biến được phân cho người chơi trong round hiện tại.
 ///
-/// Xem PROJECT_SPEC.md & DECISIONS.md D5 & D6:
 /// - Màn hình của mỗi người chỉ hiển thị MỘT trạm cố định cho round đó.
 /// - Có thể không có trạm nào (null) — lúc này người chơi đóng vai trò điều phối/chuyền đồ.
 /// - Trạm shaker sử dụng cảm biến lắc điện thoại (sensors_plus).

@@ -4,7 +4,6 @@ import 'station.dart';
 
 /// Tập công thức tĩnh của game — 5 công thức từ dễ đến khó.
 ///
-/// Xem PROJECT_SPEC.md: "3 đến 5 công thức" và DECISIONS.md D7:
 /// "Tập cố định 3-5 công thức, độ khó tăng dần theo round."
 ///
 /// Difficulty 1 = chỉ cần 1 nguyên liệu, 1 bước, 1 trạm.
@@ -120,7 +119,6 @@ class RecipePool {
   /// Round 2: difficulty 1-2.
   /// Round 3+: tất cả.
   ///
-  /// Xem DECISIONS.md D7: "round đầu chỉ rút từ công thức dễ;
   /// round sau rút từ tập bao gồm cả công thức khó hơn."
   static List<Recipe> recipesForRound(int roundNumber) {
     // maxDifficulty tăng dần: round 1→1, round 2→2, round 3+→3.

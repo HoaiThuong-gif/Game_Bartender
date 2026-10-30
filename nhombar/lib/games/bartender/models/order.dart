@@ -1,7 +1,6 @@
 /// Một đơn hàng được giao cho người chơi trong một round.
 ///
 /// Khớp với schema Firebase: rooms/{code}/orders/{playerId}/{orderId}/
-/// Xem API.md cho chi tiết các trường.
 class Order {
   const Order({
     required this.id,
@@ -27,7 +26,6 @@ class Order {
     return Order(id: id, recipeId: recipeId, status: status ?? this.status);
   }
 
-  /// Chuyển thành JSON map khớp với API.md.
   Map<String, dynamic> toJson() => {
     'id': id,
     'recipeId': recipeId,
@@ -60,7 +58,6 @@ class Order {
   int get hashCode => Object.hash(id, recipeId, status);
 }
 
-/// Trạng thái đơn hàng. Khớp với trường "status" trong API.md.
 enum OrderStatus {
   /// Đang chờ hoàn thành.
   pending,

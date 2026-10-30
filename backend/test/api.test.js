@@ -8,9 +8,9 @@ const { createServer } = require('../src/server');
 const { Store } = require('../src/store');
 const bartender = require('../src/bartender');
 
-async function fixture(t) {
+async function fixture(t, store = new Store()) {
   let now = Date.now();
-  const store = new Store(), server = createServer({ store, clock: () => now });
+  const server = createServer({ store, clock: () => now });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   t.after(() => new Promise(resolve => { server.closeAllConnections(); server.close(resolve); }));
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -24,6 +24,26 @@ async function fixture(t) {
   return { request, session, store, base, advance: ms => { now += ms; } };
 }
 
+test('HTTP room create/read/update/delete persists in an isolated JSON store', async t => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'nhombar-http-store-'));
+  const file = path.join(folder, 'state.json');
+  const { request, session } = await fixture(t, new Store(file));
+  t.after(() => { assert.equal(path.dirname(folder), os.tmpdir()); fs.rmSync(folder, { recursive:true, force:true }); });
+  const host = await session('Sinh vien'), guest = await session('Sinh vien');
+  assert.notEqual(host.uid, guest.uid);
+  const created = await request('POST', '/api/v1/rubik/rooms', {}, host.token);
+  assert.equal(created.status, 201);
+  const route = `/api/v1/rubik/rooms/${created.data.code}`;
+  assert.equal((await request('GET', route, undefined, host.token)).status, 200);
+  assert.equal((await request('POST', `${route}/join`, {}, guest.token)).status, 200);
+  assert.equal(Object.keys(new Store(file).data.rubik[created.data.code].players).length, 2);
+  for (const player of [guest,host]) {
+    assert.equal((await request('POST', `${route}/commands`, {action:'leave',round:1}, player.token)).status, 200);
+  }
+  assert.equal(new Store(file).data.rubik[created.data.code], undefined);
+  assert.equal((await request('GET', route, undefined, host.token)).status, 404);
+});
+
 test('Swagger, schemas, validation and authentication are available over HTTP', async t => {
   const { request, base } = await fixture(t);
   assert.equal((await request('GET', '/api/v1/health')).status, 200);
@@ -33,7 +53,15 @@ test('Swagger, schemas, validation and authentication are available over HTTP', 
   assert.equal(spec.openapi, '3.0.3');
   assert.ok(spec.components.schemas.BartenderRoom.properties.inbox);
   assert.ok(spec.paths['/api/v1/rubik/rooms/{code}/commands']);
+  assert.deepEqual(spec.paths['/api/v1/account/session'].get.security, [{ firebaseAuth: [] }]);
+  assert.deepEqual(spec.paths['/api/v1/account/resume'].post.security, []);
+  assert.ok(spec.paths['/api/v1/account/challenge'].post.responses['503']);
+  assert.ok(spec.paths['/api/v1/account/verify'].post.responses['429']);
+  assert.equal(spec.paths['/api/v1/account/verify'].post.requestBody.content['application/json'].schema.properties.code.pattern, '^[0-9]{6}$');
+  const proxied = await fetch(`${base}/openapi.json`, { headers: { 'Host': 'teacher.example', 'X-Forwarded-Proto': 'https' } });
+  assert.equal((await proxied.json()).servers[0].url, '/');
   assert.match(await (await fetch(`${base}/docs`)).text(), /SwaggerUIBundle/);
+  assert.match(await (await fetch(`${base}/docs`)).text(), /persistAuthorization:false/);
   assert.equal((await fetch(`${base}/docs/swagger-ui-bundle.js`)).status, 200);
 });
 

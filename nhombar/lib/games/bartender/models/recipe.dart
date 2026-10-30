@@ -23,11 +23,9 @@ class RecipeStep {
 /// Mỗi công thức có:
 /// - Danh sách nguyên liệu cần thu thập.
 /// - Danh sách các bước chế biến (mỗi bước gắn với một trạm).
-/// - Độ khó (difficulty) để phân theo round — xem DECISIONS.md D7.
 /// - [productId]: ID của sản phẩm cuối cùng dùng để khớp khi nộp đơn.
 ///
 /// Công thức là dữ liệu tĩnh, đóng gói trong app, không lưu trên Firebase.
-/// Firebase chỉ lưu recipeId (xem API.md).
 ///
 /// D16: Không có công thức nào cần quá 3 loại trạm khác nhau.
 class Recipe {
@@ -53,7 +51,6 @@ class Recipe {
   final List<RecipeStep> steps;
 
   /// Độ khó: 1 = dễ nhất (round đầu), số lớn hơn = khó hơn.
-  /// Xem DECISIONS.md D7: round đầu chỉ rút từ pool dễ, round sau mở rộng.
   final int difficulty;
 
   /// ID của sản phẩm cuối cùng khi hoàn thành công thức.
@@ -64,7 +61,6 @@ class Recipe {
   final String productId;
 
   /// Số loại trạm khác nhau cần để làm công thức này.
-  /// Xem DECISIONS.md D16: không quá 3.
   int get distinctStationCount => steps.map((s) => s.station).toSet().length;
 
   @override

@@ -4,10 +4,8 @@ import 'station.dart';
 
 /// Phân công trạm chế biến ngẫu nhiên cho mỗi round.
 ///
-/// Xem PROJECT_SPEC.md mục "Trạm chế biến":
 /// "Mỗi round, trạm được phân ngẫu nhiên cho người chơi."
 ///
-/// Xem DECISIONS.md D5:
 /// "Chấp nhận việc hai người cùng loại trạm hoặc một người không có trạm nào,
 /// kể cả khi chỉ 2-4 người."
 ///
@@ -33,14 +31,12 @@ class StationAssigner {
 
     // Mỗi người chơi được gán ngẫu nhiên một trạm từ pool.
     // Có thể trùng (2 người cùng trạm) hoặc thiếu (không phải
-    // mọi loại trạm đều được dùng) — đúng theo DECISIONS.md D5.
     final assignment = <int, StationType?>{};
     for (var i = 0; i < playerCount; i++) {
       // Mỗi người có xác suất (stations.length / (stations.length + 1))
       // được gán trạm. Còn lại = không có trạm (null).
       // Ví dụ: 4 trạm → 80% có trạm, 20% không.
       // Điều này tạo ra khả năng "không có trạm" được đề cập
-      // trong DECISIONS.md D5.
       final roll = rng.nextInt(stations.length + 1);
       if (roll < stations.length) {
         assignment[i] = stations[roll];

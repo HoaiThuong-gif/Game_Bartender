@@ -7,7 +7,6 @@ import '../models/station.dart';
 /// Các controller và widgets chỉ phụ thuộc vào interface này,
 /// không bao giờ phụ thuộc trực tiếp vào Firebase hay Fake implementation.
 ///
-/// Xem ARCHITECTURE.md mục "Các lớp nội bộ":
 /// - [FakeRoomRepository]: in-memory, dùng cho local dev và single-device loop.
 /// - [FirebaseRoomRepository]: RTDB thật cho multi-device play (giai đoạn 5).
 /// Trạng thái kết nối của repository với máy chủ hoặc backend.

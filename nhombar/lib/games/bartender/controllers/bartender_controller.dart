@@ -19,7 +19,6 @@ export '../services/room_repository.dart' show RoomConnectionState;
 /// Quản lý trạng thái trận đấu Bartender và giao tiếp giữa UI và RoomRepository.
 ///
 /// Tuân theo mẫu ChangeNotifier của Flutter (tương tự CubeInputController bên Rubik).
-/// Xem ARCHITECTURE.md: "controllers/ Round/timer state management — reads/writes via RoomRepository,
 /// exposes state to widgets".
 ///
 /// Tự động chọn repository dựa theo [BartenderConfig.useFakeRepository]:

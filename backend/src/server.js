@@ -79,7 +79,7 @@ function createServer({ store = new Store(process.env.DATA_FILE || path.join(__d
       if (req.method === 'GET' && url.pathname === '/openapi.json') return reply(200, openapi);
       if (req.method === 'GET' && ['/', '/docs', '/docs/'].includes(url.pathname)) {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end('<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Nhóm Bar API</title><link rel="stylesheet" href="/docs/swagger-ui.css"></head><body><div id="swagger-ui"></div><script src="/docs/swagger-ui-bundle.js"></script><script>SwaggerUIBundle({url:"/openapi.json",dom_id:"#swagger-ui",persistAuthorization:true,validatorUrl:null})</script></body></html>'); return;
+        res.end('<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Nhóm Bar API</title><link rel="stylesheet" href="/docs/swagger-ui.css"></head><body><div id="swagger-ui"></div><script src="/docs/swagger-ui-bundle.js"></script><script>SwaggerUIBundle({url:"/openapi.json",dom_id:"#swagger-ui",persistAuthorization:false,validatorUrl:null,tryItOutEnabled:true,displayRequestDuration:true})</script></body></html>'); return;
       }
       if (req.method === 'GET' && ['/docs/swagger-ui.css', '/docs/swagger-ui-bundle.js'].includes(url.pathname)) {
         const file = path.join(require('swagger-ui-dist').absolutePath(), path.basename(url.pathname));

@@ -2,9 +2,7 @@
 /// hoặc sản phẩm đã (đang) chế biến.
 ///
 /// Vật phẩm được chuyền giữa người chơi bằng vuốt trái/phải,
-/// hoặc bỏ vào thùng rác. Xem PROJECT_SPEC.md mục "Nguyên liệu & vật phẩm".
 ///
-/// Trên Firebase, item nằm trong inbox/{ringIndex}/{itemId}/ — xem API.md.
 class GameItem {
   const GameItem({
     required this.id,
@@ -25,7 +23,6 @@ class GameItem {
   /// Vị trí ring của người gửi (để UI có thể hiện "nhận từ ai").
   final int fromRingIndex;
 
-  /// Chuyển thành JSON map khớp với API.md.
   Map<String, dynamic> toJson() => {
     'id': id,
     'type': type.name,
@@ -62,7 +59,6 @@ class GameItem {
 }
 
 /// Phân biệt nguyên liệu thô và sản phẩm đã/đang chế biến.
-/// Khớp với trường "type" trong API.md schema inbox.
 enum GameItemType {
   /// Nguyên liệu thô, chưa qua chế biến.
   ingredient,

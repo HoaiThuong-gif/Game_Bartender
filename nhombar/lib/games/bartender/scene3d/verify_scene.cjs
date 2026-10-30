@@ -13,7 +13,7 @@ const fixture = (station='juicer', round=1) => ({station,stationName:{juicer:'MÃ
   items:['orange','lemon','strawberry','milk','ice','sugar','orange_juice','lemon_juice'].map((kind,i)=>({id:`item${i}`,kind,processable:i<2})),
   orders:[{id:'order1',product:'orange_juice'},{id:'order2',product:'lemon_juice'}]});
 async function main(){
-  const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true,
+  const browser=await chromium.launch({executablePath:process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true,
     args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
   const page=await browser.newPage({viewport:{width:920,height:470}});
   const errors=[],requests=[];page.on('pageerror',e=>errors.push(String(e)));page.on('request',r=>requests.push(r.url()));

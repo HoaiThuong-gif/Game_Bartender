@@ -6,7 +6,6 @@ import 'station.dart';
 
 /// Kết quả của một lần tạo phân trạm + đơn cho một round.
 ///
-/// Xem DECISIONS.md D15: phân trạm ngẫu nhiên nhưng đảm bảo round luôn làm được.
 /// Hàm thuần — không phụ thuộc Firebase, dùng chung cho Fake và Firebase.
 class RoundSetup {
   const RoundSetup({
