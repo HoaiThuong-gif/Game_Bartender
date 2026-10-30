@@ -12,3 +12,12 @@ macos/
 node_modules/
 artifacts/
 *.log
+**/.dart_tool/
+**/node_modules/
+**/build/
+**/.scan-runtime/
+**/.yolo-runtime/
+backend/data/
+backend/.env
+nhombar/lib/firebase_options.dart
+nhombar/android/app/google-services.json

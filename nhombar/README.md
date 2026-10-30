@@ -23,6 +23,8 @@ không cần chạy sẵn backend. Assets và lệnh npm build Rubik nằm tại
 
 Tên package Dart vẫn là `nhom_bar`, Android applicationId vẫn là
 `com.example.nhom_bar`; chỉ vị trí thư mục frontend đổi thành `nhombar/`.
-Firebase trong frontend là tích hợp cũ; online mới dùng HTTP API.
+Firebase Authentication vẫn quản lý đăng nhập; Firestore/Storage lưu hồ sơ và
+ảnh đại diện. Game online mặc định dùng HTTP API Node.js, không dùng Firebase
+Realtime Database. Sao chép cấu hình Firebase theo README gốc trước khi chạy.
 Xem [hướng dẫn dự án](../README.md) và
 [kết nối server quét](../backend/tools/SCAN_CONNECTIONS.md).

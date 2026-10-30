@@ -3,9 +3,9 @@ import 'package:test/test.dart';
 
 import '../src/exceptions.dart';
 import '../src/room_service.dart';
-import '../../nhombar/lib/games/bartender/models/game_item.dart';
-import '../../nhombar/lib/games/bartender/models/room.dart';
-import '../../nhombar/lib/games/bartender/models/station.dart';
+import '../../../nhombar/lib/games/bartender/models/game_item.dart';
+import '../../../nhombar/lib/games/bartender/models/room.dart';
+import '../../../nhombar/lib/games/bartender/models/station.dart';
 
 void main() {
   group('RoomService Game Rules', () {

@@ -29,6 +29,8 @@ src/openapi.js     Hợp đồng API, schema request/response, Swagger
 test/api.test.js   Kiểm thử HTTP, nhiều người, luật chơi, lưu dữ liệu
 data/state.json   Dữ liệu runtime tự tạo, không commit
 tools/            Server quét 3D Python, công cụ kết nối và kiểm thử
+vision/           API nhận diện ảnh YOLO, môi trường Python riêng
+bartender_ws/     Module Dart HTTP/WebSocket gốc của Zhoufen, không phải API mặc định
 firebase/         Cloud Functions và cấu hình Firebase cũ (không cần cho REST API)
 ```
 
@@ -53,6 +55,31 @@ Chạy từ folder lớn: `.\backend\tools\start-scan-server.ps1` hoặc mở
 gọi GET với từng token trong vòng 30 giây hoặc mở hai app để giữ heartbeat.
 Swagger không tự polling. Bartender cần 2–4 người; Rubik cần 2 người.
 Backend không tự thêm bot vào phòng online.
+
+## Module Dart HTTP/WebSocket tùy chọn
+
+Mã nguồn trước đây ở `server/` nằm trong `backend/bartender_ws/`. Module này
+giữ hợp đồng `/rooms` và WebSocket của Zhoufen, trong khi app mặc định dùng
+Node.js `/api/v1`. Không chạy hai server cho cùng một phòng; chúng không dùng
+chung dữ liệu. Firebase Authentication/hồ sơ của app vẫn được cấu hình riêng.
+Module dùng chung các model Dart thuần tại `nhombar/lib/games/bartender/models/`;
+không sao chép một bộ model thứ hai hoặc yêu cầu Flutter để chạy server Dart.
+
+Nếu cần phát triển hoặc kiểm tra riêng module Dart, tại thư mục gốc chạy:
+
+```powershell
+cd backend/bartender_ws
+dart pub get
+dart test
+dart run bin/server.dart
+```
+
+Health của module là http://127.0.0.1:8080/health. Lệnh chạy trên dùng dữ liệu
+trong bộ nhớ, khác kho JSON của Node.js; không thay đổi `API_BASE_URL` của app
+nếu chưa dùng đúng adapter `ZhoufenApiRoomRepository`.
+
+Docker build dùng context là thư mục gốc dự án, vì module dùng chung model Dart
+với frontend: `docker build -f backend/bartender_ws/Dockerfile .`.
 
 ## Cấu hình và giới hạn
 

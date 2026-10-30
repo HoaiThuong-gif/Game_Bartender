@@ -1,12 +1,14 @@
 @echo off
+setlocal
+cd /d "%~dp0"
 :: =====================================================================
-:: setup_firebase.bat — Hướng dẫn từng bước cài Firebase cho Bartender
+:: setup_firebase.bat — Cấu hình Firebase cho ứng dụng Nhóm Bar
 :: Chạy file này bằng cách double-click hoặc từ Command Prompt
 :: =====================================================================
 
 echo.
 echo ========================================
-echo   BARTENDER — FIREBASE SETUP SCRIPT
+echo   NHOM BAR — FIREBASE SETUP SCRIPT
 echo ========================================
 echo.
 echo Tat ca cac buoc duoi day phai duoc thuc hien theo thu tu.
@@ -14,7 +16,7 @@ echo.
 
 :: --- BUOC 1: Kiem tra Firebase CLI ---
 echo [1/5] Kiem tra Firebase CLI...
-firebase --version
+call firebase --version
 IF %ERRORLEVEL% NEQ 0 (
     echo THAT BAI: Firebase CLI chua duoc cai. Chay: npm install -g firebase-tools
     pause
@@ -26,7 +28,7 @@ echo.
 :: --- BUOC 2: Dang nhap Firebase ---
 echo [2/5] Dang nhap Firebase (se mo trinh duyet)...
 echo Dang nhap bang Google account cua nhom.
-firebase login
+call firebase login
 IF %ERRORLEVEL% NEQ 0 (
     echo THAT BAI: Dang nhap that bai.
     pause
@@ -50,14 +52,14 @@ echo.
 echo [4/5] Chay flutterfire configure...
 echo.
 echo Khi duoc hoi:
-echo   - Chon hoac tao Firebase project (ten goi y: nhom-bar-game)
+echo   - Dung Firebase project nhom-bar da co, khong tao project khac
 echo   - Chon nen tang: Android (bat buoc), iOS (tuy chon)
 echo   - Xac nhan tao file firebase_options.dart va google-services.json
 echo.
-call "%LOCALAPPDATA%\Pub\Cache\bin\flutterfire.bat" configure --project=nhom-bar-game --platforms=android
+call "%LOCALAPPDATA%\Pub\Cache\bin\flutterfire.bat" configure --project=nhom-bar --platforms=android
 IF %ERRORLEVEL% NEQ 0 (
     echo THAT BAI: flutterfire configure gap loi.
-    echo Thu lai khong co --project flag: flutterfire configure
+    echo Kiem tra quyen truy cap project nhom-bar, khong doi sang project khac.
     pause
     exit /b 1
 )
@@ -84,12 +86,10 @@ echo   HOAN THANH! Tiep theo:
 echo ========================================
 echo.
 echo 1. Mo Firebase Console: https://console.firebase.google.com
-echo 2. Vao project "nhom-bar-game" ^> Build ^> Realtime Database
-echo 3. Bam "Create Database" ^> chon "Start in test mode"
-echo 4. Copy database URL (dang: nhom-bar-game-default-rtdb.firebaseio.com)
-echo 5. Bao lai coding agent: "Firebase setup xong, database URL la: ..."
+echo 2. Vao project "nhom-bar" ^> Build ^> Realtime Database
+echo 3. Bat Email/Password va Google trong Authentication.
+echo 4. Kiem tra Firestore/Storage Rules theo UID; khong mo quyen test toan bo.
+echo 5. Bartender/Rubik online van dung API Node.js trong backend.
 echo.
-echo Sau do:
-echo 6. Doi BartenderConfig.useFakeRepository = false de dung Firebase that
-echo.
+echo Huong dan day du: ..\README.md
 pause

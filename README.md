@@ -8,6 +8,7 @@ nhom_bar/
 ├── AGENTS.md                  Quy tắc làm việc chung
 ├── backend/
 │   ├── src/                   API game Node.js
+│   ├── bartender_ws/          Module HTTP/WebSocket Dart của Zhoufen (tùy chọn)
 │   ├── tools/                 Máy xử lý quét 3D Python
 │   ├── vision/                API nhận diện YOLO Python
 │   └── firebase/              Backend Firebase game cũ, không cần chạy cho API HTTP
@@ -23,6 +24,13 @@ nhom_bar/
 Ba dịch vụ chạy riêng. Chỉ mở dịch vụ cần dùng; không cài thư viện YOLO vào môi
 trường máy quét 3D. Trong các bước dưới, mỗi terminal mới bắt đầu ở thư mục gốc
 `nhom_bar/`, trừ chỗ có lệnh `cd` khác.
+
+`nhombar/` là Flutter project duy nhất. Màn hình chờ mèo và asset nằm tại
+`nhombar/lib/shared/widgets/cozy_loading.dart` và `nhombar/assets/loading/`.
+Thư mục con `source/` giữ asset nguồn của mèo, không được đóng gói thêm lần nữa.
+`backend/bartender_ws/` giữ giao thức HTTP/WebSocket gốc của Zhoufen; không cần
+chạy module này cho cấu hình Node.js mặc định bên dưới. Không chuyển URL Node.js
+sang cổng 8080 vì hai module có hợp đồng API khác nhau.
 
 ## 1. Chuẩn bị môi trường
 
@@ -63,7 +71,7 @@ py -3.11 --version
 Chạy trong thư mục bạn muốn chứa dự án:
 
 ```powershell
-git clone https://github.com/HoaiThuong-gif/Game_Bartender.git nhom_bar
+git clone --branch Thuong https://github.com/HoaiThuong-gif/Game_Bartender.git nhom_bar
 cd nhom_bar
 ```
 
@@ -181,6 +189,26 @@ và máy kia nhập mã. Giữ các terminal server đang cần dùng mở.
 Nếu rút/cắm lại cáp hoặc khởi động lại ADB, thực hiện lại các lệnh reverse.
 Khi sửa phần Android/native hoặc thay cấu hình Firebase, dừng rồi chạy lại app;
 hot reload không cập nhật được phần đó.
+
+Trong Lobby, nhấn avatar góc trên trái để mở hồ sơ, cài đặt, màu/cỡ chữ hoặc
+chỉnh bố cục. Bartender dùng giao diện 3D và quay về giao diện nhẹ nếu cảnh 3D
+không khởi tạo được. Mèo chờ chỉ xuất hiện khi có tác vụ tải/xử lý thật.
+
+Các bundle WebView đã được lưu trong Git; không cần npm ở frontend chỉ để chạy
+Flutter. Khi sửa JavaScript của Rubik, Bartender hoặc mèo, mở terminal tại
+`nhombar/` và đóng gói lại phần vừa sửa:
+
+```powershell
+npm.cmd ci
+npm.cmd run build:rubik
+npm.cmd run build:rubik-toy
+npm.cmd run build:cozy-cat
+node lib/games/bartender/scene3d/build_scene.cjs
+```
+
+Để kiểm tra mã nguồn, tại `nhombar/` chạy `flutter analyze` và `flutter test`;
+tại `backend/` chạy `npm.cmd test`. Test API tự khởi động server trên cổng tạm
+và không cần sửa/xóa dữ liệu đang lưu trong `backend/data/`.
 
 ## 6. Nhận diện đồ vật YOLO — tùy chọn
 
