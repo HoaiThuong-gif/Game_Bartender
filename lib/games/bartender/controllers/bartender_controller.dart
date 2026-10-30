@@ -176,10 +176,15 @@ class BartenderController extends ChangeNotifier {
     }
   }
 
-  /// Bắt đầu trận đấu.
+  /// Bắt đầu trận đấu (chỉ chủ phòng myRingIndex == 0 mới có quyền).
   Future<void> startMatch() async {
     final code = _room?.code;
     if (code == null) return;
+    if (myRingIndex != 0) {
+      _errorMessage = 'Chỉ chủ phòng mới có thể bắt đầu trận đấu.';
+      notifyListeners();
+      return;
+    }
     _setBusy(true);
     _clearMessages();
     try {

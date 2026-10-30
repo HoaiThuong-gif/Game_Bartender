@@ -83,6 +83,12 @@ class FirebaseRoomRepository implements RoomRepository {
   /// Stream controllers theo từng room code.
   final Map<String, StreamController<Room>> _streamControllers = {};
 
+  /// Timer spawn nguyên liệu định kỳ theo từng room code.
+  final Map<String, Timer> _spawnTimers = {};
+
+  /// Cache Room mới nhất theo từng room code (dùng cho timer spawn).
+  final Map<String, Room> _latestRooms = {};
+
   @override
   String get localPlayerId {
     final uid = _myUid;
@@ -304,6 +310,8 @@ class FirebaseRoomRepository implements RoomRepository {
         .ref('$_roomsRoot/$code/players/$playerId')
         .onDisconnect()
         .cancel();
+    _stopSpawnTimer(code);
+    _latestRooms.remove(code);
   }
 
   @override
@@ -315,6 +323,18 @@ class FirebaseRoomRepository implements RoomRepository {
     if (roomData['status'] != 'lobby') return;
 
     final playersData = asMap(roomData['players']);
+
+    // Chỉ chủ phòng (ringIndex == 0) mới có quyền bắt đầu trận đấu
+    final uid = _myUid ?? _auth.currentUser?.uid;
+    if (uid != null && playersData.containsKey(uid)) {
+      final callerRing = asMap(playersData[uid])['ringIndex'] as int? ?? -1;
+      if (callerRing != 0) {
+        debugPrint(
+          'startMatch bị từ chối: caller $uid có ringIndex $callerRing != 0 (không phải host).',
+        );
+        return;
+      }
+    }
 
     // Chỉ tính người connected (D13: ring = số người connected khi bắt đầu)
     final connectedPlayers = {
@@ -423,7 +443,6 @@ class FirebaseRoomRepository implements RoomRepository {
     await _db.ref().update(updates);
 
     // Gán onDisconnect cho host (để bắt kết nối mất sau khi start)
-    final uid = _myUid;
     if (uid != null) {
       await _db.ref('$_roomsRoot/$code/players/$uid').onDisconnect().update({
         'connected': false,
@@ -443,6 +462,8 @@ class FirebaseRoomRepository implements RoomRepository {
       onCancel: () {
         _subs[code]?.cancel();
         _subs.remove(code);
+        _stopSpawnTimer(code);
+        _latestRooms.remove(code);
         _streamControllers[code]?.close();
         _streamControllers.remove(code);
       },
@@ -457,11 +478,16 @@ class FirebaseRoomRepository implements RoomRepository {
         if (!event.snapshot.exists) return;
         try {
           final room = _parseRoom(code, asMap(event.snapshot.value));
+          _latestRooms[code] = room;
           ctrl.add(room);
 
-          // Kiểm tra chuyển round khi đang playing (D17: không host)
+          // Quản lý timer spawn nguyên liệu định kỳ (mỗi 3s)
           if (room.status == RoomStatus.playing) {
+            _startSpawnTimerIfNeeded(code);
+            // Kiểm tra chuyển round khi đang playing (D17: không host)
             _checkAndTryAdvanceRound(room);
+          } else {
+            _stopSpawnTimer(code);
           }
 
           // Nếu đang playing mà < 2 connected: kết thúc trận (D14)
@@ -485,6 +511,54 @@ class FirebaseRoomRepository implements RoomRepository {
     );
 
     return ctrl.stream;
+  }
+
+  /// Khởi động timer spawn nguyên liệu mỗi 3s nếu chưa chạy.
+  void _startSpawnTimerIfNeeded(String code) {
+    if (_spawnTimers.containsKey(code)) return;
+
+    _spawnTimers[code] = Timer.periodic(
+      const Duration(seconds: BartenderConfig.ingredientSpawnIntervalSeconds),
+      (_) => _spawnIngredientForMyRing(code),
+    );
+  }
+
+  /// Dừng timer spawn nguyên liệu.
+  void _stopSpawnTimer(String code) {
+    _spawnTimers[code]?.cancel();
+    _spawnTimers.remove(code);
+  }
+
+  /// Cấp nguyên liệu ngẫu nhiên cho khay của người chơi trên máy này.
+  ///
+  /// Mỗi máy chỉ ghi vào khay của chính mình (inbox/$myRing), đảm bảo không race condition
+  /// và không phụ thuộc vào máy khác. Chỉ cấp nếu khay chưa đầy (< 5 món).
+  Future<void> _spawnIngredientForMyRing(String code) async {
+    final room = _latestRooms[code];
+    if (room == null || room.status != RoomStatus.playing) return;
+
+    final uid = _myUid ?? _auth.currentUser?.uid;
+    if (uid == null) return;
+    final me = room.players[uid];
+    if (me == null || !me.connected) return;
+
+    final myRing = me.ringIndex;
+    final currentItems = room.inbox[myRing] ?? const [];
+    if (currentItems.length >= 5) return;
+
+    const ingredients = ['orange', 'lemon', 'strawberry', 'ice'];
+    final chosen = ingredients[_rng.nextInt(ingredients.length)];
+    final itemId = 'spw_${myRing}_${DateTime.now().microsecondsSinceEpoch}';
+
+    try {
+      await _inboxRef(code, myRing).child(itemId).set({
+        'type': 'ingredient',
+        'itemId': chosen,
+        'fromRingIndex': myRing,
+      });
+    } catch (e) {
+      debugPrint('Lỗi spawn ingredient cho ring $myRing: $e');
+    }
   }
 
   /// Kiểm tra và thử chuyển round nếu tất cả người connected đã hoàn thành đơn.
@@ -1035,6 +1109,11 @@ class FirebaseRoomRepository implements RoomRepository {
 
   @override
   void dispose() {
+    for (final timer in _spawnTimers.values) {
+      timer.cancel();
+    }
+    _spawnTimers.clear();
+    _latestRooms.clear();
     for (final sub in _subs.values) {
       sub.cancel();
     }

@@ -1,4 +1,7 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:nhom_bar/games/bartender/controllers/bartender_controller.dart';
+import 'package:nhom_bar/games/bartender/services/fake_room_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nhom_bar/main.dart';
 import 'package:nhom_bar/games/bartender/screens/bartender_lobby_screen.dart';
@@ -49,6 +52,8 @@ void main() {
         expect(find.text('Bạn 2'), findsOneWidget);
         expect(find.text('Bot'), findsNothing);
         expect(tester.takeException(), isNull);
+        expect(find.text('BẮT ĐẦU TRẬN ĐẤU!'), findsOneWidget);
+        expect(find.text('Đã đủ người! Đang chờ chủ phòng bắt đầu...'), findsNothing);
 
         await tester.tap(find.text('BẮT ĐẦU TRẬN ĐẤU!'));
         await tester.pump();
@@ -70,4 +75,34 @@ void main() {
       },
     );
   }
+
+    testWidgets('guest lobby shows waiting message instead of start button', (tester) async {
+      final hostRepo = FakeRoomRepository(rng: Random(100));
+      final hostRoom = await hostRepo.createRoom(hostPlayerName: 'Host', totalPlayers: 1);
+
+      final guestRepo = FakeRoomRepository(rng: Random(101));
+      guestRepo.emitRoomForTest(hostRoom);
+
+      final ctrl = BartenderController(repository: guestRepo);
+      await ctrl.joinRoom(code: hostRoom.code, playerName: 'Guest');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: BartenderLobbyScreen(controller: ctrl),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Đã đủ người! Đang chờ chủ phòng bắt đầu...'), findsOneWidget);
+      expect(find.text('BẮT ĐẦU TRẬN ĐẤU!'), findsNothing);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 50));
+
+      ctrl.dispose();
+      hostRepo.dispose();
+      guestRepo.dispose();
+    });
 }

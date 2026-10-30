@@ -21,6 +21,17 @@
 
 ## Đã xong / Done
 
+- **Phân quyền bắt đầu trận đấu & Cấp nguyên liệu định kỳ trên Firebase (2026-10-30):**
+  - **Chỉ chủ phòng mới được bắt đầu trận đấu:**
+    - Cập nhật giao diện `BartenderLobbyScreen`: Khi phòng đủ người (`canStart`), chỉ Host (`ctrl.myRingIndex == 0`) mới thấy nút "BẮT ĐẦU TRẬN ĐẤU!". Người chơi khác (khách) hiển thị dòng thông báo `'Đã đủ người! Đang chờ chủ phòng bắt đầu...'` cùng biểu tượng đồng hồ cát.
+    - Cập nhật `BartenderController.startMatch`: chặn người chơi không phải host (`myRingIndex != 0`), báo lỗi `'Chỉ chủ phòng mới có thể bắt đầu trận đấu.'`.
+    - Cập nhật `FirebaseRoomRepository.startMatch` và `FakeRoomRepository.startMatch`: chặn thực thi nếu caller không phải ringIndex 0 (host).
+  - **Cấp nguyên liệu định kỳ mỗi 3s trên Firebase (multiplayer):**
+    - `FirebaseRoomRepository` bổ sung logic spawn định kỳ (`_spawnTimers`, `_latestRooms`): khi `watchRoom` nhận trạng thái `playing`, tự động kích hoạt `Timer.periodic` mỗi 3s (`BartenderConfig.ingredientSpawnIntervalSeconds`).
+    - Mỗi thiết bị tự động kiểm tra khay của chính mình (`myRingIndex`) từ snapshot Firebase, nếu số item < 5 thì push 1 nguyên liệu ngẫu nhiên vào `inbox/$myRing`. Do mỗi client chỉ ghi vào khay của chính mình, đảm bảo không có race condition / xung đột dữ liệu giữa các máy.
+    - Dọn dẹp timer spawn an toàn khi round kết thúc, khi rời phòng (`leaveRoom`) hoặc khi stream cancel / dispose.
+  - Bộ unit test bổ sung trong `test/bartender_controller_test.dart` và `test/bartender_navigation_test.dart`: 207/207 test pass 100%, `flutter analyze` 0 lỗi 0 cảnh báo.
+
 - **Kích hoạt Firebase và gỡ bỏ hoàn toàn Bot (2026-10-30):**
   - Đổi `BartenderConfig.useFakeRepository = false` làm mặc định khi build/chạy trên máy thật để 2 thiết bị kết nối trực tiếp qua Firebase RTDB (`nhom-bar`).
   - Cấu hình `test/flutter_test_config.dart` tự bật `useFakeRepository = true` khi chạy test để toàn bộ 205 test offline vẫn pass 100%.

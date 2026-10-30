@@ -511,32 +511,55 @@ class _BartenderLobbyScreenState extends State<BartenderLobbyScreen> {
             ),
           ),
 
-          // Nút bắt đầu (chỉ host thấy khi đủ người)
+          // Nút bắt đầu: chỉ chủ phòng (ringIndex == 0) mới được bấm khi đủ người
           if (room.canStart)
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton.icon(
-                onPressed: ctrl.isBusy ? null : ctrl.startMatch,
-                icon: const Icon(Icons.play_arrow),
-                label: Text(
-                  ctrl.isBusy ? 'Đang bắt đầu...' : 'BẮT ĐẦU TRẬN ĐẤU!',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    letterSpacing: 1,
+            if (ctrl.myRingIndex == 0)
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: ctrl.isBusy ? null : ctrl.startMatch,
+                  icon: const Icon(Icons.play_arrow),
+                  label: Text(
+                    ctrl.isBusy ? 'Đang bắt đầu...' : 'BẮT ĐẦU TRẬN ĐẤU!',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.greenAccent,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 4,
                   ),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.greenAccent,
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  elevation: 4,
+              )
+            else
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.hourglass_top, color: Colors.amberAccent, size: 18),
+                    SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Đã đủ người! Đang chờ chủ phòng bắt đầu...',
+                        style: TextStyle(
+                          color: Colors.amberAccent,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            )
+              )
           else
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),

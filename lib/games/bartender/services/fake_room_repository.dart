@@ -40,6 +40,7 @@ class FakeRoomRepository implements RoomRepository {
 
   /// ID của người chơi trên máy này (Fake dùng 'p_0', 'p_1', ...).
   String _localPlayerId = 'p_0';
+  bool _isHostOnThisDevice = false;
 
   @override
   String get localPlayerId => _localPlayerId;
@@ -76,6 +77,7 @@ class FakeRoomRepository implements RoomRepository {
 
     // Host luôn là ringIndex 0.
     const hostId = 'p_0';
+    _isHostOnThisDevice = true;
     _localPlayerId = hostId;
     players[hostId] = Player(
       id: hostId,
@@ -128,7 +130,9 @@ class FakeRoomRepository implements RoomRepository {
 
     final newIndex = current.totalPlayerCount;
     final newId = 'p_$newIndex';
-    _localPlayerId = newId;
+    if (!_isHostOnThisDevice) {
+      _localPlayerId = newId;
+    }
     final newPlayers = Map<String, Player>.from(current.players);
     newPlayers[newId] = Player(
       id: newId,
@@ -182,6 +186,11 @@ class FakeRoomRepository implements RoomRepository {
     if (_currentRoom == null || _currentRoom!.code != code) return;
     final current = _currentRoom!;
     if (!current.canStart) return;
+
+    // Chỉ chủ phòng (ringIndex == 0) mới được bắt đầu trận đấu
+    if (current.players.containsKey(_localPlayerId)) {
+      if (current.players[_localPlayerId]!.ringIndex != 0) return;
+    }
 
     // D13: ring size = số người connected khi start (không dùng totalPlayers cố định)
     final connectedPlayers =

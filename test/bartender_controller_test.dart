@@ -629,5 +629,32 @@ void main() {
 
       ctrl.dispose();
     });
+
+    test('guest cannot start match and sees error message', () async {
+      final hostRepo = FakeRoomRepository(rng: Random(50));
+      final hostRoom = await hostRepo.createRoom(
+        hostPlayerName: 'Host',
+        totalPlayers: 1,
+      );
+
+      final guestRepo = FakeRoomRepository(rng: Random(51));
+      guestRepo.emitRoomForTest(hostRoom);
+
+      final ctrlGuest = BartenderController(repository: guestRepo);
+      await ctrlGuest.joinRoom(code: hostRoom.code, playerName: 'Guest');
+
+      expect(ctrlGuest.myRingIndex, 1);
+
+      await ctrlGuest.startMatch();
+      expect(
+        ctrlGuest.errorMessage,
+        'Chỉ chủ phòng mới có thể bắt đầu trận đấu.',
+      );
+      expect(ctrlGuest.room?.status, RoomStatus.lobby);
+
+      ctrlGuest.dispose();
+      hostRepo.dispose();
+      guestRepo.dispose();
+    });
   });
 }
