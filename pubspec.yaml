@@ -88,7 +88,7 @@ flutter:
     - assets/images/gacha/icons/
     - assets/images/gacha/ui/
     - assets/images/gacha/cat_wearables/non_la/
-
+    - assets/images/ui/
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
@@ -119,3 +119,4 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+

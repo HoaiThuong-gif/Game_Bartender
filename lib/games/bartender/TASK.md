@@ -4,7 +4,7 @@
 
 ## Đang làm / In progress
 
-- Chờ tôi kiểm tra thủ công trên 2–4 thiết bị thật (xem mục 'Cần kiểm tra thủ công'). Chưa có việc code nào đang làm.
+- Tạm dừng phát triển giao diện theo yêu cầu. Đang tích hợp UI vào logic `dev/Zhoufen` mới nhất `2b50690` (2026-10-30); lưu snapshot UI trước khi merge. Nếu conflict liên quan logic Zhoufen, hỏi người dùng trước khi sửa.
 
 ## Cần kiểm tra thủ công (2–4 thiết bị thật)
 
@@ -16,11 +16,17 @@
 6. **Thử phòng 2 người, 3–4 người**: Kiểm tra luồng chơi và phân bổ trạm công thức mỏ neo/khả thi ở quy mô 2 người, 3 người, 4 người.
 7. **Người cuối rời phòng thì trận kết thúc đúng**: Khi chỉ còn dưới 2 người chơi connected hoặc người cuối rời phòng, trận kết thúc đúng quy trình và chuyển sang kết quả.
 8. **Xem màn hình kết quả**: Hiển thị bảng xếp hạng, số đơn mỗi người, tổng đơn toàn đội, thời gian sống sót, thông báo kết thúc sớm nếu có; nút quay về lobby hoạt động mượt mà.
+9. **Bản 3D ngày 2026-10-30:** cần đo kéo/chuyền, cảm biến shaker, frame time/RAM trên máy thật và hai máy Firebase sau khi nhóm tích hợp nhánh. APK debug mới đã build, cài và xác nhận hiện cảnh 3D/kéo chuyền trực tiếp trên máy ảo; code mới qua hot restart cũng đã kiểm tra ép chanh, nộp đơn và kết quả. Chưa xác nhận 60 FPS trên máy thật.
 
 *(Lưu ý: Chưa sẵn sàng production, cần hoàn tất kiểm tra thủ công trên thiết bị vật lý và nghiệm thu Firebase RTDB).*
 
 ## Đã xong / Done
 
+- **Phóng lớn và làm sống động quầy (2026-10-30):** camera theo chiều rộng, mesh trái cây 1.25/trạm 1.35, 8 món/trang; bỏ hướng dẫn và hàng đồng đội, HUD lớn. Vật phẩm mới rơi/nảy/lăn 1.25 giây rồi dừng, bắt kéo được; không đồng bộ vị trí. Kết quả đổi sang gỗ/kem, hai cột khi ngang và chữ lớn. WebGL qua kiểm tra spawn/idle/tương tác/phân trang/dispose, 6 test kết quả và ảnh bố cục 800×360 qua. Cần kiểm tra lại bản này bằng Hot Restart trên Android và đo máy thật. Không merge hoặc thay controller/repository/schema.
+
+- **Sửa tương tác 3D theo phản hồi (2026-10-30):** bỏ nhãn vật phẩm và nút chuyền/nộp; đơn phía trên; kéo lên nộp, xuống bỏ, hai bên chuyền. Máy ép/xay cần 4 nhấn sau khi đặt nguyên liệu; thớt cần 4 đường rạch, tap không tính. WebGL test qua các ngưỡng và thao tác; chưa kiểm chứng bản sửa trên Android thật/máy ảo. Không merge, không đổi controller/repository/schema.
+
+- **Gameplay 3D đầu tiên (2026-10-30, chưa commit):** renderer Three.js offline, quầy góc chéo màu ấm, bốn model trạm, nguyên liệu/thành phẩm 3D, kéo/chuyền/chế biến/nộp đúng dữ liệu controller, cảm biến shaker, phân trang 12 món, nút hình nhẹ, pause/dispose và màn dự phòng. Tách file mới; giữ nguyên model/controller/repository/schema. 90 test Dart qua; file mới analyze sạch; WebGL Chrome kiểm tra chức năng qua; build bundle và APK debug qua. Máy ảo Android xác nhận kéo chanh → ép → nộp (+5s, 1/3) → kết quả bằng hot restart. Lỗi Java loopback được xử lý bằng thư mục tạm ngắn/heap 2 GB trong tiến trình, không sửa Gradle. Chưa đo hiệu năng máy thật. Đã fetch và đối chiếu `dev/Zhoufen` tại `5994178`, KHÔNG merge/checkout/rebase/stash/commit/push. Xem `scene3d/README.md` cho điểm nối và lưu ý xung đột.
 - **Giai đoạn 5 — FirebaseRoomRepository (phần code) (2026-10-15):** dùng chung dự án Firebase `nhom-bar` với đường dẫn `bartender/rooms` (D18); phân trạm và công thức khả thi (D15/D16); bỏ phụ thuộc totalPlayers, dồn ringIndex (D13/D14); submitOrder bằng một multi-path update có transaction chống nộp trùng, tìm đúng món trong inbox; chuyển round không cần host bằng transaction có kiểm tra progress (D17); endMatch ghi results trước status; giờ server; một bảng luật chế biến (D19). analyze và test sạch (chưa chạy với Firebase thật).
 - **Việc 6 — Màn hình kết quả và xử lý biên (Giai đoạn 8/9) (2026-10-15):**
   - Hoàn thiện `BartenderResultsScreen`: hiển thị xếp hạng người chơi, số đơn mỗi người, tổng đơn đội, thời gian sống sót theo `MatchResult` (API.md).
