@@ -12,11 +12,13 @@ import '../widgets/trash_bin_widget.dart';
 /// Màn hình trận đấu Bartender — vòng lặp gameplay chính.
 ///
 /// Hiển thị:
-/// 1. Timer bar (đồng hồ + round + tổng đơn đội)
-/// 2. Ring neighbors (ai bên trái / phải)
-/// 3. Trạm chế biến
-/// 4. Danh sách items trên tay (vuốt để chuyền, bấm để chế biến)
+/// 1. Timer bar (đồng hồ + round + tổng đơn đội) cố định trên cùng
+/// 2. Toàn bộ phần dưới có thể cuộn (SingleChildScrollView) tránh tràn xuống thanh điều hướng (navigation bar)
+/// 3. Ring neighbors (ai bên trái / phải)
+/// 4. Trạm chế biến
 /// 5. Khay đơn hàng (nộp đơn)
+/// 6. Danh sách items trên tay (vuốt để chuyền, bấm để chế biến)
+/// 7. Thùng rác (kéo thả hoặc bấm nút)
 ///
 /// Xem PROJECT_SPEC.md toàn bộ mục "Vòng lặp trận đấu".
 class BartenderMatchScreen extends StatelessWidget {
@@ -51,175 +53,155 @@ class BartenderMatchScreen extends StatelessWidget {
           final rightRing = Ring.rightNeighbor(ctrl.myRingIndex, playerCount);
 
           return SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isSmall = constraints.maxHeight < 720;
-                final trashSize = isSmall ? 48.0 : 64.0;
-                final trashVerticalPadding = isSmall ? 2.0 : 6.0;
+            child: Column(
+              children: [
+                // 1. Timer bar (ghim cố định trên cùng để luôn thấy thời gian đếm ngược)
+                TimerBarWidget(
+                  remainingSeconds: ctrl.remainingSeconds,
+                  roundNumber: round.number,
+                  teamOrders: ctrl.totalTeamOrders,
+                ),
 
-                final middleSection = Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // 2. Ring neighbors
-                    RingNeighborsWidget(
-                      myPlayer: ctrl.me,
-                      leftPlayer: ctrl.leftNeighbor,
-                      rightPlayer: ctrl.rightNeighbor,
-                      myStation: ctrl.myStation,
-                      leftStation: round.stationAssignment[leftRing],
-                      rightStation: round.stationAssignment[rightRing],
-                    ),
-
-                    // 3. Trạm chế biến
-                    StationWidget(
-                      station: ctrl.myStation,
-                      items: ctrl.myItems,
-                      onProcessItem: ctrl.processItemAtStation,
-                      isBusy: ctrl.isBusy,
-                    ),
-
-                    // 4. Đơn hàng
-                    OrderTrayWidget(
-                      orders: ctrl.myOrders,
-                      availableItems: ctrl.myItems,
-                      onSubmitOrder: ctrl.submitOrder,
-                    ),
-                  ],
-                );
-
-                final bottomSection = ctrl.myItems.isEmpty
-                    ? Center(
-                        child: Text(
-                          'Chưa có vật phẩm.\nĐợi nguyên liệu xuất hiện hoặc nhận từ đồng đội!',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.3),
-                            fontSize: 13,
-                          ),
+                // 2. Nội dung cuộn được khi các thành phần nhiều hoặc màn hình nhỏ / có navigation bar
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.only(bottom: 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // 2. Ring neighbors
+                        RingNeighborsWidget(
+                          myPlayer: ctrl.me,
+                          leftPlayer: ctrl.leftNeighbor,
+                          rightPlayer: ctrl.rightNeighbor,
+                          myStation: ctrl.myStation,
+                          leftStation: round.stationAssignment[leftRing],
+                          rightStation: round.stationAssignment[rightRing],
                         ),
-                      )
-                    : Column(
-                        children: [
-                          // Danh sách items (scrollable)
-                          Expanded(
-                            child: ListView.builder(
-                              padding: EdgeInsets.only(
-                                top: 4,
-                                bottom: isSmall ? 2 : 8,
-                              ),
-                              itemCount: ctrl.myItems.length,
-                              itemBuilder: (context, index) {
-                                final item = ctrl.myItems[index];
-                                return DraggableItemWrapper(
-                                  item: item,
-                                  child: ItemCardWidget(
-                                    item: item,
-                                    onSwipeLeft: () => ctrl.swipeItemLeft(item),
-                                    onSwipeRight: () => ctrl.swipeItemRight(item),
-                                    onTrash: () => ctrl.trashItem(item),
-                                    onTap: () {
-                                      if (ctrl.myStation != null) {
-                                        ctrl.processItemAtStation(item);
-                                      }
-                                    },
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
 
-                          // Thùng rác — kéo thả hoặc bấm nút trên ItemCard
+                        // 3. Trạm chế biến
+                        StationWidget(
+                          station: ctrl.myStation,
+                          items: ctrl.myItems,
+                          onProcessItem: ctrl.processItemAtStation,
+                          isBusy: ctrl.isBusy,
+                        ),
+
+                        // 4. Đơn hàng
+                        OrderTrayWidget(
+                          orders: ctrl.myOrders,
+                          availableItems: ctrl.myItems,
+                          onSubmitOrder: ctrl.submitOrder,
+                        ),
+
+                        // 5. Danh sách vật phẩm trên tay
+                        if (ctrl.myItems.isEmpty)
                           Padding(
-                            padding: EdgeInsets.symmetric(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 24,
                               horizontal: 16,
-                              vertical: trashVerticalPadding,
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
+                            child: Text(
+                              'Chưa có vật phẩm.\nĐợi nguyên liệu xuất hiện hoặc nhận từ đồng đội!',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.35),
+                                fontSize: 13,
+                              ),
+                            ),
+                          )
+                        else
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Column(
                               children: [
-                                TrashBinWidget(
-                                  isVisible: true,
-                                  onDropped: ctrl.trashItem,
-                                  size: trashSize,
-                                ),
+                                for (final item in ctrl.myItems)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: DraggableItemWrapper(
+                                      item: item,
+                                      child: ItemCardWidget(
+                                        item: item,
+                                        onSwipeLeft: () =>
+                                            ctrl.swipeItemLeft(item),
+                                        onSwipeRight: () =>
+                                            ctrl.swipeItemRight(item),
+                                        onTrash: () => ctrl.trashItem(item),
+                                        onTap: () {
+                                          if (ctrl.myStation != null) {
+                                            ctrl.processItemAtStation(item);
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
-                        ],
-                      );
 
-                return Column(
-                  children: [
-                    // 1. Timer bar (cố định trên cùng)
-                    TimerBarWidget(
-                      remainingSeconds: ctrl.remainingSeconds,
-                      roundNumber: round.number,
-                      teamOrders: ctrl.totalTeamOrders,
-                    ),
-
-                    // 2, 3, 4. Đồng đội, trạm, đơn hàng: co giãn / cuộn khi màn hình thấp
-                    if (isSmall)
-                      Expanded(
-                        flex: 5,
-                        child: SingleChildScrollView(
-                          child: middleSection,
-                        ),
-                      )
-                    else
-                      Flexible(
-                        fit: FlexFit.loose,
-                        child: SingleChildScrollView(
-                          physics: const ClampingScrollPhysics(),
-                          child: middleSection,
-                        ),
-                      ),
-
-                    // 5. Danh sách vật phẩm trên tay + thùng rác
-                    Expanded(
-                      flex: isSmall ? 4 : 1,
-                      child: bottomSection,
-                    ),
-
-                    // Thông báo / lỗi
-                    if (ctrl.noticeMessage != null)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        color: Colors.amberAccent.withValues(alpha: 0.15),
-                        child: Text(
-                          ctrl.noticeMessage!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.amberAccent,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
+                        // Thùng rác — kéo thả hoặc bấm nút trên ItemCard
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              TrashBinWidget(
+                                isVisible: true,
+                                onDropped: ctrl.trashItem,
+                                size: 56,
+                              ),
+                            ],
                           ),
                         ),
-                      ),
 
-                    if (ctrl.errorMessage != null)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        color: Colors.redAccent.withValues(alpha: 0.15),
-                        child: Text(
-                          ctrl.errorMessage!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.redAccent,
-                            fontSize: 12,
+                        // Thông báo / lỗi nếu có
+                        if (ctrl.noticeMessage != null)
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(top: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            color: Colors.amberAccent.withValues(alpha: 0.15),
+                            child: Text(
+                              ctrl.noticeMessage!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.amberAccent,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                  ],
-                );
-              },
+
+                        if (ctrl.errorMessage != null)
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(top: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            color: Colors.redAccent.withValues(alpha: 0.15),
+                            child: Text(
+                              ctrl.errorMessage!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.redAccent,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           );
         },
