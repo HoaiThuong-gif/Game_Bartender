@@ -27,6 +27,20 @@
 
 ## Đã xong / Done
 
+- **Bước C.4: Công cụ kiểm tra khói tự động hóa `server/tool/smoke.dart` (2026-10-30):**
+  - Viết script `server/tool/smoke.dart` nhận tham số `baseUrl` (mặc định `http://localhost:8080`).
+  - Kiểm tra toàn bộ vòng đời trận đấu từ bên ngoài qua HTTP và WebSocket:
+    1. Kiểm tra sức khỏe `/health`.
+    2. Tạo phòng mới `POST /rooms` (Host: "Người chơi 1").
+    3. Người chơi 2 tham gia phòng `POST /rooms/{code}/join`.
+    4. Mở WebSocket thời gian thực cho cả 2 người chơi, nhận snapshot phòng.
+    5. Bắt đầu trận đấu `POST /rooms/{code}/start`.
+    6. Chuyền nguyên liệu giữa 2 người `POST /rooms/{code}/items/send`.
+    7. Bỏ vật phẩm vào thùng rác `POST /rooms/{code}/items/trash`.
+    8. Người chơi rời phòng `POST /rooms/{code}/leave` -> kết thúc trận và nhận kết quả xếp hạng.
+  - In tiến trình từng bước `[OK]` / `[FAIL]` bằng tiếng Việt rõ ràng, thoát mã 0 khi hoàn thành hoặc mã 1 khi có lỗi.
+  - Đã chạy thử nghiệm trên `localhost:8080`: toàn bộ 8 bước kiểm tra khói vượt qua 100%.
+
 - **Bước C.3: Triển khai toàn bộ backend game HTTP + WebSocket trên server (2026-10-30):**
   - Xây dựng `RoomService` in-memory (`server/src/room_service.dart`) đồng bộ 100% không `await` giữa đọc-ghi để triệt tiêu race condition:
     - `POST /rooms`, `POST /rooms/{code}/join`, `POST /rooms/{code}/leave`, `POST /rooms/{code}/start`.
