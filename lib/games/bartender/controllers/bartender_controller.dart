@@ -9,6 +9,7 @@ import '../models/player.dart';
 import '../models/ring.dart';
 import '../models/room.dart';
 import '../models/station.dart';
+import '../services/api_room_repository.dart';
 import '../services/bartender_haptics.dart';
 import '../services/fake_room_repository.dart';
 import '../services/firebase_room_repository.dart';
@@ -25,10 +26,18 @@ import '../services/room_repository.dart';
 /// - false → [FirebaseRoomRepository] (chạy online RTDB, giai đoạn 5+)
 class BartenderController extends ChangeNotifier {
   BartenderController({RoomRepository? repository})
-      : _repository = repository ??
-            (BartenderConfig.useFakeRepository
-                ? FakeRoomRepository()
-                : FirebaseRoomRepository());
+      : _repository = repository ?? _createDefaultRepository();
+
+  static RoomRepository _createDefaultRepository() {
+    switch (BartenderConfig.backend) {
+      case BartenderBackend.fake:
+        return FakeRoomRepository();
+      case BartenderBackend.firebase:
+        return FirebaseRoomRepository();
+      case BartenderBackend.api:
+        return ApiRoomRepository();
+    }
+  }
 
   final RoomRepository _repository;
 

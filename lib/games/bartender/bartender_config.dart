@@ -1,15 +1,41 @@
+/// Các loại backend khả dụng cho game Bartender.
+enum BartenderBackend {
+  /// Giả lập in-memory hoàn toàn offline (mặc định cho test và dev).
+  fake,
+
+  /// Firebase Realtime Database.
+  firebase,
+
+  /// Server API HTTP + WebSocket tự host.
+  api,
+}
+
 /// Cấu hình runtime cho tính năng Bartender.
 ///
-/// Cho phép chuyển đổi giữa [FakeRoomRepository] (chạy offline / dev local)
-/// và [FirebaseRoomRepository] (chạy online qua RTDB nhiều máy thật).
+/// Cho phép chuyển đổi giữa [FakeRoomRepository] (chạy offline / dev local),
+/// [FirebaseRoomRepository] (chạy online qua RTDB) và [ApiRoomRepository] (HTTP + WebSocket server).
 ///
 /// Xem DEVELOPMENT.md mục "Phát triển local (bước 1-3, chưa cần Firebase)".
 class BartenderConfig {
   const BartenderConfig._();
 
-  /// true = dùng FakeRoomRepository trong bộ nhớ.
-  /// false = dùng FirebaseRoomRepository thật (mặc định khi chạy trên máy thật).
-  static bool useFakeRepository = false;
+  /// Bộ chọn backend hiện tại.
+  /// MẶC ĐỊNH LUÔN LÀ fake TRONG MỌI COMMIT theo quy tắc bất biến.
+  static BartenderBackend backend = BartenderBackend.fake;
+
+  /// Cờ tương thích ngược: true nếu backend == BartenderBackend.fake.
+  static bool get useFakeRepository => backend == BartenderBackend.fake;
+  static set useFakeRepository(bool value) {
+    backend = value ? BartenderBackend.fake : BartenderBackend.firebase;
+  }
+
+  /// URL của Bartender HTTP + WebSocket API backend.
+  /// Mặc định: http://10.0.2.2:8080 (Android emulator tới localhost của máy host).
+  /// Có thể ghi đè khi chạy bằng: `--dart-define=API_BASE_URL=http://192.168.1.x:8080`
+  static const String apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://10.0.2.2:8080',
+  );
 
   /// URL của Firebase Realtime Database dùng chung với dự án nhom-bar (D18).
   ///
