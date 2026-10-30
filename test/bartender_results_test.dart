@@ -115,7 +115,12 @@ void main() {
       expect(find.text('3 đơn'), findsOneWidget);
       expect(find.text('1 đơn'), findsOneWidget);
 
-      // Nút về lobby và chơi lại
+      // Thông báo thua game
+      expect(find.text('BẠN ĐÃ THUA GAME 😢'), findsOneWidget);
+
+      // Nút thoát và quay lại phòng
+      expect(find.text('THOÁT'), findsOneWidget);
+      expect(find.text('QUAY LẠI PHÒNG'), findsOneWidget);
       expect(find.byKey(const Key('back-to-lobby-button')), findsOneWidget);
       expect(find.byKey(const Key('play-again-button')), findsOneWidget);
 
@@ -257,6 +262,33 @@ void main() {
       // Controller phải dọn dẹp room và đặt errorMessage
       expect(ctrl.room, isNull);
       expect(ctrl.errorMessage, 'Bạn đã bị loại khỏi phòng do mất kết nối.');
+    });
+
+    testWidgets('bấm nút QUAY LẠI PHÒNG gọi returnToLobby', (tester) async {
+      final repo = FakeRoomRepository();
+      final ctrl = BartenderController(repository: repo);
+      addTearDown(ctrl.dispose);
+
+      await ctrl.createRoom(playerName: 'Alice', totalPlayers: 2);
+      final p1 = Player(id: ctrl.myPlayerId!, name: 'Alice', ringIndex: 0);
+      final result = MatchResult.fromPlayers(players: [p1], survivalSeconds: 60);
+
+      repo.emitRoomForTest(ctrl.room!.copyWith(
+        status: RoomStatus.ended,
+        players: {p1.id: p1},
+        results: result,
+      ));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.pumpWidget(MaterialApp(home: Scaffold(body: BartenderResultsScreen(controller: ctrl))));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(ctrl.isViewingResults, isTrue);
+      await tester.tap(find.text('QUAY LẠI PHÒNG'));
+      await tester.pump();
+
+      expect(ctrl.isViewingResults, isFalse);
+      await tester.pump(const Duration(seconds: 4));
     });
   });
 }

@@ -53,10 +53,20 @@ class Room {
   /// Tổng số người chơi (kể cả đã thoát — slot vẫn giữ).
   int get totalPlayerCount => players.length;
 
-  /// Có đủ người để bắt đầu trận không (≥ 2).
-  /// Xem PROJECT_SPEC.md: "Trận có thể bắt đầu khi có từ 2 người trở lên."
+  /// Tất cả người chơi đang kết nối đã sẵn sàng trong phòng chờ hay chưa.
+  bool get allPlayersReadyInLobby =>
+      players.values.where((p) => p.connected).every((p) => p.readyInLobby);
+
+  /// Số người chơi đang kết nối đã sẵn sàng trong phòng chờ.
+  int get readyPlayerCount =>
+      players.values.where((p) => p.connected && p.readyInLobby).length;
+
+  /// Có đủ người và mọi người đã ở trong phòng chờ để bắt đầu trận không.
+  /// Hỗ trợ cả trạng thái lobby và ended (sau khi quay lại phòng ban đầu).
   bool get canStart =>
-      status == RoomStatus.lobby && connectedPlayerCount >= 2;
+      (status == RoomStatus.lobby || status == RoomStatus.ended) &&
+      connectedPlayerCount >= 2 &&
+      allPlayersReadyInLobby;
 
   /// Lấy Player theo ringIndex.
   Player? playerAtRing(int ringIndex) {
@@ -77,6 +87,7 @@ class Room {
     Round? currentRound,
     Map<int, List<GameItem>>? inbox,
     MatchResult? results,
+    bool clearResults = false,
   }) {
     return Room(
       code: code,
@@ -85,7 +96,7 @@ class Room {
       timer: timer ?? this.timer,
       currentRound: currentRound ?? this.currentRound,
       inbox: inbox ?? this.inbox,
-      results: results ?? this.results,
+      results: clearResults ? null : (results ?? this.results),
     );
   }
 

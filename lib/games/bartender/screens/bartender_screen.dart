@@ -99,7 +99,7 @@ class _BartenderScreenState extends State<BartenderScreen> {
     return ListenableBuilder(
       listenable: ctrl,
       builder: (context, _) {
-        if (ctrl.isMatchEnded) {
+        if (ctrl.isViewingResults) {
           return BartenderResultsScreen(controller: ctrl);
         }
         if (ctrl.isMatchPlaying) {

@@ -96,6 +96,16 @@ class BartenderResultsScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 4),
+                      Text(
+                        'BẠN ĐÃ THUA GAME 😢',
+                        style: TextStyle(
+                          color: Colors.redAccent.shade100,
+                          fontSize: isSmall ? 14 : 16,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
                       const Text(
                         'KẾT QUẢ TRẬN ĐẤU',
                         style: TextStyle(
@@ -304,7 +314,7 @@ class BartenderResultsScreen extends StatelessWidget {
 
                       SizedBox(height: spacing),
 
-                      // Nút hành động: Quay về lobby và Chơi lại
+                      // Nút hành động: Thoát và Quay lại phòng ban đầu
                       Row(
                         children: [
                           Expanded(
@@ -316,9 +326,9 @@ class BartenderResultsScreen extends StatelessWidget {
                                   controller.leaveRoom();
                                   Navigator.of(context).maybePop();
                                 },
-                                icon: const Icon(Icons.arrow_back, size: 16),
+                                icon: const Icon(Icons.exit_to_app, size: 16),
                                 label: const Text(
-                                  'VỀ LOBBY',
+                                  'THOÁT',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 12,
@@ -346,12 +356,12 @@ class BartenderResultsScreen extends StatelessWidget {
                                 key: const Key('play-again-button'),
                                 onPressed: controller.isBusy
                                     ? null
-                                    : controller.playAgain,
-                                icon: const Icon(Icons.replay, size: 16),
+                                    : controller.returnToLobby,
+                                icon: const Icon(Icons.meeting_room, size: 16),
                                 label: Text(
                                   controller.isBusy
-                                      ? 'Đang tạo...'
-                                      : 'CHƠI LẠI!',
+                                      ? 'Đang vào...'
+                                      : 'QUAY LẠI PHÒNG',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,

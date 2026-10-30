@@ -9,6 +9,7 @@ class Player {
     required this.ringIndex,
     this.connected = true,
     this.completedOrders = 0,
+    this.readyInLobby = true,
   });
 
   /// ID duy nhất của người chơi (dùng làm key trong Firebase).
@@ -29,20 +30,30 @@ class Player {
   /// Số đơn cá nhân đã hoàn thành — dùng cho bảng xếp hạng cuối trận.
   final int completedOrders;
 
+  /// Người chơi đã ở trong phòng chờ / sẵn sàng cho trận tiếp theo.
+  /// Sau khi thua trận, cờ này đặt thành false cho đến khi người chơi bấm "QUAY LẠI PHÒNG".
+  final bool readyInLobby;
+
   /// Tạo bản sao với một số trường thay đổi.
-  Player copyWith({int? ringIndex, bool? connected, int? completedOrders}) {
+  Player copyWith({
+    int? ringIndex,
+    bool? connected,
+    int? completedOrders,
+    bool? readyInLobby,
+  }) {
     return Player(
       id: id,
       name: name,
       ringIndex: ringIndex ?? this.ringIndex,
       connected: connected ?? this.connected,
       completedOrders: completedOrders ?? this.completedOrders,
+      readyInLobby: readyInLobby ?? this.readyInLobby,
     );
   }
 
   @override
   String toString() =>
-      'Player($name, ring=$ringIndex, orders=$completedOrders)';
+      'Player($name, ring=$ringIndex, orders=$completedOrders, ready=$readyInLobby)';
 
   @override
   bool operator ==(Object other) =>
@@ -52,9 +63,16 @@ class Player {
           name == other.name &&
           ringIndex == other.ringIndex &&
           connected == other.connected &&
-          completedOrders == other.completedOrders;
+          completedOrders == other.completedOrders &&
+          readyInLobby == other.readyInLobby;
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, ringIndex, connected, completedOrders);
+  int get hashCode => Object.hash(
+        id,
+        name,
+        ringIndex,
+        connected,
+        completedOrders,
+        readyInLobby,
+      );
 }

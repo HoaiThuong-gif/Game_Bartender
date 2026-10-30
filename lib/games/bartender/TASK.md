@@ -21,6 +21,27 @@
 
 ## Đã xong / Done
 
+- **Cuộn giao diện trận đấu & Luồng quay lại phòng / bắt đầu lại sau khi thua (2026-10-30):**
+  - **Phần 1: Cuộn dọc màn hình trận đấu (`BartenderMatchScreen`):**
+    - Bọc toàn bộ khu vực thành phần trận đấu (RingNeighbors, StationWidget, OrderTrayWidget, khay đồ cá nhân, thùng rác, notices) trong `SingleChildScrollView` với `BouncingScrollPhysics` và padding dưới `24px`.
+    - Cố định thanh thời gian (`TimerBarWidget`) trên cùng để người chơi luôn theo dõi được thời gian đếm ngược.
+    - Đảm bảo khi có nhiều món hoặc trên màn hình nhỏ (360x640), nội dung không bị tràn xuống/đè lên thanh điều hướng (`navigation bar`).
+    - Bổ sung widget test `test/bartender_match_scroll_test.dart` kiểm tra cuộn dọc và chống tràn (commit `66a6009`).
+  - **Phần 2: Luồng kết thúc trận thua, quay lại phòng và chủ phòng bắt đầu lại:**
+    - Cập nhật màn hình kết quả `BartenderResultsScreen`: hiển thị thông báo "BẠN ĐÃ THUA GAME 😢" khi thua; cung cấp 2 nút "THOÁT" (rời phòng về menu) và "QUAY LẠI PHÒNG" (trở về lobby phòng ban đầu).
+    - Thêm cờ `readyInLobby` cho `Player` (mặc định `true` khi mới tạo/vào phòng; được reset về `false` khi trận kết thúc `ended`).
+    - Thêm thuộc tính `allPlayersReadyInLobby` và `readyPlayerCount` trong `Room`; `canStart` yêu cầu `(status == RoomStatus.lobby || status == RoomStatus.ended) && connectedPlayerCount >= 2 && allPlayersReadyInLobby`.
+    - Thêm `returnToLobby({required String code, required String playerId})` trên `RoomRepository`, `FakeRoomRepository` và `FirebaseRoomRepository`.
+    - Khi người chơi bấm "QUAY LẠI PHÒNG":
+      - Gọi `returnToLobby` cập nhật trạng thái của riêng người đó `readyInLobby = true` trên RTDB/repository.
+      - Chuyển màn hình của riêng người đó về lại `BartenderLobbyScreen` (nhờ `isViewingResults = isMatchEnded && !_hasReturnedToLobby`), không ép thoát hay ảnh hưởng tới các người chơi khác còn đang xem kết quả.
+    - Màn hình phòng chờ (`BartenderLobbyScreen`):
+      - Hiển thị trạng thái của từng người chơi (`Sẵn sàng` vs `Đang xem kết quả...`).
+      - Khi chưa đủ tất cả người chơi quay lại phòng: hiển thị thông báo chờ `"Đang chờ người chơi quay lại phòng... (X/Y)"`.
+      - Khi toàn bộ người chơi connected đã quay lại phòng (`allPlayersReadyInLobby == true`): chỉ duy nhất chủ phòng (`myRingIndex == 0`) mới sáng nút "BẮT ĐẦU TRẬN ĐẤU!".
+      - Khi chủ phòng bắt đầu lại: `startMatch` reset kết quả cũ, reset cờ sẵn sàng, khởi tạo round mới trên mã phòng cũ.
+    - Cập nhật unit test và widget test trong `test/bartender_controller_test.dart` và `test/bartender_results_test.dart` (210/210 tests pass, `flutter analyze` 0 lỗi).
+
 - **Phân quyền bắt đầu trận đấu & Cấp nguyên liệu định kỳ trên Firebase (2026-10-30):**
   - **Chỉ chủ phòng mới được bắt đầu trận đấu:**
     - Cập nhật giao diện `BartenderLobbyScreen`: Khi phòng đủ người (`canStart`), chỉ Host (`ctrl.myRingIndex == 0`) mới thấy nút "BẮT ĐẦU TRẬN ĐẤU!". Người chơi khác (khách) hiển thị dòng thông báo `'Đã đủ người! Đang chờ chủ phòng bắt đầu...'` cùng biểu tượng đồng hồ cát.

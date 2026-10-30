@@ -75,6 +75,12 @@ abstract interface class RoomRepository {
     required String productId,
   });
 
+  /// Đánh dấu người chơi đã quay lại phòng chờ sau khi trận kết thúc.
+  Future<void> returnToLobby({
+    required String code,
+    required String playerId,
+  });
+
   /// Kết thúc trận đấu. Ghi results và đặt status = ended.
   /// Idempotent: nếu trận đã kết thúc thì không làm gì.
   /// Fake: gọi _endMatch nội bộ. Firebase: dùng transaction (D17).

@@ -656,5 +656,54 @@ void main() {
       hostRepo.dispose();
       guestRepo.dispose();
     });
+
+    test('returnToLobby and host restart require all players ready in lobby', () async {
+      final repo = FakeRoomRepository(rng: Random(60));
+      final ctrlHost = BartenderController(repository: repo);
+
+      // Tạo phòng 2 người (host + guest)
+      await ctrlHost.createRoom(playerName: 'Host', totalPlayers: 1);
+      final roomCode = ctrlHost.room!.code;
+
+      // Guest tham gia
+      await repo.joinRoom(code: roomCode, playerName: 'Guest');
+      expect(ctrlHost.room!.canStart, isTrue);
+
+      // Bắt đầu trận đấu
+      await ctrlHost.startMatch();
+      expect(ctrlHost.isMatchPlaying, isTrue);
+
+      // Kết thúc trận đấu
+      await repo.endMatch(roomCode);
+      expect(ctrlHost.isMatchEnded, isTrue);
+      expect(ctrlHost.isViewingResults, isTrue);
+
+      // Khi kết thúc trận, cả 2 người đều readyInLobby: false
+      expect(ctrlHost.room!.allPlayersReadyInLobby, isFalse);
+      expect(ctrlHost.room!.canStart, isFalse);
+
+      // Host bấm quay lại phòng
+      await ctrlHost.returnToLobby();
+      expect(ctrlHost.isViewingResults, isFalse);
+      expect(ctrlHost.me!.readyInLobby, isTrue);
+
+      // Guest chưa quay lại phòng -> canStart vẫn false, host không thể bắt đầu
+      expect(ctrlHost.room!.allPlayersReadyInLobby, isFalse);
+      expect(ctrlHost.room!.canStart, isFalse);
+
+      // Guest bấm quay lại phòng
+      await repo.returnToLobby(code: roomCode, playerId: 'p_1');
+      expect(ctrlHost.room!.allPlayersReadyInLobby, isTrue);
+      expect(ctrlHost.room!.canStart, isTrue);
+
+      // Tất cả đã quay lại phòng -> Chủ phòng có thể bắt đầu lại trận đấu
+      await ctrlHost.startMatch();
+      expect(ctrlHost.isMatchPlaying, isTrue);
+      expect(ctrlHost.room!.status, RoomStatus.playing);
+      expect(ctrlHost.room!.results, isNull);
+
+      ctrlHost.dispose();
+      repo.dispose();
+    });
   });
 }

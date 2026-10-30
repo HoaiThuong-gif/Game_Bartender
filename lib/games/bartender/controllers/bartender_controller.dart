@@ -40,6 +40,7 @@ class BartenderController extends ChangeNotifier {
   String? _errorMessage;
   bool _isBusy = false;
   bool _isDisposed = false;
+  bool _hasReturnedToLobby = false;
 
   StreamSubscription<Room>? _roomSubscription;
   Timer? _countdownTicker;
@@ -127,6 +128,10 @@ class BartenderController extends ChangeNotifier {
 
   /// Trạng thái trận đấu: đã kết thúc?
   bool get isMatchEnded => _room?.status == RoomStatus.ended;
+
+  /// Người chơi có đang ở màn hình kết quả hay không.
+  /// Khi trận kết thúc nhưng người chơi chưa bấm "Quay lại phòng" -> true.
+  bool get isViewingResults => isMatchEnded && !_hasReturnedToLobby;
 
   // ─── Actions ──────────────────────────────────────────────────
 
@@ -311,13 +316,27 @@ class BartenderController extends ChangeNotifier {
     }
   }
 
-  /// Chơi lại từ đầu (tạo lại phòng mới).
-  Future<void> playAgain() async {
-    final name = me?.name ?? 'Bạn';
-    final count = _room?.totalPlayerCount ?? 3;
-    _resetRoom();
-    await createRoom(playerName: name, totalPlayers: count);
+  /// Quay lại phòng chờ ban đầu sau khi trận kết thúc (giữ nguyên mã phòng).
+  Future<void> returnToLobby() async {
+    final code = _room?.code;
+    final pId = myPlayerId;
+    _hasReturnedToLobby = true;
+    notifyListeners();
+
+    if (code != null && pId != null) {
+      _setBusy(true);
+      try {
+        await _repository.returnToLobby(code: code, playerId: pId);
+      } catch (e) {
+        debugPrint('Lỗi returnToLobby: $e');
+      } finally {
+        _setBusy(false);
+      }
+    }
   }
+
+  /// Chơi lại từ đầu (quay lại phòng chờ ban đầu).
+  Future<void> playAgain() => returnToLobby();
 
   /// Rời phòng hiện tại.
   Future<void> leaveRoom() async {
@@ -348,6 +367,10 @@ class BartenderController extends ChangeNotifier {
       }
 
       final oldRound = _room?.currentRound?.number;
+      if (updatedRoom.status == RoomStatus.playing ||
+          updatedRoom.status == RoomStatus.lobby) {
+        _hasReturnedToLobby = false;
+      }
       _room = updatedRoom;
 
       // Thông báo khi chuyển round
@@ -422,6 +445,7 @@ class BartenderController extends ChangeNotifier {
     _roomSubscription?.cancel();
     _roomSubscription = null;
     _room = null;
+    _hasReturnedToLobby = false;
     _clearMessages();
     notifyListeners();
   }

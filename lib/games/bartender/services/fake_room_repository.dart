@@ -85,6 +85,7 @@ class FakeRoomRepository implements RoomRepository {
       ringIndex: 0,
       connected: true,
       completedOrders: 0,
+      readyInLobby: true,
     );
 
     // Tạo các bot cho các vị trí còn lại trong vòng tròn (ringIndex 1, 2, ...).
@@ -139,6 +140,7 @@ class FakeRoomRepository implements RoomRepository {
       name: playerName,
       ringIndex: newIndex,
       connected: true,
+      readyInLobby: true,
     );
 
     final updated = current.copyWith(
@@ -148,6 +150,22 @@ class FakeRoomRepository implements RoomRepository {
 
     _emit(updated);
     return updated;
+  }
+
+  @override
+  Future<void> returnToLobby({
+    required String code,
+    required String playerId,
+  }) async {
+    if (_currentRoom == null || _currentRoom!.code != code) return;
+    final current = _currentRoom!;
+    final player = current.players[playerId];
+    if (player == null) return;
+
+    final updatedPlayers = Map<String, Player>.from(current.players);
+    updatedPlayers[playerId] = player.copyWith(readyInLobby: true);
+    final updatedRoom = current.copyWith(players: updatedPlayers);
+    _emit(updatedRoom);
   }
 
   @override
@@ -210,7 +228,11 @@ class FakeRoomRepository implements RoomRepository {
     final newPlayers = <String, Player>{};
     for (var i = 0; i < connectedPlayers.length; i++) {
       final p = connectedPlayers[i];
-      newPlayers[p.id] = p.copyWith(ringIndex: i);
+      newPlayers[p.id] = p.copyWith(
+        ringIndex: i,
+        completedOrders: 0,
+        readyInLobby: false,
+      );
     }
 
     // Gán 3 đơn hàng từ feasibleRecipes cho mỗi người chơi
@@ -266,6 +288,7 @@ class FakeRoomRepository implements RoomRepository {
       currentRound: initialRound,
       players: newPlayers,
       inbox: initialInbox,
+      clearResults: true,
     );
 
     _emit(playingRoom);
@@ -566,7 +589,16 @@ class FakeRoomRepository implements RoomRepository {
       survivalSeconds: survivalSec,
     );
 
-    return room.copyWith(status: RoomStatus.ended, results: results);
+    final updatedPlayers = <String, Player>{};
+    for (final entry in room.players.entries) {
+      updatedPlayers[entry.key] = entry.value.copyWith(readyInLobby: false);
+    }
+
+    return room.copyWith(
+      status: RoomStatus.ended,
+      players: updatedPlayers,
+      results: results,
+    );
   }
 
   @override

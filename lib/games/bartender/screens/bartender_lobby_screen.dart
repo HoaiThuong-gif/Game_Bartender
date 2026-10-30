@@ -488,20 +488,28 @@ class _BartenderLobbyScreenState extends State<BartenderLobbyScreen> {
                               ),
                             ),
                             Text(
-                              roleLabel,
-                              style: const TextStyle(
-                                color: Colors.white38,
+                              player.readyInLobby ? roleLabel : '$roleLabel • Đang xem kết quả...',
+                              style: TextStyle(
+                                color: player.readyInLobby ? Colors.white38 : Colors.amberAccent.withValues(alpha: 0.8),
                                 fontSize: 11,
                               ),
                             ),
                           ],
                         ),
                       ),
+                      if (!player.readyInLobby) ...[
+                        const Icon(
+                          Icons.hourglass_empty,
+                          size: 12,
+                          color: Colors.amberAccent,
+                        ),
+                        const SizedBox(width: 4),
+                      ],
                       Icon(
                         Icons.circle,
                         size: 10,
                         color: player.connected
-                            ? Colors.greenAccent
+                            ? (player.readyInLobby ? Colors.greenAccent : Colors.amberAccent)
                             : Colors.grey,
                       ),
                     ],
@@ -560,6 +568,28 @@ class _BartenderLobbyScreenState extends State<BartenderLobbyScreen> {
                   ],
                 ),
               )
+          else if (room.connectedPlayerCount >= 2 && !room.allPlayersReadyInLobby)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.hourglass_top, color: Colors.amberAccent, size: 18),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Đang chờ người chơi quay lại phòng... (${room.readyPlayerCount}/${room.connectedPlayerCount})',
+                      style: const TextStyle(
+                        color: Colors.amberAccent,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+            )
           else
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
