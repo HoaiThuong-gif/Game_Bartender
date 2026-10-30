@@ -23,8 +23,19 @@
 
 1. **`API.md` - Room snapshot (`players`)**: Đề xuất bổ sung trường `readyInLobby: bool` (mặc định `true`) vào schema của mỗi player trong `players`. Cờ này cần thiết để theo dõi người chơi nào đã bấm 'QUAY LẠI PHÒNG' sau khi thua trận, đảm bảo chỉ khi toàn bộ người chơi sẵn sàng thì chủ phòng mới có thể bắt đầu lại trận mới.
 2. **`API.md` - Room snapshot (`results.ranking`)**: Đề xuất bổ sung trường `ringIndex: int` trong danh sách `ranking` để client giữ được thông tin vị trí vòng tròn của người chơi khi hiển thị bảng xếp hạng cuối trận.
+3. **`API.md` & `ARCHITECTURE.md` - Deployment Target**: Loại bỏ Render theo yêu cầu; server sẽ chạy trực tiếp trên localhost khi phát triển và deploy trên máy chủ VPS tự thuê sau này. Đề xuất cập nhật Base URL và curl mẫu trong `API.md` từ `https://<service>.onrender.com` sang URL localhost/VPS.
 
 ## Đã xong / Done
+
+- **Bước B: Khung server Dart thuần tại `server/`, GET /health, Dockerfile và .dockerignore cho VPS (2026-10-30):**
+  - Tạo package Dart thuần `bartender_server` trong thư mục `server/` (dùng `shelf`, `shelf_router`, `shelf_web_socket`, `web_socket_channel`).
+  - Tái sử dụng trực tiếp các models từ `lib/games/bartender/models/` qua relative import mà không di chuyển file.
+  - Cung cấp endpoint `GET /health` trả về JSON theo contract `{ "status": "ok", "rooms": 0, "timeMs": ... }`.
+  - Đọc cổng từ biến môi trường `PORT` (mặc định 8080) và lắng nghe trên `0.0.0.0`.
+  - Thêm `server/Dockerfile` (multi-stage build từ `dart:stable` -> `scratch` tối giản cho VPS) và `.dockerignore` tại thư mục gốc.
+  - Không chứa bất kỳ cấu hình hay file liên quan đến Render (`render.yaml` không tồn tại, Dockerfile độc lập nền tảng).
+  - Viết unit test cho `/health` (`server/test/health_test.dart` pass 100%).
+  - Kiểm tra xác minh: `curl.exe http://localhost:8080/health` trả về 200 OK; `dart analyze` (server) 0 lỗi, `dart test` (server) 2/2 pass; `flutter analyze` 0 lỗi 0 cảnh báo.
 
 - **Bước 1: Bổ sung serialization JSON (`toJson` / `fromJson`) cho toàn bộ models (2026-10-30):**
   - Cập nhật 7 model: `GameItem`, `Order`, `Player`, `MatchTimer`, `MatchResult`, `Round`, `Room`.
