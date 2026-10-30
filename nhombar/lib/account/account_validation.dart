@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import 'account_security.dart';
+
 String? validateEmail(String? value) =>
     RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value?.trim() ?? '')
     ? null
@@ -19,6 +21,7 @@ String? validatePlayerName(String? value) {
 }
 
 String accountError(Object error) {
+  if (error is AccountSecurityError) return error.message;
   if (error is TimeoutException) {
     return 'Chưa xác nhận được đã lưu. Hãy kiểm tra mạng. Thay đổi đang chờ có thể đồng bộ khi có mạng trở lại.';
   }

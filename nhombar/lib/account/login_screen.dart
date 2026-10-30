@@ -67,6 +67,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (widget.service is FirebaseAccountService)
+                      TextButton.icon(
+                        onPressed: _busy
+                            ? null
+                            : () => _run(
+                                (widget.service as FirebaseAccountService)
+                                    .security
+                                    .signInBiometric,
+                              ),
+                        icon: const Icon(Icons.fingerprint),
+                        label: const Text('Đăng nhập bằng vân tay / khuôn mặt'),
+                      ),
                     CircleAvatar(
                       radius: 40,
                       backgroundColor: Theme.of(context)

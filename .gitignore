@@ -27,6 +27,7 @@ migrate_working_dir/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+.kotlin/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
@@ -37,6 +38,8 @@ migrate_working_dir/
 node_modules/
 backend/data/
 backend/.env
+**/service-account*.json
+**/*adminsdk*.json
 
 # Symbolication related
 app.*.symbols

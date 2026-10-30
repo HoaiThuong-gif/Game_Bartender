@@ -242,6 +242,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         widget.user.email ?? data['email'] as String? ?? '',
                       ),
                       SelectableText('UID: ${widget.user.uid}'),
+                      SelectableText(
+                        'Game ID: ${data['gameId'] ?? 'Đang cấp ID…'}',
+                      ),
                       if (snapshot.data!.metadata.hasPendingWrites)
                         const Text('Thay đổi đang chờ đồng bộ…'),
                       if (date != null)
@@ -281,6 +284,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Card(
           child: Column(
             children: [
+              if (widget.accounts is FirebaseAccountService)
+                ListTile(
+                  leading: const Icon(Icons.fingerprint),
+                  title: const Text('Đăng nhập sinh trắc học'),
+                  subtitle: const Text(
+                    'Bật sau khi xác thực OTP trên điện thoại này',
+                  ),
+                  onTap: () => _run(() async {
+                    final security =
+                        (widget.accounts as FirebaseAccountService).security;
+                    if (await security.biometricEnabled) {
+                      await security.disableBiometrics();
+                    } else {
+                      await security.enableBiometrics();
+                    }
+                  }, 'Đã cập nhật đăng nhập sinh trắc học.'),
+                ),
               ListTile(
                 leading: const Icon(Icons.palette_outlined),
                 title: const Text('Giao diện'),

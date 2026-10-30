@@ -132,6 +132,91 @@ Lấy SHA của biến thể debug từ kết quả và bổ sung vào Firebase 
 viên có thể dùng khóa debug khác nhau; SHA trên máy người khác không thay thế SHA
 của khóa bạn đang dùng. Sau khi thay cấu hình Google, chạy lại app để build lại.
 
+### Firebase Admin và OTP email Brevo
+
+Tài khoản vẫn dùng Firebase Authentication; hồ sơ ở Firestore `players/{uid}`,
+ảnh ở Firebase Storage. Game ID do backend cấp duy nhất qua transaction và chỉ
+bổ sung khi hồ sơ chưa có ID. Tên hiển thị được phép trùng. API game Node.js vẫn
+lưu phòng/trận trong `backend/data/state.json`; module Dart WebSocket dùng bộ
+nhớ riêng. Không có yêu cầu cài thêm MySQL/PostgreSQL hoặc chuyển dữ liệu cũ.
+
+Backend cần Firebase Admin để kiểm tra phiên và OTP. Trong Firebase Console của
+đúng project `nhom-bar`: **Project settings → Service accounts → Firebase Admin
+SDK → Generate new private key → Generate key**. Đặt file JSON tải về ngoài repo,
+ví dụ `D:/FirebaseKeys/nhom-bar-admin.json`. Không thay `google-services.json`
+bằng file này, không gửi khóa vào chat và không commit khóa lên Git.
+
+Nếu đã có `backend/.env`, mở và sửa file hiện có. Nếu chưa có, tại thư mục gốc:
+
+```powershell
+Copy-Item backend/.env.example backend/.env
+```
+
+Điền cấu hình local:
+
+```dotenv
+FIREBASE_PROJECT_ID=nhom-bar
+GOOGLE_APPLICATION_CREDENTIALS=D:/FirebaseKeys/nhom-bar-admin.json
+BREVO_API_KEY=API_KEY_CUA_BAN
+BREVO_SENDER_EMAIL=EMAIL_SENDER_DA_XAC_MINH
+OTP_HMAC_KEY=KHOA_NGAU_NHIEN_CUA_BAN
+```
+
+Tạo khóa HMAC một lần bằng lệnh dưới, chép kết quả vào `.env`, không đổi khóa
+giữa lúc đang xác thực OTP:
+
+```powershell
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
+
+Trên Brevo, xác minh sender/domain và cấp cho API key quyền gửi transactional
+email. Dùng API key, không dùng SMTP key. Key chỉ có quyền gửi có thể bị từ chối
+khi gọi API đọc `account`/`senders`; điều đó không xác nhận hoặc phủ nhận việc
+gửi email thành công. Backend gọi `POST https://api.brevo.com/v3/smtp/email`.
+
+Trong Firebase Console:
+
+1. **Authentication → Sign-in method:** giữ Email/Password và Google hiện có;
+   không xóa tài khoản cũ hoặc tạo project khác.
+2. **Firestore Database:** dùng database `(default)` đang có. Nếu chưa có mới
+   tạo database ở Production mode. Không xóa collection để chạy lại.
+3. **Firestore Database → Rules** và **Storage → Rules:** lưu bản Rules hiện tại
+   trước khi thay đổi. Các mẫu `backend/firebase/account.firestore.rules` và
+   `account.storage.rules` chỉ bao phủ tài khoản. Cần ghép với Rules thực tế,
+   giữ các collection khác và xử lý rule `allow` rộng chồng lên `players`.
+   Không triển khai nguyên file mẫu để ghi đè Rules chưa được kiểm tra.
+
+Rules tài khoản cần kiểm tra claim `account_session` và phiên `_accountSessions`
+còn hạn, chỉ cho chủ UID sửa tên/ảnh. UID, Game ID và ngày tạo không được sửa
+từ client. `_accountChallenges`, `_accountSessions`, `gameIds` chỉ backend Admin
+được ghi. Storage dùng Firestore trong Rules có thể yêu cầu cấp quyền truy cập
+chéo dịch vụ khi publish; làm theo thông báo của Firebase Console. Không thay
+Rules Realtime Database game cũ bằng các mẫu này.
+
+Kiểm tra Firestore thật sau khi đặt đúng file khóa, tại thư mục gốc:
+
+```powershell
+node backend/tools/check-account-database.js
+```
+
+Công cụ chỉ tạo, đọc, cập nhật rồi dọn document ngẫu nhiên trong
+`_accountDiagnostics`; không sửa hồ sơ người chơi. Thành công ở đây xác nhận
+CRUD của Admin, chưa xác nhận Rules client, email tới hộp thư hoặc sinh trắc học.
+
+Sau khi khởi động Node ở bước 4, đăng ký/đăng nhập trên điện thoại rồi chọn gửi
+mã email. Mã có hạn 10 phút, tối đa 5 lần nhập; gửi lại cách nhau ít nhất 60 giây,
+tối đa 5 lần/giờ. Mã chỉ lưu dạng HMAC và không được ghi log. Chỉ sau khi backend
+kiểm tra đúng mã mới cấp phiên Firebase đã xác thực. Hồ sơ cũ chỉ được bổ sung
+trường còn thiếu, không đặt lại điểm/bộ sưu tập hay UID.
+
+Sau OTP thành công, bật sinh trắc học trong hồ sơ trên Android hỗ trợ sinh trắc
+học mạnh. Khóa phiên được Android Keystore bảo vệ và chỉ giải mã sau xác thực
+HĐH; không lưu mặt/vân tay. Lần mở app sau dùng nút sinh trắc học hoặc đăng nhập
+thông thường và OTP. Đăng xuất thu hồi phiên hiện tại và tắt khóa đăng nhập nhanh
+trên thiết bị; nếu offline, xóa phiên cục bộ trước và báo lỗi thu hồi từ server.
+Phiên hết hạn hoặc đổi/reset mật khẩu yêu cầu xác thực lại. Khởi động lại Node
+sau khi chỉnh `.env`; không đưa API key Brevo/Admin vào Flutter.
+
 ## 4. Khởi động API game
 
 Terminal thứ nhất, ở thư mục gốc:

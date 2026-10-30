@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../firebase_options.dart';
+import 'account_security.dart';
 
 abstract class AccountService {
   Stream<User?> get changes;
@@ -21,6 +22,8 @@ abstract class AccountService {
 class FirebaseAccountService implements AccountService {
   FirebaseAccountService(this.auth);
   final FirebaseAuth auth;
+  late final security = AccountSecurity(auth);
+  int loginEpoch = 0;
   Future<void>? _googleReady;
   Completer<void>? _registration;
 
@@ -30,7 +33,12 @@ class FirebaseAccountService implements AccountService {
         options: DefaultFirebaseOptions.currentPlatform,
       );
     }
-    return FirebaseAccountService(FirebaseAuth.instance);
+    final auth = FirebaseAuth.instance;
+    // A cold start requires a fresh login/OTP or a Keystore-protected biometric grant.
+    if (auth.currentUser != null && !auth.currentUser!.isAnonymous) {
+      await auth.signOut();
+    }
+    return FirebaseAccountService(auth);
   }
 
   @override
@@ -44,6 +52,7 @@ class FirebaseAccountService implements AccountService {
   });
   @override
   Future<void> login(String email, String password) async {
+    loginEpoch++;
     await auth.signInWithEmailAndPassword(
       email: email.trim(),
       password: password,
@@ -52,6 +61,7 @@ class FirebaseAccountService implements AccountService {
 
   @override
   Future<void> register(String name, String email, String password) async {
+    loginEpoch++;
     final registration = Completer<void>();
     _registration = registration;
     try {
@@ -76,6 +86,7 @@ class FirebaseAccountService implements AccountService {
 
   @override
   Future<void> google() async {
+    loginEpoch++;
     _googleReady ??= GoogleSignIn.instance.initialize();
     await _googleReady;
     final google = await GoogleSignIn.instance.authenticate();
@@ -101,7 +112,7 @@ class FirebaseAccountService implements AccountService {
       auth.sendPasswordResetEmail(email: email.trim());
   @override
   Future<void> logout() async {
-    await auth.signOut();
+    await security.signOut();
     try {
       if (_googleReady != null) await GoogleSignIn.instance.signOut();
     } catch (error) {

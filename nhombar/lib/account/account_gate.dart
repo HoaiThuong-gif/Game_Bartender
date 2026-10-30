@@ -6,6 +6,7 @@ import '../screens/home/lobby_screen.dart';
 import 'account_service.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
+import 'verification_screen.dart';
 import '../settings/app_settings.dart';
 
 class AccountGate extends StatefulWidget {
@@ -96,7 +97,7 @@ class _SessionGateState extends State<_SessionGate> {
       }
       // All protected routes live here. Removing this Navigator on sign-out
       // removes Lobby AND any profile/game route above it, including Back access.
-      return _ProtectedNavigator(
+      final protected = _ProtectedNavigator(
         key: ValueKey('player-${user.uid}'),
         builder: (context) =>
             widget.lobbyBuilder?.call(context) ??
@@ -115,6 +116,14 @@ class _SessionGateState extends State<_SessionGate> {
               ),
             ),
       );
+      final service = widget.service;
+      return service is FirebaseAccountService
+          ? AccountVerificationGate(
+              key: ValueKey('${user.uid}:${service.loginEpoch}'),
+              security: service.security,
+              child: protected,
+            )
+          : protected;
     },
   );
 }

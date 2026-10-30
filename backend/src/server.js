@@ -2,12 +2,15 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
+const envFile = path.join(__dirname, '../.env');
+if (fs.existsSync(envFile)) process.loadEnvFile(envFile);
 const { randomBytes, randomUUID, randomInt } = require('node:crypto');
 const { Store } = require('./store');
 const bartender = require('./bartender');
 const rubik = require('./rubik');
 const { requireThat } = bartender;
 const openapi = require('./openapi');
+const { accountRoute } = require('./accounts');
 
 async function readBody(req) {
   let raw = '';
@@ -71,6 +74,8 @@ function createServer({ store = new Store(process.env.DATA_FILE || path.join(__d
     try {
       if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
       const url = new URL(req.url, 'http://localhost');
+      const account = await accountRoute(req, url, readBody);
+      if (account !== null) return reply(200, account);
       if (req.method === 'GET' && url.pathname === '/openapi.json') return reply(200, openapi);
       if (req.method === 'GET' && ['/', '/docs', '/docs/'].includes(url.pathname)) {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });

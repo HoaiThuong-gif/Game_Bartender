@@ -1,0 +1,19 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function verified(uid) {
+      return request.auth != null && request.auth.uid == uid
+        && 'account_session' in request.auth.token
+        && request.auth.token.account_session is string
+        && firestore.get(/databases/(default)/documents/_accountSessions/$(request.auth.token.account_session)).data.uid == uid
+        && firestore.get(/databases/(default)/documents/_accountSessions/$(request.auth.token.account_session)).data.revoked == false
+        && request.time < timestamp.value(firestore.get(/databases/(default)/documents/_accountSessions/$(request.auth.token.account_session)).data.expiresAt);
+    }
+    match /players/{uid}/avatars/{file} {
+      allow read: if verified(uid);
+      allow create: if verified(uid) && request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType == 'image/jpeg';
+      allow update, delete: if false;
+    }
+  }
+}
