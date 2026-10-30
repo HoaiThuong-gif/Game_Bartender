@@ -27,6 +27,18 @@
 
 ## Đã xong / Done
 
+- **Bước C.3: Triển khai toàn bộ backend game HTTP + WebSocket trên server (2026-10-30):**
+  - Xây dựng `RoomService` in-memory (`server/src/room_service.dart`) đồng bộ 100% không `await` giữa đọc-ghi để triệt tiêu race condition:
+    - `POST /rooms`, `POST /rooms/{code}/join`, `POST /rooms/{code}/leave`, `POST /rooms/{code}/start`.
+    - `GET /rooms/{code}`, `POST /rooms/{code}/items/send`, `POST /rooms/{code}/items/trash`, `POST /rooms/{code}/items/process`, `POST /rooms/{code}/orders/submit`.
+    - `GET /rooms/{code}/ws?token=...` nâng cấp WebSocket, phát snapshot thời gian thực ngay khi có thay đổi, gửi ping định kỳ mỗi 25s, tự động cập nhật cờ `connected` khi socket mở/đóng.
+    - Chuyển round tự động khi mọi người chơi connected hoàn thành đơn: loại bỏ người disconnect và dồn `ringIndex` về `0..k-1` (D14), phân trạm ngẫu nhiên đảm bảo đơn khả thi (D15), tối đa 3 trạm (D16), tuân thủ bảng luật chế biến duy nhất `processItem` (D19).
+    - Kết thúc trận khi hết giờ hoặc còn dưới 2 người: ghi `results` trước khi chuyển `status = ended`.
+    - Dọn dẹp phòng cũ (phòng ended xóa sau 10 phút, phòng lobby trống xóa sau 30 phút).
+    - Quản lý mã lỗi chuẩn API.md (`INVALID_REQUEST`, `UNAUTHORIZED`, `ROOM_NOT_FOUND`, `ITEM_NOT_FOUND`, `ROOM_FULL`, `ROOM_NOT_JOINABLE`, `NOT_ENOUGH_PLAYERS`, `INVALID_STATE`, `INVALID_MOVE`, `ORDER_MISMATCH`).
+  - Viết bộ unit test game rules `server/test/room_service_test.dart` (8 tests) và test tích hợp End-to-End `server/test/e2e_match_test.dart` giả lập 2 người chơi qua HTTP + WebSocket in-process (toàn bộ 10 server tests pass 100%).
+  - `dart analyze` (server) 0 lỗi, `flutter analyze` 0 lỗi 0 cảnh báo.
+
 - **Bước B: Khung server Dart thuần tại `server/`, GET /health, Dockerfile và .dockerignore cho VPS (2026-10-30):**
   - Tạo package Dart thuần `bartender_server` trong thư mục `server/` (dùng `shelf`, `shelf_router`, `shelf_web_socket`, `web_socket_channel`).
   - Tái sử dụng trực tiếp các models từ `lib/games/bartender/models/` qua relative import mà không di chuyển file.
