@@ -84,6 +84,7 @@ flutter:
     - shaders/lobby_panorama.frag
 
   assets:
+    - assets/loading/
     # Package runtime WebViews only; npm uses the source modules when rebuilding.
     - assets/rubik/index.html
     - assets/rubik/rubik.js
