@@ -90,6 +90,13 @@ class FirebaseRoomRepository implements RoomRepository {
   final Map<String, Room> _latestRooms = {};
 
   @override
+  RoomConnectionState get connectionState => RoomConnectionState.connected;
+
+  @override
+  Stream<RoomConnectionState> watchConnectionState() =>
+      Stream.value(RoomConnectionState.connected);
+
+  @override
   String get localPlayerId {
     final uid = _myUid;
     if (uid == null) {

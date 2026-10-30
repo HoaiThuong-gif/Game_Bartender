@@ -85,6 +85,9 @@ void main() {
       expect((hostInitial['players'] as Map).length, 2);
 
       // 4. Host starts match
+      final hostPlayingFuture = hostSnapshots.stream.firstWhere(
+        (s) => s['status'] == 'playing',
+      );
       final startRes = await http.post(
         Uri.parse('$baseUrl/rooms/$code/start'),
         headers: {'authorization': 'Bearer $hostToken'},
@@ -92,9 +95,7 @@ void main() {
       expect(startRes.statusCode, 204);
 
       // Both receive playing snapshot
-      final playingSnap = await hostSnapshots.stream.firstWhere(
-        (s) => s['status'] == 'playing',
-      );
+      final playingSnap = await hostPlayingFuture;
       expect(playingSnap['currentRound'], isNotNull);
       expect(playingSnap['currentRound']['number'], 1);
       expect(playingSnap['inbox']['0'], isNotEmpty);
@@ -102,6 +103,11 @@ void main() {
 
       // 5. Host sends an item to guest (0 -> 1)
       final hostItem = (playingSnap['inbox']['0'] as List).first as Map<String, dynamic>;
+      final guestReceiveItemFuture = guestSnapshots.stream.firstWhere((s) {
+        final guestInbox = s['inbox']?['1'] as List?;
+        return guestInbox != null && guestInbox.any((it) => it['id'] == hostItem['id']);
+      });
+
       final sendRes = await http.post(
         Uri.parse('$baseUrl/rooms/$code/items/send'),
         headers: {
@@ -116,10 +122,7 @@ void main() {
       expect(sendRes.statusCode, 204);
 
       // Guest observes item in their inbox
-      final sendSnap = await guestSnapshots.stream.firstWhere((s) {
-        final guestInbox = s['inbox']['1'] as List;
-        return guestInbox.any((it) => it['id'] == hostItem['id']);
-      });
+      final sendSnap = await guestReceiveItemFuture;
       expect(sendSnap['inbox']['1'], isNotEmpty);
 
       // 6. Guest trashes an item
@@ -145,6 +148,10 @@ void main() {
       expect(roomData['status'], 'playing');
 
       // 8. Player 2 leaves -> ends match (< 2 connected)
+      final hostEndedFuture = hostSnapshots.stream.firstWhere(
+        (s) => s['status'] == 'ended',
+      );
+
       final leaveRes = await http.post(
         Uri.parse('$baseUrl/rooms/$code/leave'),
         headers: {'authorization': 'Bearer $guestToken'},
@@ -152,9 +159,7 @@ void main() {
       expect(leaveRes.statusCode, 204);
 
       // Host receives ended snapshot with results
-      final endedSnap = await hostSnapshots.stream.firstWhere(
-        (s) => s['status'] == 'ended',
-      );
+      final endedSnap = await hostEndedFuture;
       expect(endedSnap['results'], isNotNull);
       expect(endedSnap['results']['ranking'], isNotEmpty);
 

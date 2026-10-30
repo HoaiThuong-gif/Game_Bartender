@@ -43,6 +43,14 @@
 
 ## Đã xong / Done
 
+- **Bước C.7: Tăng cường tính bền bỉ cho WebSocket trong ApiRoomRepository (2026-10-30):**
+  - Tự động kết nối lại (auto-reconnect) khi socket bị ngắt hoặc lỗi giữa trận với exponential backoff (1s, 2s, 4s, tối đa 5s), tổng thời gian tối đa ~30s, giữ nguyên playerToken.
+  - Sau mỗi lần nối lại thành công, tự động gọi GET /rooms/{code} một lần, thay thế hoàn toàn local room state bằng snapshot mới (không merge), rồi tiếp tục nhận snapshot qua WebSocket.
+  - Dừng thử lại ngay lập tức và phát lỗi rõ ràng nếu server trả về UNAUTHORIZED hoặc ROOM_NOT_FOUND.
+  - Định nghĩa enum RoomConnectionState (connected / reconnecting / lost) trên RoomRepository và BartenderController.
+  - Hiển thị banner nhỏ 'Đang nối lại...' trên BartenderMatchScreen mà không làm thay đổi bố cục giao diện.
+  - Bộ test đầy đủ: 7 test trong test/bartender_api_room_repository_test.dart, test/bartender_reconnect_banner_test.dart; 227/227 Flutter tests và 10/10 server tests pass 100%.
+
 - **Bước C.5: Triển khai Flutter `ApiRoomRepository` và tích hợp bộ chọn Backend (2026-10-30):**
   - Viết `ApiRoomRepository` (`lib/games/bartender/services/api_room_repository.dart`) cài đặt trọn vẹn interface `RoomRepository`:
     - Giao tiếp với HTTP server (`createRoom`, `joinRoom`, `leaveRoom`, `startMatch`, `sendItem`, `trashItem`, `processItemAtStation`, `submitOrder`).

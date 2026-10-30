@@ -42,6 +42,34 @@ class FakeRoomRepository implements RoomRepository {
   String _localPlayerId = 'p_0';
   bool _isHostOnThisDevice = false;
 
+  RoomConnectionState _connectionState = RoomConnectionState.connected;
+  StreamController<RoomConnectionState>? _connectionStateController;
+
+  @override
+  RoomConnectionState get connectionState => _connectionState;
+
+  @override
+  Stream<RoomConnectionState> watchConnectionState() {
+    _connectionStateController ??= StreamController<RoomConnectionState>.broadcast();
+    scheduleMicrotask(() {
+      if (!_isDisposed &&
+          _connectionStateController != null &&
+          !_connectionStateController!.isClosed) {
+        _connectionStateController!.add(_connectionState);
+      }
+    });
+    return _connectionStateController!.stream;
+  }
+
+  set testConnectionState(RoomConnectionState state) {
+    _connectionState = state;
+    if (!_isDisposed &&
+        _connectionStateController != null &&
+        !_connectionStateController!.isClosed) {
+      _connectionStateController!.add(state);
+    }
+  }
+
   @override
   String get localPlayerId => _localPlayerId;
 
@@ -843,6 +871,8 @@ class FakeRoomRepository implements RoomRepository {
     _stopTimers();
     _roomStreamController?.close();
     _roomStreamController = null;
+    _connectionStateController?.close();
+    _connectionStateController = null;
   }
 }
 

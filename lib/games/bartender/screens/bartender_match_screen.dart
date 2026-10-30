@@ -62,6 +62,53 @@ class BartenderMatchScreen extends StatelessWidget {
                   teamOrders: ctrl.totalTeamOrders,
                 ),
 
+                // Banner trạng thái kết nối nếu đang nối lại hoặc mất kết nối
+                if (ctrl.connectionState == RoomConnectionState.reconnecting)
+                  Container(
+                    width: double.infinity,
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+                    color: Colors.orange.shade800,
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'Đang nối lại...',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else if (ctrl.connectionState == RoomConnectionState.lost)
+                  Container(
+                    width: double.infinity,
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+                    color: Colors.red.shade800,
+                    child: const Text(
+                      'Mất kết nối máy chủ',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+
                 // 2. Nội dung cuộn được khi các thành phần nhiều hoặc màn hình nhỏ / có navigation bar
                 Expanded(
                   child: SingleChildScrollView(

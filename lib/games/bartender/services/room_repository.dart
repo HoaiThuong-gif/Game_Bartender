@@ -10,7 +10,25 @@ import '../models/station.dart';
 /// Xem ARCHITECTURE.md mục "Các lớp nội bộ":
 /// - [FakeRoomRepository]: in-memory, dùng cho local dev và single-device loop.
 /// - [FirebaseRoomRepository]: RTDB thật cho multi-device play (giai đoạn 5).
+/// Trạng thái kết nối của repository với máy chủ hoặc backend.
+enum RoomConnectionState {
+  /// Đang kết nối bình thường, nhận dữ liệu thời gian thực.
+  connected,
+
+  /// Mất kết nối tạm thời, đang tự động thử kết nối lại với máy chủ.
+  reconnecting,
+
+  /// Mất kết nối hoàn toàn (vượt quá thời gian chờ hoặc phiên bị hủy/không hợp lệ).
+  lost,
+}
+
 abstract interface class RoomRepository {
+  /// Trạng thái kết nối hiện tại của repository.
+  RoomConnectionState get connectionState;
+
+  /// Lắng nghe thay đổi trạng thái kết nối (connected / reconnecting / lost).
+  Stream<RoomConnectionState> watchConnectionState();
+
   /// ID của người chơi trên máy này.
   /// Fake: 'p_0' khi tạo phòng, id được gán khi join.
   /// Firebase: uid từ FirebaseAuth (anonymous).

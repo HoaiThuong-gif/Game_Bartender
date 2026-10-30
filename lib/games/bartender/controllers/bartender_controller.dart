@@ -14,6 +14,7 @@ import '../services/bartender_haptics.dart';
 import '../services/fake_room_repository.dart';
 import '../services/firebase_room_repository.dart';
 import '../services/room_repository.dart';
+export '../services/room_repository.dart' show RoomConnectionState;
 
 /// Quản lý trạng thái trận đấu Bartender và giao tiếp giữa UI và RoomRepository.
 ///
@@ -26,7 +27,19 @@ import '../services/room_repository.dart';
 /// - false → [FirebaseRoomRepository] (chạy online RTDB, giai đoạn 5+)
 class BartenderController extends ChangeNotifier {
   BartenderController({RoomRepository? repository})
-      : _repository = repository ?? _createDefaultRepository();
+      : _repository = repository ?? _createDefaultRepository() {
+    _connectionState = _repository.connectionState;
+    _connectionSubscription =
+        _repository.watchConnectionState().listen((state) {
+      if (_connectionState != state) {
+        _connectionState = state;
+        if (state == RoomConnectionState.lost && _errorMessage == null) {
+          _errorMessage = 'Mất kết nối với máy chủ.';
+        }
+        notifyListeners();
+      }
+    });
+  }
 
   static RoomRepository _createDefaultRepository() {
     switch (BartenderConfig.backend) {
@@ -52,12 +65,17 @@ class BartenderController extends ChangeNotifier {
   bool _hasReturnedToLobby = false;
 
   StreamSubscription<Room>? _roomSubscription;
+  StreamSubscription<RoomConnectionState>? _connectionSubscription;
+  RoomConnectionState _connectionState = RoomConnectionState.connected;
   Timer? _countdownTicker;
   Timer? _noticeTimer;
 
   // ─── Getters ──────────────────────────────────────────────────
 
   Room? get room => _room;
+
+  /// Trạng thái kết nối hiện tại của repository (connected / reconnecting / lost).
+  RoomConnectionState get connectionState => _connectionState;
 
   /// ID người chơi trên máy này — lấy từ repository (không đoán).
   String? get myPlayerId {
@@ -361,7 +379,8 @@ class BartenderController extends ChangeNotifier {
 
   void _subscribeToRoom(String code) {
     _roomSubscription?.cancel();
-    _roomSubscription = _repository.watchRoom(code).listen((updatedRoom) {
+    _roomSubscription = _repository.watchRoom(code).listen(
+      (updatedRoom) {
       // D14: Nếu người chơi bị loại khỏi phòng (ví dụ qua ranh giới round khi mất kết nối)
       if (myPlayerId != null &&
           _room != null &&
@@ -398,6 +417,12 @@ class BartenderController extends ChangeNotifier {
         _stopTicker();
       }
 
+      notifyListeners();
+    }, onError: (err) {
+      _errorMessage = err
+          .toString()
+          .replaceFirst('StateError: ', '')
+          .replaceFirst('Exception: ', '');
       notifyListeners();
     });
   }
@@ -462,6 +487,7 @@ class BartenderController extends ChangeNotifier {
   @override
   void dispose() {
     _isDisposed = true;
+    _connectionSubscription?.cancel();
     _stopTicker();
     _noticeTimer?.cancel();
     _roomSubscription?.cancel();

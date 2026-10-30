@@ -13,29 +13,82 @@ import 'room_repository.dart';
 
 /// Bản triển khai [RoomRepository] giao tiếp với backend server tự host
 /// qua HTTP REST API và WebSocket snapshots theo hợp đồng API.md.
+enum _ReconnectOutcome {
+  success,
+  permanentFailure,
+  retryableFailure,
+}
+
 class ApiRoomRepository implements RoomRepository {
   ApiRoomRepository({
     String? baseUrl,
     http.Client? httpClient,
     this.wsFactory,
+    Future<void> Function(Duration duration)? delayFn,
+    this.maxReconnectDuration = const Duration(seconds: 30),
   })  : _baseUrl = _cleanBaseUrl(baseUrl ?? BartenderConfig.apiBaseUrl),
-        _httpClient = httpClient ?? http.Client();
+        _httpClient = httpClient ?? http.Client(),
+        _delayFn = delayFn ?? Future.delayed;
 
   final String _baseUrl;
   final http.Client _httpClient;
   final WebSocketChannel Function(Uri uri)? wsFactory;
+  final Future<void> Function(Duration duration) _delayFn;
+  final Duration maxReconnectDuration;
 
   String _localPlayerId = '';
   String? _playerToken;
   Room? _currentRoom;
 
   StreamController<Room>? _roomStreamController;
+  StreamController<RoomConnectionState>? _connectionStateController;
+  RoomConnectionState _connectionState = RoomConnectionState.connected;
+
   WebSocketChannel? _wsChannel;
   StreamSubscription<dynamic>? _wsSubscription;
   bool _isDisposed = false;
+  bool _isReconnecting = false;
+  bool _isLeaving = false;
 
   @override
   String get localPlayerId => _localPlayerId;
+
+  @override
+  RoomConnectionState get connectionState => _connectionState;
+
+  @override
+  Stream<RoomConnectionState> watchConnectionState() {
+    _connectionStateController ??=
+        StreamController<RoomConnectionState>.broadcast();
+    final current = _connectionState;
+    scheduleMicrotask(() {
+      if (!_isDisposed &&
+          _connectionStateController != null &&
+          !_connectionStateController!.isClosed) {
+        _connectionStateController!.add(current);
+      }
+    });
+    return _connectionStateController!.stream;
+  }
+
+  void _setConnectionState(RoomConnectionState state) {
+    if (_connectionState != state) {
+      _connectionState = state;
+      if (!_isDisposed &&
+          _connectionStateController != null &&
+          !_connectionStateController!.isClosed) {
+        _connectionStateController!.add(state);
+      }
+    }
+  }
+
+  void _emitError(Object error) {
+    if (!_isDisposed &&
+        _roomStreamController != null &&
+        !_roomStreamController!.isClosed) {
+      _roomStreamController!.addError(error);
+    }
+  }
 
   String? get playerToken => _playerToken;
 
@@ -121,14 +174,20 @@ class ApiRoomRepository implements RoomRepository {
     final factory = wsFactory;
     final channel = factory != null ? factory(uri) : WebSocketChannel.connect(uri);
     _wsChannel = channel;
+    _setConnectionState(RoomConnectionState.connected);
 
+    _listenToSocket(channel, code, token);
+  }
+
+  void _listenToSocket(WebSocketChannel channel, String code, String token) {
     _wsSubscription = channel.stream.listen(
       (data) {
         try {
           final map = jsonDecode(data as String) as Map<String, dynamic>;
           if (map['type'] == 'snapshot' && map['room'] != null) {
             final now = DateTime.now().millisecondsSinceEpoch;
-            final room = Room.fromJson(map['room'] as Map<String, dynamic>, localNowMs: now);
+            final room =
+                Room.fromJson(map['room'] as Map<String, dynamic>, localNowMs: now);
             _emit(room);
           } else if (map['type'] == 'ping') {
             channel.sink.add(jsonEncode({'type': 'pong'}));
@@ -138,12 +197,150 @@ class ApiRoomRepository implements RoomRepository {
         }
       },
       onError: (err) {
-        // Socket lỗi
+        _handleSocketDisruption(code, token, error: err);
       },
       onDone: () {
-        // Socket đóng
+        _handleSocketDisruption(code, token, closeCode: channel.closeCode);
       },
     );
+  }
+
+  void _handleSocketDisruption(
+    String code,
+    String token, {
+    Object? error,
+    int? closeCode,
+  }) {
+    if (_isDisposed || _isLeaving) return;
+
+    if (_currentRoom?.status == RoomStatus.ended) {
+      return;
+    }
+
+    if (closeCode == 4401 || closeCode == 4404) {
+      _setConnectionState(RoomConnectionState.lost);
+      final errorMsg = closeCode == 4401
+          ? mapApiError('UNAUTHORIZED', '')
+          : mapApiError('ROOM_NOT_FOUND', '');
+      _emitError(StateError(errorMsg));
+      return;
+    }
+
+    if (!_isReconnecting) {
+      _startReconnectLoop(code, token);
+    }
+  }
+
+  Future<void> _startReconnectLoop(String code, String token) async {
+    _isReconnecting = true;
+    _setConnectionState(RoomConnectionState.reconnecting);
+
+    var currentBackoff = const Duration(seconds: 1);
+    const maxBackoff = Duration(seconds: 5);
+    var totalElapsed = Duration.zero;
+
+    while (!_isDisposed && !_isLeaving && _currentRoom?.status != RoomStatus.ended) {
+      if (totalElapsed >= maxReconnectDuration) {
+        _setConnectionState(RoomConnectionState.lost);
+        _emitError(StateError(
+            'Mất kết nối máy chủ sau ${maxReconnectDuration.inSeconds}s thử lại.'));
+        _isReconnecting = false;
+        return;
+      }
+
+      await _delayFn(currentBackoff);
+      totalElapsed += currentBackoff;
+
+      final nextSeconds =
+          (currentBackoff.inSeconds * 2).clamp(1, maxBackoff.inSeconds);
+      currentBackoff = Duration(seconds: nextSeconds);
+
+      if (_isDisposed || _isLeaving || _currentRoom?.status == RoomStatus.ended) {
+        _isReconnecting = false;
+        return;
+      }
+
+      final outcome = await _attemptReconnect(code, token);
+      if (outcome == _ReconnectOutcome.success) {
+        _isReconnecting = false;
+        _setConnectionState(RoomConnectionState.connected);
+        return;
+      } else if (outcome == _ReconnectOutcome.permanentFailure) {
+        _isReconnecting = false;
+        _setConnectionState(RoomConnectionState.lost);
+        return;
+      }
+      // retryableFailure tiếp tục vòng lặp
+    }
+
+    _isReconnecting = false;
+  }
+
+  Future<_ReconnectOutcome> _attemptReconnect(String code, String token) async {
+    WebSocketChannel? channel;
+    try {
+      final uri = Uri.parse('$_wsBaseUrl/rooms/$code/ws?token=$token');
+      final factory = wsFactory;
+      channel = factory != null ? factory(uri) : WebSocketChannel.connect(uri);
+
+      await channel.ready;
+
+      if (channel.closeCode == 4401 || channel.closeCode == 4404) {
+        channel.sink.close();
+        final errCode =
+            channel.closeCode == 4401 ? 'UNAUTHORIZED' : 'ROOM_NOT_FOUND';
+        _emitError(StateError(mapApiError(errCode, '')));
+        return _ReconnectOutcome.permanentFailure;
+      }
+
+      final getUri = Uri.parse('$_baseUrl/rooms/$code');
+      final res = await _httpClient.get(
+        getUri,
+        headers: {'authorization': 'Bearer $token'},
+      );
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final room = Room.fromJson(
+          data['room'] as Map<String, dynamic>,
+          localNowMs: now,
+        );
+
+        // Thay thế hoàn toàn local room state
+        _emit(room);
+
+        _wsSubscription?.cancel();
+        _wsChannel?.sink.close();
+        _wsChannel = channel;
+
+        _listenToSocket(channel, code, token);
+
+        return _ReconnectOutcome.success;
+      } else if (res.statusCode == 401 || res.statusCode == 404) {
+        channel.sink.close();
+        String errCode =
+            res.statusCode == 401 ? 'UNAUTHORIZED' : 'ROOM_NOT_FOUND';
+        String errMsg = '';
+        try {
+          final errBody = jsonDecode(res.body) as Map<String, dynamic>;
+          final err = errBody['error'] as Map<String, dynamic>?;
+          if (err != null) {
+            errCode = err['code'] as String? ?? errCode;
+            errMsg = err['message'] as String? ?? '';
+          }
+        } catch (_) {}
+
+        _emitError(StateError(mapApiError(errCode, errMsg)));
+        return _ReconnectOutcome.permanentFailure;
+      } else {
+        channel.sink.close();
+        return _ReconnectOutcome.retryableFailure;
+      }
+    } catch (_) {
+      channel?.sink.close();
+      return _ReconnectOutcome.retryableFailure;
+    }
   }
 
   @override
@@ -224,18 +421,23 @@ class ApiRoomRepository implements RoomRepository {
     required String code,
     required String playerId,
   }) async {
+    _isLeaving = true;
     if (_playerToken == null) return;
     final uri = Uri.parse('$_baseUrl/rooms/$code/leave');
-    await _httpClient.post(
-      uri,
-      headers: {'authorization': 'Bearer $_playerToken'},
-    );
-
-    _wsSubscription?.cancel();
-    _wsChannel?.sink.close();
-    _wsChannel = null;
-    _playerToken = null;
-    _currentRoom = null;
+    try {
+      await _httpClient.post(
+        uri,
+        headers: {'authorization': 'Bearer $_playerToken'},
+      );
+    } finally {
+      _wsSubscription?.cancel();
+      _wsChannel?.sink.close();
+      _wsChannel = null;
+      _playerToken = null;
+      _currentRoom = null;
+      _isLeaving = false;
+      _setConnectionState(RoomConnectionState.connected);
+    }
   }
 
   @override
@@ -382,9 +584,11 @@ class ApiRoomRepository implements RoomRepository {
   @override
   void dispose() {
     _isDisposed = true;
+    _isLeaving = true;
     _wsSubscription?.cancel();
     _wsChannel?.sink.close();
     _roomStreamController?.close();
+    _connectionStateController?.close();
     _httpClient.close();
   }
 }
