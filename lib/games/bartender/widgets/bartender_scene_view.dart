@@ -152,6 +152,12 @@ class _BartenderSceneViewState extends State<BartenderSceneView>
           unawaited(_flush(force: true));
           _updateActivity();
           _sendSensorStatus();
+        case 'sceneReady':
+          final id = data['preparationId'];
+          if (id is int &&
+              data['round'] == widget.controller.room?.currentRound?.number) {
+            unawaited(widget.controller.reportSceneReady(preparationId: id));
+          }
         case 'selected':
           _selectedId = data['id'] as String?;
         case 'action':

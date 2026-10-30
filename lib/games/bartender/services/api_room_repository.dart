@@ -13,11 +13,7 @@ import 'room_repository.dart';
 
 /// Bản triển khai [RoomRepository] giao tiếp với backend server tự host
 /// qua HTTP REST API và WebSocket snapshots theo hợp đồng API.md.
-enum _ReconnectOutcome {
-  success,
-  permanentFailure,
-  retryableFailure,
-}
+enum _ReconnectOutcome { success, permanentFailure, retryableFailure }
 
 class ApiRoomRepository implements RoomRepository {
   ApiRoomRepository({
@@ -26,9 +22,9 @@ class ApiRoomRepository implements RoomRepository {
     this.wsFactory,
     Future<void> Function(Duration duration)? delayFn,
     this.maxReconnectDuration = const Duration(seconds: 30),
-  })  : _baseUrl = _cleanBaseUrl(baseUrl ?? BartenderConfig.apiBaseUrl),
-        _httpClient = httpClient ?? http.Client(),
-        _delayFn = delayFn ?? Future.delayed;
+  }) : _baseUrl = _cleanBaseUrl(baseUrl ?? BartenderConfig.apiBaseUrl),
+       _httpClient = httpClient ?? http.Client(),
+       _delayFn = delayFn ?? Future.delayed;
 
   final String _baseUrl;
   final http.Client _httpClient;
@@ -172,7 +168,9 @@ class ApiRoomRepository implements RoomRepository {
 
     final uri = Uri.parse('$_wsBaseUrl/rooms/$code/ws?token=$token');
     final factory = wsFactory;
-    final channel = factory != null ? factory(uri) : WebSocketChannel.connect(uri);
+    final channel = factory != null
+        ? factory(uri)
+        : WebSocketChannel.connect(uri);
     _wsChannel = channel;
     _setConnectionState(RoomConnectionState.connected);
 
@@ -186,8 +184,10 @@ class ApiRoomRepository implements RoomRepository {
           final map = jsonDecode(data as String) as Map<String, dynamic>;
           if (map['type'] == 'snapshot' && map['room'] != null) {
             final now = DateTime.now().millisecondsSinceEpoch;
-            final room =
-                Room.fromJson(map['room'] as Map<String, dynamic>, localNowMs: now);
+            final room = Room.fromJson(
+              map['room'] as Map<String, dynamic>,
+              localNowMs: now,
+            );
             _emit(room);
           } else if (map['type'] == 'ping') {
             channel.sink.add(jsonEncode({'type': 'pong'}));
@@ -239,11 +239,16 @@ class ApiRoomRepository implements RoomRepository {
     const maxBackoff = Duration(seconds: 5);
     var totalElapsed = Duration.zero;
 
-    while (!_isDisposed && !_isLeaving && _currentRoom?.status != RoomStatus.ended) {
+    while (!_isDisposed &&
+        !_isLeaving &&
+        _currentRoom?.status != RoomStatus.ended) {
       if (totalElapsed >= maxReconnectDuration) {
         _setConnectionState(RoomConnectionState.lost);
-        _emitError(StateError(
-            'Mất kết nối máy chủ sau ${maxReconnectDuration.inSeconds}s thử lại.'));
+        _emitError(
+          StateError(
+            'Mất kết nối máy chủ sau ${maxReconnectDuration.inSeconds}s thử lại.',
+          ),
+        );
         _isReconnecting = false;
         return;
       }
@@ -251,11 +256,15 @@ class ApiRoomRepository implements RoomRepository {
       await _delayFn(currentBackoff);
       totalElapsed += currentBackoff;
 
-      final nextSeconds =
-          (currentBackoff.inSeconds * 2).clamp(1, maxBackoff.inSeconds);
+      final nextSeconds = (currentBackoff.inSeconds * 2).clamp(
+        1,
+        maxBackoff.inSeconds,
+      );
       currentBackoff = Duration(seconds: nextSeconds);
 
-      if (_isDisposed || _isLeaving || _currentRoom?.status == RoomStatus.ended) {
+      if (_isDisposed ||
+          _isLeaving ||
+          _currentRoom?.status == RoomStatus.ended) {
         _isReconnecting = false;
         return;
       }
@@ -287,8 +296,9 @@ class ApiRoomRepository implements RoomRepository {
 
       if (channel.closeCode == 4401 || channel.closeCode == 4404) {
         channel.sink.close();
-        final errCode =
-            channel.closeCode == 4401 ? 'UNAUTHORIZED' : 'ROOM_NOT_FOUND';
+        final errCode = channel.closeCode == 4401
+            ? 'UNAUTHORIZED'
+            : 'ROOM_NOT_FOUND';
         _emitError(StateError(mapApiError(errCode, '')));
         return _ReconnectOutcome.permanentFailure;
       }
@@ -319,8 +329,9 @@ class ApiRoomRepository implements RoomRepository {
         return _ReconnectOutcome.success;
       } else if (res.statusCode == 401 || res.statusCode == 404) {
         channel.sink.close();
-        String errCode =
-            res.statusCode == 401 ? 'UNAUTHORIZED' : 'ROOM_NOT_FOUND';
+        String errCode = res.statusCode == 401
+            ? 'UNAUTHORIZED'
+            : 'ROOM_NOT_FOUND';
         String errMsg = '';
         try {
           final errBody = jsonDecode(res.body) as Map<String, dynamic>;
@@ -363,7 +374,10 @@ class ApiRoomRepository implements RoomRepository {
     final playerId = data['playerId'] as String;
     final token = data['playerToken'] as String;
     final now = DateTime.now().millisecondsSinceEpoch;
-    final room = Room.fromJson(data['room'] as Map<String, dynamic>, localNowMs: now);
+    final room = Room.fromJson(
+      data['room'] as Map<String, dynamic>,
+      localNowMs: now,
+    );
 
     _localPlayerId = playerId;
     _playerToken = token;
@@ -393,7 +407,10 @@ class ApiRoomRepository implements RoomRepository {
     final playerId = data['playerId'] as String;
     final token = data['playerToken'] as String;
     final now = DateTime.now().millisecondsSinceEpoch;
-    final room = Room.fromJson(data['room'] as Map<String, dynamic>, localNowMs: now);
+    final room = Room.fromJson(
+      data['room'] as Map<String, dynamic>,
+      localNowMs: now,
+    );
 
     _localPlayerId = playerId;
     _playerToken = token;
@@ -441,19 +458,44 @@ class ApiRoomRepository implements RoomRepository {
   }
 
   @override
-  Future<void> startMatch({required String code}) async {
+  Future<void> startMatch({
+    required String code,
+    bool waitForScene = false,
+  }) async {
     if (_playerToken == null) {
       throw StateError('Chưa xác thực để bắt đầu trận đấu.');
     }
     final uri = Uri.parse('$_baseUrl/rooms/$code/start');
     final res = await _httpClient.post(
       uri,
-      headers: {'authorization': 'Bearer $_playerToken'},
+      headers: {
+        'authorization': 'Bearer $_playerToken',
+        if (waitForScene) 'content-type': 'application/json',
+      },
+      body: waitForScene ? jsonEncode({'waitForScene': true}) : null,
     );
 
     if (res.statusCode != 204) {
       _handleErrorResponse(res);
     }
+  }
+
+  @override
+  Future<void> markSceneReady({
+    required String code,
+    required String playerId,
+    required int preparationId,
+  }) async {
+    if (_playerToken == null) throw StateError('Chưa xác thực.');
+    final response = await _httpClient.post(
+      Uri.parse('$_baseUrl/rooms/$code/scene-ready'),
+      headers: {
+        'authorization': 'Bearer $_playerToken',
+        'content-type': 'application/json',
+      },
+      body: jsonEncode({'preparationId': preparationId}),
+    );
+    if (response.statusCode != 204) _handleErrorResponse(response);
   }
 
   @override
@@ -471,10 +513,7 @@ class ApiRoomRepository implements RoomRepository {
         'authorization': 'Bearer $_playerToken',
         'content-type': 'application/json',
       },
-      body: jsonEncode({
-        'itemId': item.id,
-        'toRingIndex': toRingIndex,
-      }),
+      body: jsonEncode({'itemId': item.id, 'toRingIndex': toRingIndex}),
     );
 
     if (res.statusCode != 204) {
@@ -519,10 +558,7 @@ class ApiRoomRepository implements RoomRepository {
         'authorization': 'Bearer $_playerToken',
         'content-type': 'application/json',
       },
-      body: jsonEncode({
-        'itemId': itemId,
-        'station': station.name,
-      }),
+      body: jsonEncode({'itemId': itemId, 'station': station.name}),
     );
 
     if (res.statusCode != 200) {
@@ -548,10 +584,7 @@ class ApiRoomRepository implements RoomRepository {
         'authorization': 'Bearer $_playerToken',
         'content-type': 'application/json',
       },
-      body: jsonEncode({
-        'orderId': orderId,
-        'itemId': productId,
-      }),
+      body: jsonEncode({'orderId': orderId, 'itemId': productId}),
     );
 
     if (res.statusCode != 204) {

@@ -2,9 +2,36 @@
 
 > Nhật ký vận hành. Cập nhật khi làm việc. Xem AGENTS.md để hiểu cách dùng file này.
 
+## Nhánh phát triển giao diện
+
+- Theo yêu cầu người dùng ngày 2026-10-30, từ sau merge `90a5774`, các thay đổi giao diện tiếp theo được thực hiện trên `dev/Zhoufen`.
+- `dev/Abu.ui` giữ snapshot UI trước merge; không tiếp tục phát triển giao diện trên nhánh này trừ khi người dùng đổi yêu cầu.
+
 ## Đang làm / In progress
 
-- Tạm dừng phát triển giao diện theo yêu cầu. Bản tích hợp UI vào logic Zhoufen đã hoàn tất kiểm tra và được chốt bằng merge local; chờ kiểm tra trên hai máy thật với server/API. Chưa push.
+- Hoàn tất lượt UI đống vật phẩm/máy ép hai trạng thái trên `dev/Zhoufen`; chờ người dùng thử cảm giác kéo và độ khó trên máy thật. Chưa commit/push lượt UI này.
+
+## Đã xong — đồng hồ chờ cảnh / giảm khựng, 2026-10-31
+
+- Người dùng duyệt bổ sung backend: chờ tất cả máy tải xong, đếm chung 3–2–1,
+  rồi mới chạy 60 giây. Thực hiện trên `dev/Zhoufen`, chưa commit/push.
+- Nối readiness từ frame 3D đã render (hoặc frame fallback) tới controller,
+  Fake/API/Firebase và server. Chặn thao tác, bot, spawn trong chuẩn bị/countdown;
+  readiness gắn đúng lượt trận, báo trùng không reset thời gian. Có thử lại khi báo lỗi.
+- Giữ đồng hồ nguyên 60 trong loading/countdown; hiển thị giây bằng làm tròn lên.
+  Firebase xuất bản snapshot khởi động nguyên tử, tránh lộ timer trận cũ.
+- Renderer không reset canvas mỗi snapshot/thả đồ, không xếp lại pile khi chỉ
+  busy/order đổi, không cập nhật nhãn DOM ẩn mỗi frame. Cache biến bóng, shader,
+  geometry và chỉ render/cập nhật bóng khi cần. Controller chỉ phát tick khi giây đổi.
+- Qua 123 test hồi quy ở `test/bartender*` (trừ navigation cũ đã ghi bên dưới),
+  11 test trong module, 14 test server và WebGL offline. Test mới gồm loading
+  lâu không hao thời gian, 3–2–1, khóa thao tác, báo stale/trùng, peer rời phòng
+  và hai WebSocket nhận cùng mốc đồng hồ. Analyze mã thay đổi không error/warning;
+  còn lint info về braces/const trong module và script kiểm tra bỏ qua Git.
+- Đã thử hot restart trên Android emulator: tải cảnh giữ 01:00, ghi lại 3 → 2 → 1,
+  cảnh 3D mở khóa vẫn 01:00 (ảnh `scene3d/test-output/android-ready-6..9.png`),
+  hết giờ ghi 60s. Chưa đo FPS profile/release trên máy thật, chưa thử nhiều máy
+  Firebase. API cần restart/deploy server cập nhật; APK cũ chưa chứa thay đổi này.
 
 ## Cần kiểm tra thủ công (2–4 thiết bị thật với Backend Server Local / VPS)
 
@@ -42,6 +69,9 @@
    - File `lib/games/bartender/services/firebase_room_repository.dart` và cấu hình Firebase trong `pubspec.yaml` hiện không còn là backend mặc định. Toàn bộ mã này được giữ nguyên an toàn, có thể chuyển đổi kích hoạt lại bất kỳ lúc nào qua `BartenderConfig.backend = BartenderBackend.firebase` mà không ảnh hưởng đến server API mới.
 
 ## Đã xong / Done
+
+- **Làm mới quầy và kết quả (2026-10-30, sau merge, chưa commit):** bỏ phân trang, toàn bộ item rơi ngẫu nhiên/tiếp xúc/chồng lớp, dọn món đỡ thì đống hạ; bắt/thả giữa lúc rơi; mesh màu gộp theo loại và bóng instanced để giảm draw calls. Máy ép rỗng/nạp/cần nhấn + mức nước tăng; vẫn bốn nhấn mới chế biến. HUD/phiếu đơn và màn kết quả xanh–kem/vàng có cúp Canvas. 16 test Flutter, 3 ảnh bố cục, WebGL với 80 item qua; analyze UI sạch. Android máy ảo xác nhận quầy mới, kéo cam vào máy ép và kết quả bằng Hot Restart/Hot Reload. Không thay backend/controller/model/luồng lobby. TEMP/TMP test dùng ổ D do ổ C thiếu chỗ; chưa build APK mới hoặc đo máy thật. Xem `scene3d/README.md`.
+
 
 - **Merge UI vào logic Zhoufen (2026-10-30):** local `dev/Zhoufen`, logic nguồn `2b50690`, UI nguồn `aac84ce`. Ba conflict được người dùng duyệt riêng: readiness theo Room, host bấm SẴN SÀNG khi mọi người trở lại; 3D dùng submitOrder mới và banner reconnect; kết quả QUAY LẠI PHÒNG/THOÁT theo controller Zhoufen. Giữ nguyên controller/model/repository/server/config/lockfile. 131 test Flutter Bartender, 11 test server, WebGL và build APK debug qua. Chưa push, chưa kiểm chứng hai máy Android online.
 
