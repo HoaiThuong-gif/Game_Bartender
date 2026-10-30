@@ -25,8 +25,9 @@ export '../services/room_repository.dart' show RoomConnectionState;
 /// - true  → [FakeRoomRepository] (chạy offline, single-device, giai đoạn 1-4)
 /// - false → [ApiRoomRepository] (backend HTTP độc lập)
 class BartenderController extends ChangeNotifier {
-  BartenderController({RoomRepository? repository})
-    : _repository =
+  BartenderController({RoomRepository? repository, int Function()? nowMs})
+    : _nowMs = nowMs ?? (() => DateTime.now().millisecondsSinceEpoch),
+      _repository =
           repository ??
           (switch (BartenderConfig.backend) {
             BartenderBackend.fake => FakeRoomRepository(),
@@ -38,12 +39,18 @@ class BartenderController extends ChangeNotifier {
       state,
     ) {
       if (_isDisposed) return;
-      _connectionState = state;
-      notifyListeners();
+      if (_connectionState != state) {
+        _connectionState = state;
+        if (state == RoomConnectionState.lost && _errorMessage == null) {
+          _errorMessage = 'Mất kết nối với máy chủ.';
+        }
+        notifyListeners();
+      }
     });
   }
 
   final RoomRepository _repository;
+  final int Function() _nowMs;
 
   @visibleForTesting
   RoomRepository get repository => _repository;
@@ -54,6 +61,9 @@ class BartenderController extends ChangeNotifier {
   bool _isBusy = false;
   bool _isDisposed = false;
   bool _hasReturnedToLobby = false;
+  int? _reportedPreparation;
+  int? _reportingPreparation;
+  String? _lastTick;
 
   StreamSubscription<Room>? _roomSubscription;
   StreamSubscription<RoomConnectionState>? _connectionSubscription;
@@ -124,8 +134,52 @@ class BartenderController extends ChangeNotifier {
   int get remainingSeconds {
     final timer = _room?.timer;
     if (timer == null) return 0;
-    return timer.remainingMs(nowMs: DateTime.now().millisecondsSinceEpoch) ~/
-        1000;
+    return (timer.remainingMs(nowMs: _nowMs()) + 999) ~/ 1000;
+  }
+
+  bool get isMatchPreparing =>
+      isMatchPlaying && _room?.timer?.isPreparing == true;
+  int get startCountdownSeconds => isMatchPlaying
+      ? (_room?.timer?.startsInSeconds(nowMs: _nowMs()) ?? 0)
+      : 0;
+  bool get isGameplayActive =>
+      isMatchPlaying && (_room?.timer?.hasStarted(nowMs: _nowMs()) ?? false);
+  int get sceneReadyPlayerCount =>
+      _room?.players.values
+          .where(
+            (p) =>
+                p.connected &&
+                (_room?.timer?.readyPlayerIds.contains(p.id) ?? false),
+          )
+          .length ??
+      0;
+
+  Future<void> reportSceneReady({required int preparationId}) async {
+    final code = _room?.code;
+    if (code == null ||
+        !isMatchPreparing ||
+        _room!.timer!.startedAt != preparationId ||
+        myPlayerId == null ||
+        _reportedPreparation == preparationId ||
+        _reportingPreparation == preparationId) {
+      return;
+    }
+    _reportingPreparation = preparationId;
+    try {
+      await _repository.markSceneReady(
+        code: code,
+        playerId: myPlayerId!,
+        preparationId: preparationId,
+      );
+      if (!_isDisposed) _reportedPreparation = preparationId;
+    } catch (e) {
+      if (!_isDisposed) {
+        _errorMessage = 'Không thể chuẩn bị trận: $e';
+        notifyListeners();
+      }
+    } finally {
+      if (_reportingPreparation == preparationId) _reportingPreparation = null;
+    }
   }
 
   /// Tổng số đơn cả đội đã hoàn thành trong trận đấu.
@@ -197,7 +251,7 @@ class BartenderController extends ChangeNotifier {
   }
 
   /// Bắt đầu trận đấu (chỉ chủ phòng myRingIndex == 0 mới có quyền).
-  Future<void> startMatch() async {
+  Future<void> startMatch({bool waitForScene = false}) async {
     final code = _room?.code;
     if (code == null) return;
     if (myRingIndex != 0) {
@@ -208,7 +262,7 @@ class BartenderController extends ChangeNotifier {
     _setBusy(true);
     _clearMessages();
     try {
-      await _repository.startMatch(code: code);
+      await _repository.startMatch(code: code, waitForScene: waitForScene);
     } catch (e) {
       _errorMessage = 'Không thể bắt đầu: $e';
     } finally {
@@ -219,7 +273,7 @@ class BartenderController extends ChangeNotifier {
   /// Chuyền một vật phẩm sang người bên trái trong vòng tròn.
   Future<void> swipeItemLeft(GameItem item) async {
     final code = _room?.code;
-    if (code == null || _room?.status != RoomStatus.playing) return;
+    if (code == null || !isGameplayActive) return;
 
     final target = leftNeighbor;
     if (target == null) return;
@@ -241,7 +295,7 @@ class BartenderController extends ChangeNotifier {
   /// Chuyền một vật phẩm sang người bên phải trong vòng tròn.
   Future<void> swipeItemRight(GameItem item) async {
     final code = _room?.code;
-    if (code == null || _room?.status != RoomStatus.playing) return;
+    if (code == null || !isGameplayActive) return;
 
     final target = rightNeighbor;
     if (target == null) return;
@@ -263,7 +317,7 @@ class BartenderController extends ChangeNotifier {
   /// Kéo hoặc bấm bỏ vật phẩm vào thùng rác.
   Future<void> trashItem(GameItem item) async {
     final code = _room?.code;
-    if (code == null || _room?.status != RoomStatus.playing) return;
+    if (code == null || !isGameplayActive) return;
 
     try {
       await _repository.trashItem(
@@ -283,9 +337,7 @@ class BartenderController extends ChangeNotifier {
   Future<void> processItemAtStation(GameItem item) async {
     final code = _room?.code;
     final station = myStation;
-    if (code == null ||
-        station == null ||
-        _room?.status != RoomStatus.playing) {
+    if (code == null || station == null || !isGameplayActive) {
       return;
     }
 
@@ -310,7 +362,7 @@ class BartenderController extends ChangeNotifier {
   Future<void> submitOrder(Order order, GameItem product) async {
     final code = _room?.code;
     final pId = myPlayerId;
-    if (code == null || pId == null || _room?.status != RoomStatus.playing) {
+    if (code == null || pId == null || !isGameplayActive) {
       return;
     }
 
@@ -391,7 +443,8 @@ class BartenderController extends ChangeNotifier {
             }
 
             final oldRound = _room?.currentRound?.number;
-            if (updatedRoom.status != RoomStatus.ended) {
+            if (updatedRoom.status == RoomStatus.playing ||
+                updatedRoom.status == RoomStatus.lobby) {
               _hasReturnedToLobby = false;
             }
             _room = updatedRoom;
@@ -414,25 +467,28 @@ class BartenderController extends ChangeNotifier {
 
             notifyListeners();
           },
-          onError: (Object error) {
+          onError: (err) {
             if (_isDisposed) return;
-            _errorMessage = 'Mất kết nối phòng: $error';
+            _errorMessage = err
+                .toString()
+                .replaceFirst('StateError: ', '')
+                .replaceFirst('Exception: ', '');
             notifyListeners();
           },
         );
   }
 
   void _startTicker() {
-    _countdownTicker?.cancel();
-    _countdownTicker = Timer.periodic(const Duration(milliseconds: 250), (_) {
+    if (_countdownTicker?.isActive == true) return;
+    _countdownTicker = Timer.periodic(const Duration(milliseconds: 100), (_) {
       if (_room?.status != RoomStatus.playing) return;
-
-      final timeUp = remainingSeconds <= 0;
-      notifyListeners();
-
-      // Khi timer hết: gọi endMatch qua interface (không cần biết impl).
-      // Fake: _endMatch nội bộ. Firebase: transaction trên results (D17).
-      if (timeUp) {
+      final signature =
+          '$remainingSeconds:$startCountdownSeconds:$isMatchPreparing';
+      if (signature != _lastTick) {
+        _lastTick = signature;
+        notifyListeners();
+      }
+      if (isGameplayActive && remainingSeconds <= 0) {
         _stopTicker();
         unawaited(BartenderHaptics.timeExpired());
         final code = _room?.code;
@@ -450,6 +506,7 @@ class BartenderController extends ChangeNotifier {
   void _stopTicker() {
     _countdownTicker?.cancel();
     _countdownTicker = null;
+    _lastTick = null;
   }
 
   void _showNotice(String msg) {

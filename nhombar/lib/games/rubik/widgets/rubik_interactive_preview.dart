@@ -15,12 +15,14 @@ class RubikInteractivePreview extends StatefulWidget {
   const RubikInteractivePreview({
     super.key,
     this.active = true,
+    this.oneFingerOrbit = false,
     this.challengeMoves,
     this.interactionEnabled = true,
     this.onPrepared,
     this.onSolved,
   });
   final bool active;
+  final bool oneFingerOrbit;
   final List<String>? challengeMoves;
   final bool interactionEnabled;
   final VoidCallback? onPrepared;
@@ -53,6 +55,7 @@ class _RubikInteractivePreviewState extends State<RubikInteractivePreview>
   @override
   Widget build(BuildContext context) => _InteractiveWebView(
     active: widget.active && _resumed,
+    oneFingerOrbit: widget.oneFingerOrbit,
     challengeMoves: widget.challengeMoves,
     interactionEnabled: widget.interactionEnabled,
     onPrepared: widget.onPrepared,
@@ -64,11 +67,13 @@ class _InteractiveWebView extends StatefulWidget {
   const _InteractiveWebView({
     this.challengeMoves,
     required this.active,
+    required this.oneFingerOrbit,
     required this.interactionEnabled,
     this.onPrepared,
     this.onSolved,
   });
   final bool active;
+  final bool oneFingerOrbit;
   final List<String>? challengeMoves;
   final bool interactionEnabled;
   final VoidCallback? onPrepared;
@@ -86,6 +91,7 @@ class _InteractiveWebViewState extends State<_InteractiveWebView> {
   Timer? _timeout;
   bool _ready = false;
   bool _canUndo = false;
+  late bool _orbitWithOneFinger = widget.oneFingerOrbit;
   @override
   void initState() {
     super.initState();
@@ -197,9 +203,24 @@ class _InteractiveWebViewState extends State<_InteractiveWebView> {
           'window.restoreRubikToy(${jsonEncode(session)});',
         );
       }
-      if (mounted) await _setActive();
+      if (mounted) {
+        await _controller.runJavaScript(
+          'window.setRubikOneFingerOrbit($_orbitWithOneFinger);',
+        );
+        await _setActive();
+      }
     } catch (_) {
       if (mounted) setState(() => _failure = 'Không khôi phục được Rubik');
+    }
+  }
+
+  Future<void> _toggleGestureMode() async {
+    final next = !_orbitWithOneFinger;
+    try {
+      await _controller.runJavaScript('window.setRubikOneFingerOrbit($next);');
+      if (mounted) setState(() => _orbitWithOneFinger = next);
+    } catch (_) {
+      _notice('Chưa đổi được thao tác. Hãy thử lại.');
     }
   }
 
@@ -331,6 +352,17 @@ class _InteractiveWebViewState extends State<_InteractiveWebView> {
                   spacing: 8,
                   runSpacing: 4,
                   children: [
+                    if (widget.oneFingerOrbit)
+                      _smallButton(
+                        key: const ValueKey('rubik-gesture-mode'),
+                        icon: _orbitWithOneFinger
+                            ? Icons.threed_rotation
+                            : Icons.grid_3x3,
+                        label: _orbitWithOneFinger
+                            ? 'Xoay góc nhìn'
+                            : 'Xoay tầng',
+                        onPressed: _ready ? _toggleGestureMode : null,
+                      ),
                     _smallButton(
                       key: const ValueKey('rubik-toy-scramble'),
                       icon: Icons.shuffle_rounded,

@@ -15,7 +15,7 @@ const schemas = {
   BartenderRoom: object({
     status: { type: 'string', enum: ['lobby', 'playing', 'ended'] }, createdAt: integer,
     players: dictionary(ref('Player')), inbox: dictionary(dictionary(ref('Item'))),
-    timer: object({ startedAt: integer, endTime: integer }),
+    timer: object({ startedAt: integer, endTime: integer, preparing:boolean, readyPlayers:dictionary(boolean) }, ['startedAt','endTime']),
     round: object({ number: integer, ordersPerPlayer: integer, stationAssignment: dictionary({ type: 'string', nullable: true }), progress: dictionary(integer) }),
     orders: dictionary(dictionary(ref('Order'))),
     results: object({ totalSurvivalSeconds: integer, totalTeamOrders: integer, ranking: { type: 'array', items: { allOf: [ref('Player'), object({ playerId: str })] } } }),
@@ -69,7 +69,8 @@ for (const [game, tag] of [['bartender', 'Bartender'], ['rubik', 'Rubik']]) {
   route(`${base}/{code}/presence`, 'post', 'Cập nhật trạng thái kết nối', tag, response, object({ online: { type: 'boolean', example: true } }));
 }
 for (const [action, summary, body] of [
-  ['start', 'Bắt đầu trận khi có ít nhất hai người', null],
+  ['start', 'Bắt đầu trận khi có ít nhất hai người', object({ waitForScene: { type:'boolean', default:false } }, [])],
+  ['prepared', 'Báo cảnh 3D đã tải để đồng bộ đếm ngược giữa các máy', object({ preparationId:integer })],
   ['return', 'Quay lại phòng sau trận; chủ phòng chờ mọi người sẵn sàng rồi chơi lại', null],
   ['leave', 'Rời phòng hiện tại', null],
   ['end', 'Kết thúc khi hết giờ hoặc thiếu người', null],

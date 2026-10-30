@@ -54,13 +54,23 @@ function end(room, now) {
   const ranking = Object.entries(room.players).map(([playerId, p]) => ({ playerId, ...p }))
     .sort((a, b) => b.completedOrders - a.completedOrders);
   room.results = {
-    totalSurvivalSeconds: Math.max(0, Math.round((Math.min(now, room.timer.endTime) - room.timer.startedAt) / 1000)),
+    totalSurvivalSeconds: room.timer.preparing ? 0 : Math.max(0, Math.round((Math.min(now, room.timer.endTime) - room.timer.startedAt) / 1000)),
     totalTeamOrders: ranking.reduce((sum, p) => sum + p.completedOrders, 0), ranking,
   };
 }
 function settle(room, now) {
   if (room.status !== 'playing') return;
   const active = Object.values(room.players).filter(p => p.connected);
+  if (active.length < 2) return end(room, now);
+  if (room.timer.preparing) {
+    const connectedIds = Object.keys(room.players).filter(uid => room.players[uid].connected);
+    if (connectedIds.every(uid => room.timer.readyPlayers?.[uid])) {
+      room.timer = { startedAt: now + 3000, endTime: now + 63000 };
+      room.lastSpawnAt = now + 3000;
+    }
+    return;
+  }
+  if (now < room.timer.startedAt) return;
   if (now >= room.timer.endTime || active.length < 2) return end(room, now);
   if (active.every(p => room.round.progress[p.ringIndex] >= 3)) roundSetup(room, room.round.number + 1);
   if (now - room.lastSpawnAt >= 3000) { spawn(room); room.lastSpawnAt = now; }
@@ -103,6 +113,7 @@ function command(original, uid, action, body, now) {
       .every(player => player.readyInLobby !== false), 'Chờ mọi người quay lại phòng.');
     requireThat(Object.values(room.players).filter(p => p.connected).length >= 2, 'Cần ít nhất 2 người.');
     room.status = 'playing'; room.timer = { startedAt: now, endTime: now + 60000 };
+    if (body.waitForScene === true) Object.assign(room.timer, { preparing:true, readyPlayers:{} });
     delete room.results;
     room.inbox = {};
     for (const player of Object.values(room.players)) player.completedOrders = 0;
@@ -110,10 +121,19 @@ function command(original, uid, action, body, now) {
   }
   if (action === 'end') {
     requireThat(room.status === 'ended' || (room.status === 'playing' &&
-      (now >= room.timer.endTime || Object.values(room.players).filter(p => p.connected).length < 2)), 'Trận chưa đủ điều kiện kết thúc.');
+      ((!room.timer.preparing && now >= room.timer.endTime) || Object.values(room.players).filter(p => p.connected).length < 2)), 'Trận chưa đủ điều kiện kết thúc.');
     end(room, now); return room;
   }
+  if (action === 'prepared') {
+    requireThat(Number.isSafeInteger(body.preparationId), 'preparationId không hợp lệ.', 400);
+    if (room.status === 'playing' && p.connected && room.timer.preparing && room.timer.startedAt === body.preparationId) {
+      room.timer.readyPlayers[uid] = true;
+      settle(room, now);
+    }
+    return room;
+  }
   requireThat(room.status === 'playing' && p.connected, 'Trận không hoạt động.');
+  requireThat(!room.timer.preparing && now >= room.timer.startedAt, 'Chờ các máy chuẩn bị xong.');
   const ring = p.ringIndex, box = room.inbox[ring] ||= {};
   const item = Object.hasOwn(box, body.itemId) ? box[body.itemId] : undefined;
   if (['send', 'trash', 'process'].includes(action)) requireThat(item, 'Vật phẩm không còn trong khay.', 404);

@@ -16,30 +16,38 @@ button{border:1px solid #bf8b52;border-radius:9px;background:#ffe0a0;color:#5937
 .tag{position:absolute;left:0;top:0;font-size:10px;font-weight:600;background:#fff4dfec;padding:3px 7px;border-radius:7px;white-space:nowrap;pointer-events:none;will-change:transform}
 .tag.chosen{background:#ffe399;outline:2px solid #c98335}#quality{position:absolute;right:10px;top:46px;padding:5px;font-size:10px;min-height:26px;background:#fff4decc}
 @media(max-height:260px){.tag{font-size:9px}#hint{font-size:10px;bottom:6px}.zone{padding:5px;min-height:30px;font-size:10px}#actions{bottom:35px}#title{font-size:11px;padding:4px 8px}}
-#hint,#title,#labels,.side,#trash,#serve,#passL,#passR{display:none!important}
+#paging,#hint,#title,#labels,.side,#trash,#serve,#passL,#passR{display:none!important}
 #orders{position:absolute;top:8px;left:50%;transform:translateX(-50%);display:flex;gap:6px;pointer-events:none;max-width:70%;overflow:hidden}
 .ticket{background:#fff5df;border:2px solid #d7a66c;border-radius:10px;padding:5px 14px;font-size:clamp(24px,4.4vh,36px);box-shadow:0 3px 0 #b98750}
 #title{top:68px}#paging{top:68px}#quality{top:105px}
 #actions{bottom:14px}#quality{top:auto;bottom:12px;font-size:14px;min-height:38px}#paging{top:auto;bottom:12px;right:auto;left:12px;font-size:16px}#paging button{font-size:22px;min-width:40px}#hint{font-size:10px;background:#fff5dfbb}
-#work{position:absolute;bottom:15px;left:50%;transform:translateX(-50%);color:#287a63;font-size:24px;letter-spacing:6px;pointer-events:none}
+#hint.toast{display:block!important}
+#orders{top:12px;left:16px;transform:none;gap:10px;max-width:82%;overflow:visible}
+.ticket{position:relative;display:flex;align-items:center;justify-content:center;width:84px;height:66px;padding:6px;border:1px solid #e8c895;border-top:5px solid #348a72;border-radius:5px 5px 14px 14px;background:linear-gradient(#fffdf3,#fff1d3);box-shadow:0 6px 10px #45270e30;font-size:26px}
+.ticket:before{content:'';position:absolute;top:-10px;left:28px;width:28px;height:9px;border-radius:3px;background:#ac7035;box-shadow:inset 0 2px #d69d5c}
+.ticket svg{width:64px;height:50px}.ticket.hot{border-color:#4aaf8c;transform:translateY(3px)}
+#quality{width:38px;height:38px;padding:0;border-radius:50%;background:#fff7e0dd;border:1px solid #d7af76;color:#85542d;font-size:22px;box-shadow:0 3px 8px #57301826}
+#work{position:absolute;left:50%;transform:translate(-50%,-50%);color:#307f68;background:#fff9e5ed;border:1px solid #cda766;border-radius:30px;padding:1px 9px;font-size:17px;letter-spacing:4px;pointer-events:none;box-shadow:0 3px 8px #40260f20}
 </style><div id="work"></div><div id="orders"></div><div id="title"></div><div id="hint">↑ Nộp món · ↓ Bỏ đồ · ← → Chuyền</div>
 <div id="left" class="zone side">←<br>Chuyền</div><div id="right" class="zone side">→<br>Chuyền</div>
 <button id="trash" class="zone" aria-label="Bỏ vật phẩm đã chọn">Bỏ đồ</button><button id="serve" class="zone" aria-label="Nộp sản phẩm đã chọn">Nộp đơn</button>
 <div id="actions"><button id="passL">← Chuyền</button><button id="process">Chế biến</button><button id="passR">Chuyền →</button></div>
-<div id="paging"><button id="prev">‹</button><span id="page"></span><button id="next">›</button></div>
-<button id="quality" aria-label="Đổi chất lượng hình ảnh">Hình: tiêu chuẩn</button><div id="labels"></div>`;
+<button id="quality" aria-label="Đổi chất lượng hình ảnh">◈</button><div id="labels"></div>`;
 document.body.appendChild(host);
 const el = (id) => host.querySelector("#" + id);
 const tell = (type, value = {}) => window.Bartender3D?.postMessage(JSON.stringify({ type, ...value }));
-const names = { orange: "Cam tươi", lemon: "Chanh vàng", strawberry: "Dâu tây", ice: "Đá viên", milk: "Sữa tươi", sugar: "Đường cát", orange_juice: "Nước cam", lemon_juice: "Nước chanh", lemonade: "Nước chanh", cut_strawberry: "Dâu đã cắt", strawberry_smoothie: "Sinh tố dâu", citrus_cocktail: "Cocktail cam chanh", strawberry_lemonade_blend: "Hỗn hợp dâu chanh", strawberry_lemonade: "Nước chanh dâu" };
 let scene, camera, renderer, canvas, stationModel, disposed = false, active = true;
 let raf = 0, drag = null, selected = null, pending = false, pendingTimer = 0;
 let loaded = null, strokes = 0;
-let page = 0, lowQuality = false, sensorAvailable = true, renders = 0;
+let pulseAt = -10000, lowQuality = false, sensorAvailable = true, renders = 0;
 let state = { items: [], orders: [], station: null, round: null, busy: false };
 const models = /* @__PURE__ */ new Map(), geometries = /* @__PURE__ */ new Map(), materials = /* @__PURE__ */ new Map(), resources = /* @__PURE__ */ new Set();
-const listeners = [], frames = [], seen = new Set();
+const listeners = [], frames = [], itemShapes = new Map();
+let itemMaterial, selectionRing, pileShadows, shadowMaterial;
 let lastFrame = 0, toastTimer = 0;
+let bufferResizes=0,shadowUpdates=0,layoutPasses=0,shadowDirty=true,orderSignature='',reportedPreparation=null;
+let bufferWidth=0,bufferHeight=0,bufferRatio=0;
+const shadowMatrix=new T.Matrix4(),shadowPosition=new T.Vector3(),shadowScale=new T.Vector3(1,1,1),shadowRotation=new T.Quaternion().setFromAxisAngle(new T.Vector3(1,0,0),-Math.PI/2);
 const pointer = new T.Vector2(), ray = new T.Raycaster(), plane = new T.Plane(new T.Vector3(0, 1, 0), -0.78), hit = new T.Vector3();
 const projected = new T.Vector3();
 let bounds;
@@ -114,7 +122,9 @@ function environment() {
   const room = new T.Group();
   scene.add(room);
   cube(room, 15322533, 0, -0.65, -0.4, 30, 0.4, 20);
-  cube(room, 15851452, 0, 2.1, -3.6, 20, 6, 0.2);
+  cube(room, 0x835a3c, 0, 2.1, -3.6, 20, 6, 0.2);
+  for(let i=0;i<15;i++) cube(room,i%2?0x486d60:0x50796a,-6.6+i*.94,.9,-3.44,.91,1.2,.08);
+  cube(room,0xd7af6d,0,1.53,-3.39,14,.035,.08);
   cube(room, 11367248, 0, 1.7, -3.38, 12, 0.13, 0.55);
   cube(room, 11367248, 0, 3.05, -3.38, 12, 0.13, 0.55);
   for (let i = 0; i < 10; i++) {
@@ -132,7 +142,9 @@ function environment() {
     mesh(room, cone(), 14920274, x, 3.45, -1.85, [0.42, 0.28, 0.42]);
   }
   cube(room, 9131575, 0, -0.02, 0, 11.2, 0.55, 6.35);
-  cube(room, 11959624, 0, 0.27, 0, 11.4, 0.16, 6.5);
+  cube(room,0x865035,0,.24,0,11.6,.18,6.6);
+  for(const x of [-5.7,5.7]) cube(room,0xd5a765,x,.4,0,.12,.07,6.55);
+  cube(room,0xe0b77b,0,.4,3.22,11.5,.07,.1);
   const grain = document.createElement("canvas");
   grain.width = grain.height = 256;
   const ctx = grain.getContext("2d");
@@ -151,24 +163,47 @@ function environment() {
   texture.colorSpace = T.SRGBColorSpace;
   resources.add(texture);
   for (let i = 0; i < 8; i++) {
-    const plank = cube(room, i % 2 ? 14067043 : 14397553, 0, 0.365, -2.85 + i * 0.81, 11.3, 0.025, 0.79);
+    const plank = cube(room, i % 2 ? 0xc99353 : 0xd29c5b, 0, 0.365, -2.85 + i * 0.81, 11.3, 0.025, 0.79);
     plank.material.map = texture;
   }
-  cube(room, 10249536, 0, -0.33, 2.95, 11.4, 0.26, 0.2);
+  cube(room,0x75432d,0,-.18,3.16,11.5,.43,.15);
+  cube(room,0xbd8d57,0,-.04,3.25,10.9,.025,.04);
+  for(const x of [-5.25,5.25]) sphere(room,0xdfb87b,x,-.19,3.26,.065,.065,.025);
   for (const x of [-4.8, 4.8]) cube(room, 10249536, x, -1.1, 2.45, 0.35, 1.4, 0.35);
   batch(room);
+}
+function torus(parent, color, x,y,z,radius,tube) {
+  const m=mesh(parent,geo(`ring:${radius}:${tube}`,()=>new T.TorusGeometry(radius,tube,8,32)),color,x,y,z);
+  m.rotation.x=-Math.PI/2; return m;
 }
 function makeStation(type) {
   const g = new T.Group();
   g.position.set(0, 0.39, -1.5);
   cube(g, 16179893, 0, 0.03, 0, 2.6, 0.08, 1.5);
   if (type === "juicer") {
-    cube(g, 0x357f70, 0, .12, .12, 1.15, .25, .92);
-    cylinder(g, 1322e4, 0, 0.17, 0, 0.48, 0.25);
-    cylinder(g, 8625295, 0, 0.42, 0, 0.34, 0.32);
-    mesh(g, cone(), 16036681, 0, 0.7, 0, [0.22, 0.3, 0.22]);
-    cube(g, 10398620, 0.46, 0.43, 0.1, 0.35, 0.12, 0.18);
-    cylinder(g, 15062202, 0.6, 0.23, 0.28, 0.2, 0.35);
+    // Enamel citrus press: empty bowl/cone, a raised head and a separate juice glass.
+    cylinder(g,0x285e52,0,.12,.05,.77,.24);
+    cylinder(g,0x458e78,0,.27,.02,.68,.28);
+    cylinder(g,0xf9e7bc,0,.48,.02,.64,.22);
+    torus(g,0xfff5d8,0,.62,.02,.57,.065);
+    mesh(g,cone(),0xf4c86b,0,.77,.02,[.3,.36,.3]);
+    for(let i=0;i<8;i++) {
+      const a=i*Math.PI/4; const rib=cube(g,0xcaa754,Math.sin(a)*.2,.76,.02+Math.cos(a)*.2,.025,.27,.045);
+      rib.rotation.y=a;
+    }
+    cube(g,0x25574c,-.53,.9,-.43,.19,1.55,.23);
+    cylinder(g,0xe9bf6f,-.53,1.63,-.43,.13,.18).rotation.z=Math.PI/2;
+    const head=new T.Group();head.position.set(0,1.5,.02);g.add(head);
+    cylinder(head,0xffedca,0,0,0,.52,.16);
+    torus(head,0xc59a54,0,-.07,0,.45,.03);
+    const lever=cube(head,0x326e5d,.4,.12,0,1,.1,.16); lever.rotation.z=.15;
+    cylinder(head,0xeac577,.92,.18,0,.11,.29).rotation.z=Math.PI/2;
+    g.userData.head=head;
+    cube(g,0xb6c2b7,.64,.44,.2,.38,.1,.14);
+    cylinder(g,0xf5e6c3,.94,.27,.35,.23,.48);
+    const juice=cylinder(g,0xffb62f,.94,.1,.35,.195,.01);g.userData.juice=juice;
+    torus(g,0xfff7df,.94,.53,.35,.215,.025);
+    for(let i=0;i<4;i++) sphere(g,0xbacbb8,-.24+i*.16,.29,.66,.038);
   } else if (type === "blender") {
     cylinder(g, 7575430, 0, 0.18, 0, 0.43, 0.3);
     cylinder(g, 12439999, 0, 0.65, 0, 0.32, 0.65);
@@ -184,9 +219,9 @@ function makeStation(type) {
     cube(g, 11763790, 0, 0.13, 0, 1.65, 0.18, 0.95);
     cube(g, 14795148, -0.3, 0.23, 0, 0.7, 0.025, 0.55);
     const knife = cube(g, 12963775, 0.3, 0.3, 0, 0.12, 0.045, 0.7);
-    knife.rotation.y = -0.5;
+    knife.rotation.y = -0.5;g.userData.knife=knife;
     const handle = cube(g, 6705210, 0.47, 0.32, -0.4, 0.14, 0.09, 0.32);
-    handle.rotation.y = -0.5;
+    handle.rotation.y = -0.5;g.userData.handle=handle;
   } else {
     cylinder(g, 11897688, 0, 0.13, 0, 0.48, 0.18);
     sphere(g, 16172643, 0, 0.43, 0, 0.31);
@@ -197,6 +232,9 @@ function makeStation(type) {
 }
 function makeItem(kind) {
   const g = new T.Group();
+  if(itemShapes.has(kind)) {
+    g.add(new T.Mesh(itemShapes.get(kind),itemMaterial));g.scale.setScalar(1.25);return g;
+  }
   if (kind === "orange" || kind === "lemon") {
     const lemon = kind === "lemon";
     sphere(g, lemon ? 15979612 : 15769922, 0, 0, 0, lemon ? 0.43 : 0.37, lemon ? 0.3 : 0.38, 0.34);
@@ -205,7 +243,7 @@ function makeItem(kind) {
     if (!lemon) {
       for (let i=0;i<12;i++) {
         const a=i*2.4;
-        sphere(g, 0xe88b18, Math.sin(a)*.28, Math.cos(a)*.25, .22+Math.sin(i)*.025, .016);
+        mesh(g,geo('pore',()=>new T.IcosahedronGeometry(1,0)),0xe88b18,Math.sin(a)*.28,Math.cos(a)*.25,.22+Math.sin(i)*.025,[.016,.016,.016]);
       }
       sphere(g, 0xffd57a, -.13,.18,.25,.07,.045,.02);
     }
@@ -253,31 +291,115 @@ function makeItem(kind) {
       leaf(g, 0.22, 0.32, 0);
     }
   }
-  const shadow = new T.Mesh(geo("shadow", () => new T.CircleGeometry(0.45, 20)), material(11963227));
-  shadow.rotation.x = -Math.PI / 2;
-  shadow.position.y = -0.4;
-  g.add(shadow);
-  g.scale.setScalar(1.25);
+  g.updateMatrixWorld(true);
+  const parts=[];
+  g.traverse(o=>{
+    if(!o.isMesh)return;
+    const part=(o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone()).applyMatrix4(o.matrixWorld);
+    const colors=new Float32Array(part.getAttribute('position').count*3);
+    for(let i=0;i<colors.length;i+=3) colors.set([o.material.color.r,o.material.color.g,o.material.color.b],i);
+    part.setAttribute('color',new T.BufferAttribute(colors,3));parts.push(part);
+  });
+  const shape=mergeGeometries(parts);parts.forEach(p=>p.dispose());
+  resources.add(shape);itemShapes.set(kind,shape);
+  if(!itemMaterial){itemMaterial=new T.MeshLambertMaterial({vertexColors:true});resources.add(itemMaterial);}
+  g.clear();g.add(new T.Mesh(shape,itemMaterial));g.scale.setScalar(1.25);
   return g;
 }
-function hint(text, temporary = false) {
-  el("hint").textContent = text;
-  clearTimeout(toastTimer);
-  if (temporary) toastTimer = setTimeout(() => hint("↑ Nộp món · ↓ Bỏ đồ · ← → Chuyền"), 2400);
+// The pile is presentation state only. No inbox cap, deletion, pages or network coordinates.
+function pileHeight(x,z,placed) {
+  let y=.9;
+  for(const other of placed) {
+    const d=Math.hypot(x-other.rest.x,z-other.rest.z);
+    if(d<.94) y=Math.max(y,other.rest.y+Math.sqrt(.94*.94-d*d)*.93);
+  }
+  return y;
+}
+function newRest(placed) {
+  // A random drop rolls a short distance toward a lower local resting place.
+  // This forms a heap instead of unsupported tall columns or a regular grid.
+  const x=(Math.random()-.5)*8.3,z=.15+Math.random()*2.2;
+  let best=new T.Vector3(x,pileHeight(x,z,placed),z);
+  for(let i=0;i<7;i++) {
+    const a=Math.random()*Math.PI*2;
+    const cx=T.MathUtils.clamp(x+Math.cos(a)*.65,-4.5,4.5),cz=T.MathUtils.clamp(z+Math.sin(a)*.45,.05,2.5);
+    const y=pileHeight(cx,cz,placed);
+    if(y<best.y-.035)best.set(cx,y,cz);
+  }
+  return best;
+}
+function updatePileShadows() {
+  if(!shadowMaterial) {
+    const c=document.createElement('canvas');c.width=c.height=64;
+    const ctx=c.getContext('2d'),g=ctx.createRadialGradient(32,32,2,32,32,32);
+    g.addColorStop(0,'rgba(61,35,17,.32)');g.addColorStop(.45,'rgba(61,35,17,.16)');g.addColorStop(1,'rgba(61,35,17,0)');
+    ctx.fillStyle=g;ctx.fillRect(0,0,64,64);
+    const texture=new T.CanvasTexture(c);resources.add(texture);
+    shadowMaterial=new T.MeshBasicMaterial({map:texture,transparent:true,depthWrite:false});resources.add(shadowMaterial);
+  }
+  if(!pileShadows||pileShadows.instanceMatrix.count<models.size) {
+    if(pileShadows){scene.remove(pileShadows);pileShadows.dispose();resources.delete(pileShadows);}
+    pileShadows=new T.InstancedMesh(geo('pileShadow',()=>new T.PlaneGeometry(1.55,1.3)),shadowMaterial,Math.max(1,2**Math.ceil(Math.log2(Math.max(1,models.size)))));
+    pileShadows.instanceMatrix.setUsage(T.DynamicDrawUsage);pileShadows.frustumCulled=false;
+    resources.add(pileShadows);scene.add(pileShadows);
+  }
+  shadowUpdates++;
+  let i=0;
+  for(const m of models.values()) {
+    if(m.id===loaded)continue;
+    shadowPosition.set(m.group.position.x,.392,m.group.position.z);
+    shadowMatrix.compose(shadowPosition,shadowRotation,shadowScale);
+    pileShadows.setMatrixAt(i++,shadowMatrix);
+  }
+  pileShadows.count=i;pileShadows.instanceMatrix.needsUpdate=true;shadowDirty=false;
+}
+function reflowPile(animate=true) {
+  const placed=[];
+  for(const m of [...models.values()].filter(m=>m.id!==loaded&&m.id!==drag?.id).sort((a,b)=>a.rest.y-b.rest.y)) {
+    const y=pileHeight(m.rest.x,m.rest.z,placed);
+    if(Math.abs(y-m.rest.y)>.03) {
+      m.rest.y=y;
+      if(animate) m.spawn={at:performance.now(),from:m.group.position.clone(),landing:m.rest.clone(),sign:m.tilt<0?-1:1};
+      else m.group.position.copy(m.rest);
+    }
+    placed.push(m);
+  }
+}
+function syncStationVisual() {
+  const item=models.get(loaded);
+  if(stationModel?.userData.head) stationModel.userData.head.position.y=item?1.16:1.5;
+  if(stationModel?.userData.juice) {
+    const fill=item?strokes/4:0;
+    const juice=stationModel.userData.juice;
+    juice.scale.y=Math.max(.01,fill*.32);juice.position.y=.11+fill*.16;
+  }
+  if(item) {
+    item.group.position.set(0,state.station==='juicer'?1.55:1.2,-1.48);
+    item.group.rotation.set(0,0,0);
+    item.group.scale.setScalar(state.station==='juicer'?.94:1.1);
+  }
+}
+
+function hint(text,temporary=false) {
+  if(!temporary)return;
+  el('hint').textContent=text;el('hint').classList.add('toast');clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el('hint').classList.remove('toast'),2400);
 }
 function choose(id) {
+  const selectionChanged=selected!==id;
   selected = id;
+  el('work').style.display=loaded&&state.station!=='shaker'?'block':'none';
   el("work").textContent = loaded && state.station !== "shaker" ? "●".repeat(strokes)+"○".repeat(4-strokes) : "";
   const item = state.items.find((i) => i.id === id);
   el("actions").style.display = item && state.station === "shaker" && !sensorAvailable ? "flex" : "none";
-  for (const [key, m] of models) m.label.classList.toggle("chosen", key === id);
+  if(selectionRing) selectionRing.visible=!!item;
   const shake = state.station === "shaker";
   el("process").textContent = shake ? sensorAvailable ? "Lắc điện thoại" : "Lắc giả lập" : "Chế biến";
   el("process").disabled = !item?.processable || shake && sensorAvailable || pending || state.busy;
   el("serve").disabled = !item || !state.orders.some((o) => o.product === item.kind) || pending || state.busy;
   el("trash").disabled = !item || pending || state.busy;
   el("passL").disabled = el("passR").disabled = !item || pending || state.busy;
-  tell("selected", { id });
+  if(selectionChanged)tell("selected", { id });
   requestRender();
 }
 function action(name, id = selected) {
@@ -305,74 +427,63 @@ function action(name, id = selected) {
 // Progress stays local to this item and station; only the final stroke requests
 // the existing Dart processing action. Room/schema contracts stay unchanged.
 function loadStation(id) {
-  const item = state.items.find(i => i.id === id);
-  if (!item?.processable) { hint("Nguyên liệu này cần trạm khác.", true); return; }
-  if (loaded !== id) { loaded = id; strokes = 0; }
-  const m = models.get(id);
-  if (m) m.group.position.set(0, 0.95, -1.35);
-  choose(id);
-  hint(state.station === "cuttingBoard" ? "Rạch ngang trên thớt 4 lần để cắt" : state.station === "shaker" ? "Lắc điện thoại" : "Nhấn vào máy 4 lần để chế biến");
-  requestRender();
+  const item=state.items.find(i=>i.id===id);
+  if(!item?.processable){hint("Nguyên liệu này cần trạm khác.",true);return;}
+  if(loaded && loaded!==id){
+    const previous=models.get(loaded);if(previous){previous.group.scale.setScalar(1.25);previous.group.position.copy(previous.rest);}
+  }
+  if(loaded!==id){loaded=id;strokes=0;}
+  const m=models.get(id);if(m)m.spawn=null;
+  reflowPile();syncStationVisual();shadowDirty=true;choose(id);requestRender();
 }
 function work() {
-  if (!loaded || pending || state.busy) return;
-  const item = state.items.find(i => i.id === loaded);
-  if (!item?.processable) return;
-  if (state.station === "shaker") return;
-  strokes++;
-  el("work").textContent = "●".repeat(strokes)+"○".repeat(4-strokes);
-  stationModel.rotation.z = strokes % 2 ? .055 : -.055;
-  hint(`${state.station === "cuttingBoard" ? "🔪" : "●"} ${"●".repeat(strokes)}${"○".repeat(4-strokes)}`);
+  if(!loaded||pending||state.busy||strokes>=4||state.station==='shaker')return;
+  const item=state.items.find(i=>i.id===loaded);if(!item?.processable)return;
+  strokes++;pulseAt=performance.now();syncStationVisual();choose(selected);
+  if(strokes===4)action('process',loaded);
   requestRender();
-  if (strokes === 4) {
-    const id = loaded; loaded = null; strokes = 0;
-    stationModel.rotation.z = 0;
-    action("process", id);
-  }
 }
-const icons = {orange_juice:"🍊🥤", lemon_juice:"🍋🥤", lemonade:"🍋🥤", cut_strawberry:"🍓🔪", strawberry_smoothie:"🍓🥤", citrus_cocktail:"🍊🍹", strawberry_lemonade:"🍓🍹", strawberry_lemonade_blend:"🍓🍋🥤"};
+function drinkIcon(product) {
+  const red=product.includes('strawberry'), lemon=product.includes('lemon');
+  const c=red?'#ed7182':lemon?'#edcc52':'#f5a43a';
+  return `<svg viewBox="0 0 80 60" aria-hidden="true"><ellipse cx="42" cy="54" rx="25" ry="4" fill="#c3955733"/><path d="M31 14h29l-4 36c-1 6-19 6-21 0z" fill="#fff9e5" stroke="#a87943" stroke-width="1.6"/><path d="M34 27h23l-3 22c-4 3-13 3-17 0z" fill="${c}"/><path d="m50 31 5-26h9" fill="none" stroke="#408574" stroke-width="3.5" stroke-linecap="round"/><ellipse cx="45" cy="15" rx="14" ry="3" fill="#fff8e8" stroke="#b89665"/><circle cx="20" cy="36" r="11" fill="${c}" stroke="#d49a36"/><path d="M18 24q6-8 13-4-4 7-13 4" fill="#509160"/><path d="M16 30q-4 3-3 6" fill="none" stroke="#fff4ba" stroke-width="2.3" stroke-linecap="round"/><circle cx="42" cy="36" r="1.3" fill="#684326"/><circle cx="50" cy="36" r="1.3" fill="#684326"/></svg>`;
+}
 function refresh() {
-  if (loaded && !state.items.some(i => i.id === loaded && i.processable)) { loaded = null; strokes = 0; }
-  el("orders").replaceChildren(...state.orders.map(o => {
-    const ticket = document.createElement("div"); ticket.className = "ticket";
-    ticket.textContent = icons[o.product] || "🥤";
-    return ticket;
-  }));
-  const count = state.items.length;
-  page = Math.min(page, Math.max(0, Math.ceil(count / 8) - 1));
-  const visible = state.items.slice(page * 8, page * 8 + 8);
-  const ids = new Set(visible.map((i) => i.id));
-  if (drag && !ids.has(drag.id)) drag = null;
-  for (const [id, m] of models) if (!ids.has(id) || visible.find((i) => i.id === id).kind !== m.kind) {
-    scene.remove(m.group);
-    m.label.remove();
-    models.delete(id);
+  const validLoaded=state.items.find(i=>i.id===loaded&&i.processable);
+  if(!validLoaded){loaded=null;strokes=0;}
+  else if(strokes===4&&!pending)strokes=0; // Retry a refused/no-op after Dart acknowledgment.
+  let layoutChanged=false;
+  const ids=new Set(state.items.map(i=>i.id));
+  if(drag&&!drag.work&&!ids.has(drag.id))drag=null;
+  for(const [id,m] of models) if(!ids.has(id)) {
+    scene.remove(m.group);models.delete(id);layoutChanged=true;
   }
-  visible.forEach((item, i) => {
-    let m = models.get(item.id);
-    if (!m) {
-      const group = makeItem(item.kind);
-      group.userData.itemId = item.id;
-      scene.add(group);
-      const label = document.createElement("div");
-      label.className = "tag";
-      label.textContent = names[item.kind] || "Vật phẩm";
-      el("labels").appendChild(label);
-      m = { group, label, kind: item.kind, spawn: null };
-      models.set(item.id, m);
-      group.position.set(-3.6 + i % 4 * 2.4, 0.94, .25 + Math.floor(i / 4) * 1.8);
-      if (!seen.has(item.id)) {
-        seen.add(item.id);
-        m.spawn = {at:performance.now(), landing:group.position.clone(), sign:i%2?1:-1};
-        group.position.y += 4;
-      }
+  for(const item of state.items) {
+    let m=models.get(item.id);
+    if(m&&m.kind!==item.kind){
+      layoutChanged=true;
+      scene.remove(m.group);const group=makeItem(item.kind);group.userData.itemId=item.id;
+      group.position.copy(m.rest);scene.add(group);m.group=group;m.kind=item.kind;m.spawn=null;
     }
-  });
-  el("paging").style.display = count > 8 ? "flex" : "none";
-  el("page").textContent = `${page + 1}/${Math.max(1, Math.ceil(count / 8))}`;
-  el("prev").disabled = page === 0;
-  el("next").disabled = (page + 1) * 8 >= count;
-  choose(state.items.some((i) => i.id === selected) ? selected : null);
+    if(!m){
+      const group=makeItem(item.kind);group.userData.itemId=item.id;scene.add(group);
+      const rest=newRest([...models.values()].filter(o=>o.id!==loaded));
+      const tilt=(Math.random()-.5)*.24;
+      group.position.copy(rest);group.position.y+=4+Math.random();
+      layoutChanged=true;
+      m={id:item.id,group,kind:item.kind,rest,tilt,spawn:{at:performance.now(),from:group.position.clone(),landing:rest.clone(),sign:tilt<0?-1:1}};
+      models.set(item.id,m);
+    }
+  }
+  if(layoutChanged){layoutPasses++;reflowPile();shadowDirty=true;frameCamera();}
+  const nextOrders=JSON.stringify(state.orders);
+  if(nextOrders!==orderSignature){
+    orderSignature=nextOrders;
+    el('orders').replaceChildren(...state.orders.map(o=>{
+      const ticket=document.createElement('div');ticket.className='ticket';ticket.innerHTML=drinkIcon(o.product);return ticket;
+    }));
+  }
+  syncStationVisual();choose(state.items.some(i=>i.id===selected)?selected:null);
   requestRender();
 }
 window.setBartenderState = (next) => {
@@ -381,15 +492,13 @@ window.setBartenderState = (next) => {
     drag = null;
     loaded = null; strokes = 0;
     selected = null;
-    page = 0;
     for (const m of models.values()) {
       scene.remove(m.group);
-      m.label.remove();
     }
     models.clear();
-    seen.clear();
   }
   const changed = next.station !== state.station;
+  if(changed){loaded=null;strokes=0;}
   state = next;
   pending = false;
   clearTimeout(pendingTimer);
@@ -408,15 +517,6 @@ window.setBartenderSensor = (value) => {
 function requestRender() {
   if (!raf && active && !disposed && !document.hidden) raf = requestAnimationFrame(render);
 }
-function updateLabels() {
-  for (const m of models.values()) {
-    projected.copy(m.group.position);
-    projected.y -= 0.48;
-    projected.project(camera);
-    const x = (projected.x + 1) * bounds.width / 2, y = (1 - projected.y) * bounds.height / 2;
-    m.label.style.transform = `translate(${Math.round(x)}px,${Math.round(y)}px) translate(-50%,0)`;
-  }
-}
 function render(now) {
   raf = 0;
   if (disposed || !active || document.hidden) return;
@@ -431,34 +531,72 @@ function render(now) {
     const t = (now-m.spawn.at)/1000;
     const landing=m.spawn.landing;
     if (t >= 1.25) {
-      m.group.position.copy(landing); m.group.rotation.set(0,0,0); m.spawn=null;
+      m.group.position.copy(landing); m.group.rotation.set(0,m.tilt*.5,m.tilt); m.spawn=null;
     } else {
       const falling=t<.45;
-      const bounce=falling ? 4*(1-(t/.45)**2) : Math.abs(Math.sin((t-.45)*Math.PI/.4))*.65*Math.max(0,1-(t-.45)/.8);
+      const bounce=falling ? (m.spawn.from.y-landing.y)*(1-(t/.45)**2) : Math.abs(Math.sin((t-.45)*Math.PI/.4))*.65*Math.max(0,1-(t-.45)/.8);
       const roll=falling?0:Math.sin((t-.45)*Math.PI/.8)*.34;
       m.group.position.set(landing.x+roll*m.spawn.sign,landing.y+bounce,landing.z);
-      m.group.rotation.z=roll*m.spawn.sign;
+      m.group.rotation.z=m.tilt+roll*m.spawn.sign;
       m.group.rotation.x=roll*.65;
       animating=true;
     }
   }
+  const pulse=(now-pulseAt)/420;
+  if(pulse>=0&&pulse<1&&stationModel){
+    const squash=Math.sin(pulse*Math.PI);
+    if(stationModel.userData.head)stationModel.userData.head.position.y=1.16-squash*.24;
+    else if(stationModel.userData.knife){
+      stationModel.userData.knife.position.y=.3+.28*(1-squash);
+      stationModel.userData.handle.position.y=.32+.28*(1-squash);
+    }else stationModel.rotation.z=squash*.055;
+    animating=true;
+  }else if(stationModel){
+    if(stationModel.userData.head)stationModel.userData.head.position.y=loaded?1.16:1.5;
+    stationModel.rotation.z=0;
+    if(stationModel.userData.knife){stationModel.userData.knife.position.y=.3;stationModel.userData.handle.position.y=.32;}
+  }
+  if(selectionRing){
+    const m=models.get(selected);selectionRing.visible=!!m;
+    if(m){selectionRing.position.set(m.group.position.x,m.group.position.y-.43,m.group.position.z);}
+  }
+  if(shadowDirty||animating||drag)updatePileShadows();
   renderer.render(scene, camera);
   renders++;
-  updateLabels();
+  if(state.preparationId!=null&&!animating&&!drag&&reportedPreparation!==state.preparationId){
+    reportedPreparation=state.preparationId;
+    const preparationId=state.preparationId,round=state.round;
+    // Report after a submitted frame, not before shader compilation or first drops.
+    requestAnimationFrame(()=>{if(!disposed&&state.preparationId===preparationId)tell('sceneReady',{preparationId,round});});
+  }
   if (animating) requestRender();
 }
-function resize() {
-  bounds = canvas.getBoundingClientRect();
+function frameCamera() {
+  if(!bounds)return;
   const aspect = bounds.width / Math.max(1, bounds.height);
-  const height = 12.8 / Math.max(1.25, aspect);
-  camera.left = -height * aspect / 2;
-  camera.right = height * aspect / 2;
-  camera.top = height / 2;
-  camera.bottom = -height / 2;
+  camera.lookAt(0,.8,0);camera.updateMatrixWorld(true);
+  const points=[new T.Vector3(0,2.85,-1.5),new T.Vector3(0,.3,3.4)];
+  for(const m of models.values())points.push(new T.Vector3(m.rest.x,m.rest.y+.6,m.rest.z));
+  const vertical=points.map(p=>p.applyMatrix4(camera.matrixWorldInverse).y);
+  const minY=Math.min(...vertical)-.15,maxY=Math.max(...vertical)+.2;
+  const height=Math.max(12.8/Math.max(1.25,aspect),maxY-minY);
+  const middle=(maxY+minY)/2;
+  camera.left=-height*aspect/2;camera.right=height*aspect/2;
+  camera.top=middle+height/2;camera.bottom=middle-height/2;
   camera.updateProjectionMatrix();
-  const ratio = Math.min(devicePixelRatio || 1, lowQuality ? 0.8 : 1.25, Math.sqrt(15e5 / Math.max(1, bounds.width * bounds.height)));
-  renderer.setPixelRatio(ratio);
-  renderer.setSize(bounds.width, bounds.height, false);
+  const work=screenPoint(new T.Vector3(0,.8,-.15));
+  el('work').style.left=`${work.x}px`;el('work').style.top=`${work.y}px`;
+}
+function resize() {
+  bounds=canvas.getBoundingClientRect();
+  frameCamera();
+  const ratio=Math.min(devicePixelRatio||1,lowQuality?.8:1,Math.sqrt(1e6/Math.max(1,bounds.width*bounds.height)));
+  if(bufferWidth!==bounds.width||bufferHeight!==bounds.height||bufferRatio!==ratio){
+    const sizeChanged=bufferWidth!==bounds.width||bufferHeight!==bounds.height;
+    if(bufferRatio!==ratio)renderer.setPixelRatio(ratio);
+    if(sizeChanged)renderer.setSize(bounds.width,bounds.height,false);
+    bufferWidth=bounds.width;bufferHeight=bounds.height;bufferRatio=ratio;bufferResizes++;
+  }
   requestRender();
 }
 function point(e) {
@@ -475,21 +613,16 @@ function under(e) {
     while (p && !p.userData.itemId) p = p.parent;
     if (p) return p.userData.itemId;
   }
-  let nearest = null, distance = 42;
-  for (const [id, m] of models) {
-    projected.copy(m.group.position).project(camera);
-    const d = Math.hypot((projected.x + 1) * bounds.width / 2 + bounds.left - e.clientX, (1 - projected.y) * bounds.height / 2 + bounds.top - e.clientY);
-    if (d < distance) {
-      nearest = id;
-      distance = d;
-    }
-  }
-  return nearest;
+  return null;
 }
+function stationPoint(){return screenPoint(new T.Vector3(0,1.3,-1.5));}
+function onStation(e){
+  const p=stationPoint();return Math.hypot(e.clientX-bounds.left-p.x,e.clientY-bounds.top-p.y)<Math.max(45,bounds.width*.07);
+}
+
 function down(e) {
   if (drag || pending || state.busy || e.button > 0) return;
-  const stationScreen = screenPoint(new T.Vector3(0, .81, -1.5));
-  if (loaded && Math.hypot(e.clientX-bounds.left-stationScreen.x,e.clientY-bounds.top-stationScreen.y)<75) {
+  if (loaded && onStation(e)) {
     if (state.station === "cuttingBoard") {
       drag = { work: true, pointer: e.pointerId, x:e.clientX, y:e.clientY };
       canvas.setPointerCapture(e.pointerId);
@@ -506,6 +639,8 @@ function down(e) {
   const m = models.get(id);
   m.spawn = null; m.group.rotation.set(0,0,0);
   drag = { id, pointer: e.pointerId, x: e.clientX, y: e.clientY, start: m.group.position.clone(), offset: m.group.position.clone().sub(p), lastX: e.clientX, lastAt: performance.now(), velocity: 0, moved: false };
+  if(loaded===id){loaded=null;strokes=0;syncStationVisual();}
+  m.group.scale.setScalar(1.25);reflowPile();shadowDirty=true;
   choose(id);
   canvas.setPointerCapture(e.pointerId);
   hint("↑ Nộp món · ↓ Bỏ đồ · ← → Chuyền");
@@ -521,7 +656,7 @@ function move(e) {
   drag.lastX = e.clientX;
   drag.lastAt = now;
   drag.moved || (drag.moved = Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 9);
-  m.group.position.set(T.MathUtils.clamp(p.x + drag.offset.x, -5.3, 5.3), 1.03, T.MathUtils.clamp(p.z + drag.offset.z, -2.7, 2.8));
+  m.group.position.set(T.MathUtils.clamp(p.x + drag.offset.x, -5.3, 5.3), Math.max(1.25,drag.start.y+.3), T.MathUtils.clamp(p.z + drag.offset.z, -2.7, 2.8));
   el("left").classList.toggle("hot", e.clientX < bounds.left + bounds.width * 0.12);
   el("right").classList.toggle("hot", e.clientX > bounds.right - bounds.width * 0.12);
   requestRender();
@@ -557,15 +692,18 @@ function up(e) {
       else if (e.clientY < bounds.top + bounds.height * .22 && current.y-e.clientY > 45) action("submit", current.id);
       else if (e.clientX < bounds.left + bounds.width * 0.1) action("left", current.id);
       else if (e.clientX > bounds.right - bounds.width * 0.1) action("right", current.id);
-      else if (p.z < -0.65 && Math.abs(p.x) < 1.5) loadStation(current.id);
+      else if (onStation(e)) loadStation(current.id);
       else if (Math.abs(e.clientX - current.x) > 65 && Math.abs(e.clientY - current.y) < 70 && Math.abs(current.velocity) > 0.55) action(e.clientX < current.x ? "left" : "right", current.id);
       else {
-        m.group.position.set(p.x, 0.81, Math.max(-0.2, p.z));
-        hint("Đã đặt món xuống bàn.", true);
+        m.rest.set(T.MathUtils.clamp(p.x,-4.65,4.65),.9,T.MathUtils.clamp(p.z,.05,2.55));
+        reflowPile();m.group.position.copy(m.rest);
       }
     }
   }
-  requestRender();
+  if(m&&(e.type==='pointercancel'||!current.moved)) {
+    m.spawn={at:performance.now(),from:m.group.position.clone(),landing:m.rest.clone(),sign:m.tilt<0?-1:1};
+  }
+  reflowPile();syncStationVisual();shadowDirty=true;frameCamera();requestRender();
 }
 window.setBartenderActive = (value) => {
   active = !!value;
@@ -584,7 +722,7 @@ function screenPoint(position) {
   const p = position.clone().project(camera);
   return { x: (p.x + 1) * bounds.width / 2, y: (1 - p.y) * bounds.height / 2 };
 }
-window.bartenderSnapshot = () => ({ ready: !!renderer, items: [...models].map(([id, m]) => ({ id, kind: m.kind, position: m.group.position.toArray(), screen: screenPoint(m.group.position) })), station: screenPoint(new T.Vector3(0, 0.81, -1.5)), renders, raf, disposed, dragging: !!drag, pending, selected, loaded, strokes, spawning:[...models.values()].filter(m=>m.spawn).length, round: state.round, triangles: renderer?.info.render.triangles, drawCalls: renderer?.info.render.calls, resources: resources.size, pixelRatio: renderer?.getPixelRatio(), frameMs: frames.length ? frames.reduce((a, b) => a + b, 0) / frames.length : null });
+window.bartenderSnapshot = () => ({ ready: !!renderer, items: [...models].map(([id, m]) => ({ id, kind: m.kind, position: m.group.position.toArray(), screen: screenPoint(m.group.position) })), station: stationPoint(), stationPhase: loaded ? (strokes ? 'pressing' : 'loaded') : 'empty', renders, raf, disposed, bufferResizes, shadowUpdates, layoutPasses, dragging: !!drag, pending, selected, loaded, strokes, spawning:[...models.values()].filter(m=>m.spawn).length, round: state.round, triangles: renderer?.info.render.triangles, drawCalls: renderer?.info.render.calls, resources: resources.size, pixelRatio: renderer?.getPixelRatio(), frameMs: frames.length ? frames.reduce((a, b) => a + b, 0) / frames.length : null });
 window.disposeBartender = () => {
   if (disposed) return;
   disposed = true;
@@ -595,6 +733,7 @@ window.disposeBartender = () => {
   for (const resource of resources) resource.dispose();
   resources.clear();
   models.clear();
+  itemShapes.clear();
   scene?.clear();
   renderer?.renderLists.dispose();
   renderer?.dispose();
@@ -613,7 +752,7 @@ async function init() {
     renderer = new T.WebGLRenderer({ antialias: false, powerPreference: "low-power", alpha: false, stencil: false });
     renderer.outputColorSpace = T.SRGBColorSpace;
     renderer.toneMapping = T.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
+    renderer.toneMappingExposure = 1.12;
     renderer.setClearColor(15389871);
     canvas = renderer.domElement;
     document.body.prepend(canvas);
@@ -622,6 +761,9 @@ async function init() {
     light.position.set(-4, 8, 4);
     scene.add(light);
     environment();
+    const ringMaterial=new T.MeshBasicMaterial({color:0xffef9f,transparent:true,opacity:.88,depthWrite:false});resources.add(ringMaterial);
+    selectionRing=new T.Mesh(geo('selection',()=>new T.RingGeometry(.52,.56,40)),ringMaterial);
+    selectionRing.rotation.x=-Math.PI/2;selectionRing.visible=false;scene.add(selectionRing);
     stationModel = makeStation(null);
     scene.add(stationModel);
     listen(canvas, "pointerdown", down);
@@ -640,22 +782,19 @@ async function init() {
     listen(el("process"), "click", () => action("process"));
     listen(el("trash"), "click", () => action("trash"));
     listen(el("serve"), "click", () => action("submit"));
-    listen(el("prev"), "click", () => {
-      page--;
-      refresh();
-    });
-    listen(el("next"), "click", () => {
-      page++;
-      refresh();
-    });
     listen(el("quality"), "click", () => {
       lowQuality = !lowQuality;
-      el("quality").textContent = lowQuality ? "Hình: nhẹ" : "Hình: tiêu chuẩn";
+      el("quality").textContent = lowQuality ? "◇" : "◈";
       resize();
     });
     resize();
-    await renderer.compileAsync(scene, camera);
-    if (disposed) return;
+    const warm=new T.Group();warm.position.y=-100;
+    for(const kind of ['orange','lemon','strawberry','cut_strawberry','milk','ice','sugar','orange_juice','lemon_juice','strawberry_smoothie','citrus_cocktail','strawberry_lemonade_blend','strawberry_lemonade'])warm.add(makeItem(kind));
+    for(const station of ['juicer','blender','cuttingBoard','shaker'])warm.add(makeStation(station));
+    warm.traverse(o=>{if(o.isMesh)o.frustumCulled=false;});scene.add(warm);
+    await renderer.compileAsync(scene,camera);
+    if(disposed)return;
+    renderer.render(scene,camera);scene.remove(warm);
     choose(null);
     requestRender();
     tell("ready");

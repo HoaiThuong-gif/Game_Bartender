@@ -21,6 +21,11 @@ const raycaster = new THREE.Raycaster();
 let active = true, disposed = false, raf = 0, dirty = true, gesture = null, animation = null;
 let moves = 0, renders = 0, orbits = 0, lastMove = null;
 let interaction = false, challenge = false;
+let oneFingerOrbit = false;
+window.setRubikOneFingerOrbit = value => {
+  oneFingerOrbit = !!value && !challenge;
+  gesture = null; pointers.clear(); multiTouch = false; viewGesture = null;
+};
 const history = [];
 const report = type => window.RubikToy?.postMessage(JSON.stringify({ type, moves,
   busy: !!animation, historyDepth: history.length, solved: isCubeSolved(cube) }));
@@ -186,7 +191,8 @@ function pointerDown(event) {
     gesture = null; multiTouch = true; captureViewGesture(); return;
   }
   const hit = hitAt(event.clientX, event.clientY);
-  gesture = hit ? { id: event.pointerId, x: event.clientX, y: event.clientY,
+  gesture = oneFingerOrbit ? { id: event.pointerId, mode: 'view' }
+    : hit ? { id: event.pointerId, x: event.clientX, y: event.clientY,
     hit, mode: 'layer', pending: null } : null;
 }
 function captureViewGesture() {
@@ -217,6 +223,11 @@ function pointerMove(event) {
     return;
   }
   if (!gesture || gesture.id !== event.pointerId || animation) return;
+  if (gesture.mode === 'view') {
+    const next = pointers.get(event.pointerId);
+    rotateView(camera, [previous, previous], [next, next], viewTarget);
+    orbits++; requestRender(); return;
+  }
   const spec = chooseTurn(gesture.hit, event.clientX - gesture.x, event.clientY - gesture.y,
     camera, innerWidth, innerHeight, Math.max(18, Math.min(30, innerWidth * .045)));
   gesture.pending = spec;
@@ -270,7 +281,7 @@ window.disposeRubikToy = () => {
 };
 listen(window, 'pagehide', window.disposeRubikToy);
 // Read-only diagnostics for native tests.
-window.rubikToySnapshot = () => ({ moves, renders, orbits, raf, active, disposed,
+window.rubikToySnapshot = () => ({ moves, renders, orbits, raf, active, disposed, oneFingerOrbit,
   busy: !!animation, historyDepth: history.length, gesture: gesture?.mode ?? null, lastMove,
   cube: cubeSnapshot(cube.cubies), camera: camera.position.toArray(), up: camera.up.toArray(), zoom: zoomRatio });
 // Find a visible touch target by raycasting screen samples. Native tests still

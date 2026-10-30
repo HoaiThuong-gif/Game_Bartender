@@ -16,7 +16,8 @@ String _extractBearerToken(Request request) {
 
   final parts = authHeader.trim().split(' ');
   if (parts.length != 2 || parts[0].toLowerCase() != 'bearer') {
-    throw ApiException.unauthorized('Invalid Authorization header format. Expected Bearer <token>.');
+    throw ApiException.unauthorized(
+        'Invalid Authorization header format. Expected Bearer <token>.');
   }
 
   return parts[1];
@@ -88,9 +89,23 @@ Handler createAppHandler(RoomService service) {
   });
 
   // POST /rooms/<code>/start
-  router.post('/rooms/<code>/start', (Request request, String code) {
+  router.post('/rooms/<code>/start', (Request request, String code) async {
     final token = _extractBearerToken(request);
-    service.startMatch(code: code, token: token);
+    final body = await _parseJsonBody(request);
+    service.startMatch(
+        code: code, token: token, waitForScene: body['waitForScene'] == true);
+    return Response(204);
+  });
+
+  router.post('/rooms/<code>/scene-ready',
+      (Request request, String code) async {
+    final token = _extractBearerToken(request);
+    final body = await _parseJsonBody(request);
+    final preparationId = body['preparationId'];
+    if (preparationId is! int)
+      throw ApiException.invalidRequest('Missing preparationId.');
+    service.markSceneReady(
+        code: code, token: token, preparationId: preparationId);
     return Response(204);
   });
 
@@ -127,7 +142,8 @@ Handler createAppHandler(RoomService service) {
   });
 
   // POST /rooms/<code>/items/trash
-  router.post('/rooms/<code>/items/trash', (Request request, String code) async {
+  router.post('/rooms/<code>/items/trash',
+      (Request request, String code) async {
     final token = _extractBearerToken(request);
     final body = await _parseJsonBody(request);
     final itemId = body['itemId'] as String? ?? '';
@@ -141,7 +157,8 @@ Handler createAppHandler(RoomService service) {
   });
 
   // POST /rooms/<code>/items/process
-  router.post('/rooms/<code>/items/process', (Request request, String code) async {
+  router.post('/rooms/<code>/items/process',
+      (Request request, String code) async {
     final token = _extractBearerToken(request);
     final body = await _parseJsonBody(request);
     final itemId = body['itemId'] as String? ?? '';
@@ -165,7 +182,8 @@ Handler createAppHandler(RoomService service) {
   });
 
   // POST /rooms/<code>/orders/submit
-  router.post('/rooms/<code>/orders/submit', (Request request, String code) async {
+  router.post('/rooms/<code>/orders/submit',
+      (Request request, String code) async {
     final token = _extractBearerToken(request);
     final body = await _parseJsonBody(request);
     final orderId = body['orderId'] as String? ?? '';

@@ -36,7 +36,7 @@ class _RubikScreenState extends State<RubikScreen> {
               setState(() => _active = false);
               await showRubikHelp(
                 context,
-                'Kéo bằng hai ngón để đổi góc nhìn toàn khối 360°, kể cả mặt đáy. Kéo bằng một ngón trên một ô để xoay tầng. Tự xáo thêm các lượt xoay hợp lệ; Hoàn tác lùi một lượt; Đặt lại đưa khối và góc nhìn về ban đầu, tâm trắng ở trên.\n\nTiến trình, lịch sử hoàn tác và góc nhìn được lưu trên thiết bị để tiếp tục khi mở lại. Giải Rubik mở nhập màu hoặc camera cho Rubik thật, độc lập với khối luyện tập ở đây. Thách đấu mở phòng thi giải; mỗi người có góc nhìn riêng.',
+                'Vuốt một hoặc hai ngón để đổi góc nhìn 360°, kể cả mặt đáy. Nhấn nút Xoay góc nhìn để chuyển sang Xoay tầng khi muốn chơi; hai ngón luôn đổi góc nhìn. Tự xáo thêm các lượt xoay hợp lệ; Hoàn tác lùi một lượt; Đặt lại đưa khối và góc nhìn về ban đầu, tâm trắng ở trên.\n\nTiến trình, lịch sử hoàn tác và góc nhìn được lưu trên thiết bị để tiếp tục khi mở lại. Giải Rubik mở nhập màu hoặc camera cho Rubik thật, độc lập với khối luyện tập ở đây. Thách đấu mở phòng thi giải; mỗi người có góc nhìn riêng.',
               );
               if (mounted) setState(() => _active = true);
             },
@@ -44,7 +44,9 @@ class _RubikScreenState extends State<RubikScreen> {
         ],
       ),
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
-      body: SafeArea(child: RubikInteractivePreview(active: _active)),
+      body: SafeArea(
+        child: RubikInteractivePreview(active: _active, oneFingerOrbit: true),
+      ),
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(16, 10, 16, 14),
         child: Row(

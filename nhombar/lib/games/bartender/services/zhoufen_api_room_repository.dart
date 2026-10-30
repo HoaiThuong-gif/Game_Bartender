@@ -456,19 +456,44 @@ class ZhoufenApiRoomRepository implements RoomRepository {
   }
 
   @override
-  Future<void> startMatch({required String code}) async {
+  Future<void> startMatch({
+    required String code,
+    bool waitForScene = false,
+  }) async {
     if (_playerToken == null) {
       throw StateError('Chưa xác thực để bắt đầu trận đấu.');
     }
     final uri = Uri.parse('$_baseUrl/rooms/$code/start');
     final res = await _httpClient.post(
       uri,
-      headers: {'authorization': 'Bearer $_playerToken'},
+      headers: {
+        'authorization': 'Bearer $_playerToken',
+        if (waitForScene) 'content-type': 'application/json',
+      },
+      body: waitForScene ? jsonEncode({'waitForScene': true}) : null,
     );
 
     if (res.statusCode != 204) {
       _handleErrorResponse(res);
     }
+  }
+
+  @override
+  Future<void> markSceneReady({
+    required String code,
+    required String playerId,
+    required int preparationId,
+  }) async {
+    if (_playerToken == null) throw StateError('Chưa xác thực.');
+    final response = await _httpClient.post(
+      Uri.parse('$_baseUrl/rooms/$code/scene-ready'),
+      headers: {
+        'authorization': 'Bearer $_playerToken',
+        'content-type': 'application/json',
+      },
+      body: jsonEncode({'preparationId': preparationId}),
+    );
+    if (response.statusCode != 204) _handleErrorResponse(response);
   }
 
   @override

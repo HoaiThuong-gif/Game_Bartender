@@ -24,6 +24,33 @@ async function fixture(t, store = new Store()) {
   return { request, session, store, base, advance: ms => { now += ms; } };
 }
 
+test('scene preparation waits for both real HTTP clients then shares a server countdown', async t => {
+  const {request,session,advance}=await fixture(t);
+  const a=await session('A'),b=await session('B');
+  const room=(await request('POST','/api/v1/bartender/rooms',{},a.token)).data;
+  const route=`/api/v1/bartender/rooms/${room.code}`;
+  await request('POST',`${route}/join`,{},b.token);
+  const started=await request('POST',`${route}/start`,{waitForScene:true},a.token);
+  assert.equal(started.data.room.timer.preparing,true);
+  const id=started.data.room.timer.startedAt;
+  for (let second=0;second<65;second++) {
+    advance(1000);
+    await request('GET',route,undefined,a.token);
+    await request('GET',route,undefined,b.token);
+  }
+  assert.equal((await request('GET',route,undefined,a.token)).data.room.status,'playing');
+  assert.equal((await request('POST',`${route}/trash`,{itemId:'not-yet'},a.token)).status,409);
+  const first=await request('POST',`${route}/prepared`,{preparationId:id},a.token);
+  assert.equal(first.data.room.timer.preparing,true);
+  await request('POST',`${route}/prepared`,{preparationId:id+1},b.token);
+  assert.equal((await request('GET',route,undefined,a.token)).data.room.timer.preparing,true);
+  const last=await request('POST',`${route}/prepared`,{preparationId:id},b.token);
+  assert.equal(last.data.room.timer.startedAt,last.data.serverTime+3000);
+  assert.equal(last.data.room.timer.endTime,last.data.serverTime+63000);
+  const other=await request('GET',route,undefined,a.token);
+  assert.deepEqual(other.data.room.timer,last.data.room.timer);
+});
+
 test('HTTP room create/read/update/delete persists in an isolated JSON store', async t => {
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'nhombar-http-store-'));
   const file = path.join(folder, 'state.json');

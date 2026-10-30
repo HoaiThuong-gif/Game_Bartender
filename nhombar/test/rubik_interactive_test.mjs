@@ -111,6 +111,18 @@ function harness() {
     snapshot(){return window.rubikToySnapshot();},get disposed(){return disposed;}};
 }
 
+test('one finger orbits in view mode without turning a layer',()=>{
+  const h=harness();h.settle();h.window.setRubikOneFingerOrbit(true);
+  const before=h.snapshot(),finger={pointerId:1,clientX:180,clientY:350};
+  h.canvas.fire('pointerdown',finger);
+  h.canvas.fire('pointermove',{...finger,clientX:240,clientY:390});
+  h.canvas.fire('pointerup',{...finger,clientX:240,clientY:390});h.settle();
+  const after=h.snapshot();assert.notDeepEqual(after.camera,before.camera);
+  assert.deepEqual(after.cube,before.cube);assert.equal(after.moves,before.moves);
+  h.window.setRubikOneFingerOrbit(false);assert.equal(h.snapshot().oneFingerOrbit,false);
+  h.window.disposeRubikToy();
+});
+
 test('two fingers orbit through the poles without moving any stickers or zooming',()=>{
   const h=harness();h.settle();const before=h.snapshot();
   const a={pointerId:1,clientX:160,clientY:340},b={pointerId:2,clientX:200,clientY:380};

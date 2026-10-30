@@ -1,5 +1,5 @@
 // Integration checks for the UI/logic merge; Flutter test is a dev dependency.
-// ignore_for_file: depend_on_referenced_packages
+// ignore_for_file: depend_on_referenced_packages, invalid_use_of_visible_for_testing_member
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

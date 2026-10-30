@@ -23,7 +23,8 @@ class ApiException implements Exception {
         message: message,
       );
 
-  factory ApiException.unauthorized([String message = 'Missing or invalid player token.']) =>
+  factory ApiException.unauthorized(
+          [String message = 'Missing or invalid player token.']) =>
       ApiException(
         statusCode: 401,
         code: 'UNAUTHORIZED',
@@ -57,7 +58,8 @@ class ApiException implements Exception {
   factory ApiException.notEnoughPlayers() => const ApiException(
         statusCode: 409,
         code: 'NOT_ENOUGH_PLAYERS',
-        message: 'At least 2 connected players are required to start the match.',
+        message:
+            'At least 2 connected players are required to start the match.',
       );
 
   factory ApiException.invalidState(String message) => ApiException(

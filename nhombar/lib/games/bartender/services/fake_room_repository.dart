@@ -24,9 +24,12 @@ import 'room_repository.dart';
 /// Tự động mô phỏng các người chơi bot để tạo trải nghiệm cộng tác
 /// trọn vẹn: chuyền vật phẩm, chế biến tại trạm, nộp đơn, qua round.
 class FakeRoomRepository implements RoomRepository {
-  FakeRoomRepository({Random? rng}) : _rng = rng ?? Random();
+  FakeRoomRepository({Random? rng, int Function()? nowMs})
+    : _rng = rng ?? Random(),
+      _clock = nowMs ?? (() => DateTime.now().millisecondsSinceEpoch);
 
   final Random _rng;
+  final int Function() _clock;
 
   Room? _currentRoom;
   StreamController<Room>? _roomStreamController;
@@ -74,7 +77,7 @@ class FakeRoomRepository implements RoomRepository {
   String get localPlayerId => _localPlayerId;
 
   /// Helper: thời điểm hiện tại (ms since epoch).
-  int _nowMs() => DateTime.now().millisecondsSinceEpoch;
+  int _nowMs() => _clock();
 
   StreamController<Room> _getOrCreateController() {
     if (_roomStreamController == null || _roomStreamController!.isClosed) {
@@ -224,13 +227,33 @@ class FakeRoomRepository implements RoomRepository {
       // D14: Nếu còn dưới 2 người connected: kết thúc trận
       if (updatedRoom.connectedPlayerCount < 2) {
         updatedRoom = _buildEndedRoom(updatedRoom);
+      } else {
+        final timer = updatedRoom.timer;
+        final connected = updatedRoom.players.values
+            .where((p) => p.connected)
+            .map((p) => p.id)
+            .toSet();
+        if (timer != null &&
+            timer.isPreparing &&
+            connected.every(timer.readyPlayerIds.contains)) {
+          updatedRoom = updatedRoom.copyWith(
+            timer: timer.markSceneReady(
+              playerId: connected.first,
+              connectedPlayerIds: connected,
+              nowMs: _nowMs(),
+            ),
+          );
+        }
       }
       _emit(updatedRoom);
     }
   }
 
   @override
-  Future<void> startMatch({required String code}) async {
+  Future<void> startMatch({
+    required String code,
+    bool waitForScene = false,
+  }) async {
     if (_currentRoom == null || _currentRoom!.code != code) return;
     final current = _currentRoom!;
     if (!current.canStart) return;
@@ -292,7 +315,21 @@ class FakeRoomRepository implements RoomRepository {
     );
 
     // Khởi tạo timer 60s — MatchTimer.start(nowMs:)
-    final timer = MatchTimer.start(nowMs: _nowMs());
+    var timer = waitForScene
+        ? MatchTimer.prepare(nowMs: _nowMs())
+        : MatchTimer.start(nowMs: _nowMs());
+    if (waitForScene) {
+      final ids = newPlayers.keys.toSet();
+      for (final player in newPlayers.values.where(
+        (p) => p.name.startsWith('Bot '),
+      )) {
+        timer = timer.markSceneReady(
+          playerId: player.id,
+          connectedPlayerIds: ids,
+          nowMs: _nowMs(),
+        );
+      }
+    }
 
     // Cung cấp 1 nguyên liệu ban đầu cho mỗi người chơi
     final initialInbox = <int, List<GameItem>>{};
@@ -327,13 +364,42 @@ class FakeRoomRepository implements RoomRepository {
     _startTimers();
   }
 
+  @override
+  Future<void> markSceneReady({
+    required String code,
+    required String playerId,
+    required int preparationId,
+  }) async {
+    final room = _currentRoom;
+    if (room == null ||
+        room.code != code ||
+        room.status != RoomStatus.playing ||
+        room.timer?.isPreparing != true ||
+        room.timer!.startedAt != preparationId) {
+      return;
+    }
+    final timer = room.timer!.markSceneReady(
+      playerId: playerId,
+      connectedPlayerIds: room.players.values
+          .where((p) => p.connected)
+          .map((p) => p.id)
+          .toSet(),
+      nowMs: _nowMs(),
+    );
+    _emit(room.copyWith(timer: timer));
+  }
+
+  bool _canPlay(Room room) => room.timer?.hasStarted(nowMs: _nowMs()) ?? false;
+
   void _startTimers() {
     _stopTimers();
 
     // 1. Kiểm tra timer kết thúc trận đấu mỗi 500ms
     _gameLoopTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
       final room = _currentRoom;
-      if (room == null || room.status != RoomStatus.playing) return;
+      if (room == null || room.status != RoomStatus.playing || !_canPlay(room)) {
+        return;
+      }
 
       // MatchTimer.isExpired(nowMs:) — cần truyền thời gian hiện tại
       if (room.timer != null && room.timer!.isExpired(nowMs: _nowMs())) {
@@ -346,7 +412,11 @@ class FakeRoomRepository implements RoomRepository {
       const Duration(seconds: BartenderConfig.ingredientSpawnIntervalSeconds),
       (_) {
         final room = _currentRoom;
-        if (room == null || room.status != RoomStatus.playing) return;
+        if (room == null ||
+            room.status != RoomStatus.playing ||
+            !_canPlay(room)) {
+          return;
+        }
 
         // Sinh nguyên liệu cho người chơi nếu inbox chưa đầy (< 5 món)
         final newInbox = Map<int, List<GameItem>>.from(
@@ -385,7 +455,9 @@ class FakeRoomRepository implements RoomRepository {
 
   void _simulateBotActions() {
     final room = _currentRoom;
-    if (room == null || room.status != RoomStatus.playing) return;
+    if (room == null || room.status != RoomStatus.playing || !_canPlay(room)) {
+      return;
+    }
 
     final round = room.currentRound;
     if (round == null) return;
@@ -671,7 +743,8 @@ class FakeRoomRepository implements RoomRepository {
     final room = _currentRoom;
     if (room == null ||
         room.code != code ||
-        room.status != RoomStatus.playing) {
+        room.status != RoomStatus.playing ||
+        !_canPlay(room)) {
       return;
     }
 
@@ -706,7 +779,8 @@ class FakeRoomRepository implements RoomRepository {
     final room = _currentRoom;
     if (room == null ||
         room.code != code ||
-        room.status != RoomStatus.playing) {
+        room.status != RoomStatus.playing ||
+        !_canPlay(room)) {
       return;
     }
 
@@ -731,7 +805,8 @@ class FakeRoomRepository implements RoomRepository {
     final room = _currentRoom;
     if (room == null ||
         room.code != code ||
-        room.status != RoomStatus.playing) {
+        room.status != RoomStatus.playing ||
+        !_canPlay(room)) {
       throw StateError('Phòng không hoạt động');
     }
 
@@ -781,7 +856,8 @@ class FakeRoomRepository implements RoomRepository {
     final room = _currentRoom;
     if (room == null ||
         room.code != code ||
-        room.status != RoomStatus.playing) {
+        room.status != RoomStatus.playing ||
+        !_canPlay(room)) {
       return;
     }
 

@@ -76,6 +76,11 @@ class ApiRoomRepository implements RoomRepository {
               endTime: timer['endTime'] as int,
               startedAt: timer['startedAt'] as int,
               serverOffsetMs: _api.serverOffsetMs,
+              isPreparing: timer['preparing'] == true,
+              readyPlayerIds: _map(timer['readyPlayers']).entries
+                  .where((entry) => entry.value == true)
+                  .map((entry) => entry.key)
+                  .toSet(),
             ),
       currentRound: round.isEmpty
           ? null
@@ -185,8 +190,20 @@ class ApiRoomRepository implements RoomRepository {
   }
 
   @override
-  Future<void> startMatch({required String code}) async {
-    await _command(code, 'start');
+  Future<void> startMatch({
+    required String code,
+    bool waitForScene = false,
+  }) async {
+    await _command(code, 'start', {'waitForScene': waitForScene});
+  }
+
+  @override
+  Future<void> markSceneReady({
+    required String code,
+    required String playerId,
+    required int preparationId,
+  }) async {
+    await _command(code, 'prepared', {'preparationId': preparationId});
   }
 
   @override
