@@ -51,6 +51,28 @@ class Player {
     );
   }
 
+  /// Chuyển thành JSON map khớp với API.md.
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'ringIndex': ringIndex,
+        'connected': connected,
+        'completedOrders': completedOrders,
+        'readyInLobby': readyInLobby,
+      };
+
+  /// Khởi tạo từ JSON map.
+  factory Player.fromJson(Map<String, dynamic> json) {
+    return Player(
+      id: json['id'] as String,
+      name: (json['name'] ?? '') as String,
+      ringIndex: (json['ringIndex'] as num).toInt(),
+      connected: (json['connected'] as bool?) ?? true,
+      completedOrders: (json['completedOrders'] as num?)?.toInt() ?? 0,
+      readyInLobby: (json['readyInLobby'] as bool?) ?? true,
+    );
+  }
+
   @override
   String toString() =>
       'Player($name, ring=$ringIndex, orders=$completedOrders, ready=$readyInLobby)';

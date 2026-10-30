@@ -19,7 +19,19 @@
 
 *(Lưu ý: Chưa sẵn sàng production, cần hoàn tất kiểm tra thủ công trên thiết bị vật lý và nghiệm thu Firebase RTDB).*
 
+## Đề xuất sửa docs
+
+1. **`API.md` - Room snapshot (`players`)**: Đề xuất bổ sung trường `readyInLobby: bool` (mặc định `true`) vào schema của mỗi player trong `players`. Cờ này cần thiết để theo dõi người chơi nào đã bấm 'QUAY LẠI PHÒNG' sau khi thua trận, đảm bảo chỉ khi toàn bộ người chơi sẵn sàng thì chủ phòng mới có thể bắt đầu lại trận mới.
+2. **`API.md` - Room snapshot (`results.ranking`)**: Đề xuất bổ sung trường `ringIndex: int` trong danh sách `ranking` để client giữ được thông tin vị trí vòng tròn của người chơi khi hiển thị bảng xếp hạng cuối trận.
+
 ## Đã xong / Done
+
+- **Bước 1: Bổ sung serialization JSON (`toJson` / `fromJson`) cho toàn bộ models (2026-10-30):**
+  - Cập nhật 7 model: `GameItem`, `Order`, `Player`, `MatchTimer`, `MatchResult`, `Round`, `Room`.
+  - Khớp 100% contract snapshot trong `API.md` (các Map keyed theo `ringIndex` như `stationAssignment`, `progress`, `inbox` được chuyển thành String key "0", "1" trong JSON).
+  - Giữ toàn bộ `models/*.dart` thuần Dart 100% (không import Flutter/`dart:ui`).
+  - Viết bộ unit test `test/bartender_models_json_test.dart` (9 tests) kiểm tra độ thuần Dart và round-trip JSON serialization của từng model và snapshot phòng hoàn chỉnh.
+  - Kết quả: `flutter analyze` 0 lỗi 0 cảnh báo; 219/219 tests pass 100%.
 
 - **Cuộn giao diện trận đấu & Luồng quay lại phòng / bắt đầu lại sau khi thua (2026-10-30):**
   - **Phần 1: Cuộn dọc màn hình trận đấu (`BartenderMatchScreen`):**

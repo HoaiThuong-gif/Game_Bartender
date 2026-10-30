@@ -31,6 +31,24 @@ class Order {
     );
   }
 
+  /// Chuyển thành JSON map khớp với API.md.
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'recipeId': recipeId,
+        'status': status.name,
+      };
+
+  /// Khởi tạo từ JSON map.
+  factory Order.fromJson(Map<String, dynamic> json) {
+    return Order(
+      id: json['id'] as String,
+      recipeId: json['recipeId'] as String,
+      status: json['status'] == 'submitted'
+          ? OrderStatus.submitted
+          : OrderStatus.pending,
+    );
+  }
+
   @override
   String toString() => 'Order($id, recipe=$recipeId, $status)';
 

@@ -50,6 +50,24 @@ class MatchTimer {
     );
   }
 
+  /// Chuyển thành JSON map khớp với API.md.
+  Map<String, dynamic> toJson() => {
+        'startedAt': startedAt,
+        'endTime': endTime,
+      };
+
+  /// Khởi tạo từ JSON map.
+  factory MatchTimer.fromJson(
+    Map<String, dynamic> json, {
+    int serverOffsetMs = 0,
+  }) {
+    return MatchTimer(
+      startedAt: (json['startedAt'] as num).toInt(),
+      endTime: (json['endTime'] as num).toInt(),
+      serverOffsetMs: serverOffsetMs,
+    );
+  }
+
   /// Tính thời gian còn lại (milliseconds). Trả về 0 nếu đã hết giờ.
   ///
   /// [nowMs]: thời điểm hiện tại (client clock).
@@ -87,4 +105,15 @@ class MatchTimer {
   @override
   String toString() =>
       'MatchTimer(end=$endTime, started=$startedAt, offset=$serverOffsetMs)';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MatchTimer &&
+          startedAt == other.startedAt &&
+          endTime == other.endTime &&
+          serverOffsetMs == other.serverOffsetMs;
+
+  @override
+  int get hashCode => Object.hash(startedAt, endTime, serverOffsetMs);
 }
