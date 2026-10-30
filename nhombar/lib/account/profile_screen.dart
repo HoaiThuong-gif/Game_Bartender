@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart' show compute;
 
 import 'account_service.dart';
 import 'account_validation.dart';
+import '../settings/settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key, required this.user, required this.accounts});
@@ -176,6 +177,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     body: ListView(
       padding: const EdgeInsets.all(24),
       children: [
+        Text(
+          'Thông tin của bạn',
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
+        const SizedBox(height: 8),
+        const Text('Cập nhật tên và ảnh để bạn bè dễ nhận ra bạn.'),
+        const SizedBox(height: 24),
         FutureBuilder<void>(
           future: _ready,
           builder: (context, ready) {
@@ -269,6 +277,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
             );
           },
         ),
+        const SizedBox(height: 16),
+        Card(
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.palette_outlined),
+                title: const Text('Giao diện'),
+                subtitle: const Text('Chọn màu chủ đạo và cỡ chữ'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => const AppearanceScreen(),
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.settings_outlined),
+                title: const Text('Cài đặt'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => const SettingsScreen(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
         if (_busy) const LinearProgressIndicator(),
         if (_message != null)
           Padding(padding: const EdgeInsets.all(12), child: Text(_message!)),

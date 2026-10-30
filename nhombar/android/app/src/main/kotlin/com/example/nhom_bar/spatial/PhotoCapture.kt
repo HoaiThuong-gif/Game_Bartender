@@ -6,6 +6,7 @@ import android.graphics.YuvImage
 import android.content.Context
 import com.google.ar.core.Frame
 import com.google.ar.core.Coordinates2d
+import com.google.ar.core.Pose
 import com.google.ar.core.exceptions.NotYetAvailableException
 import org.json.JSONArray
 import org.json.JSONObject
@@ -25,7 +26,9 @@ class PhotoCapture(private val context:Context) {
     private data class Photo(val bytes:ByteArray,val info:JSONObject,val depth:ByteArray?=null,val confidence:ByteArray?=null)
     private data class Raw(val bytes:ByteArray,val confidence:ByteArray,val info:JSONObject,val centerDistance:Float?)
     private val photos=ArrayList<Photo>()
-    private var lastTimestamp=0L
+    private val encoder=ScanWorkQueue<EncodedPhoto>()
+    private data class EncodedPhoto(val photo:Photo?,val pose:Pose,val raw:Raw?,val center:FloatArray?)
+    private var lastAttemptTimestamp=0L
     private val gate=ScanFrameGate()
     private val sectors=IntArray(24)
     private val sectorLimits=IntArray(24){6}
@@ -35,88 +38,91 @@ class PhotoCapture(private val context:Context) {
     val count get()=photos.size
     val coverage get()=sectors.count {it>=2}*100/24
     val atCapacity get()=count>=MAX_FRAMES || byteCount>=120_000_000L
+    val suggestedComplete get()=count>=72 && coverage>=75
     var hint="Giữ vật thể đứng yên; đi vòng chậm, đợi tracking ổn định.";private set
     fun add(frame:Frame):Boolean {
-        if(atCapacity || frame.timestamp-lastTimestamp<650_000_000L)return false
-        if(!gate.accept(frame,requireTranslation=true)){hint=gate.message;return false}
+        val previousCount=count
+        encoder.takeCompleted()?.let {accept(it)}
+        schedule(frame)
+        return count>previousCount
+    }
+    private fun schedule(frame:Frame) {
+        if(atCapacity || !encoder.available() || frame.timestamp-lastAttemptTimestamp<650_000_000L)return
+        if(!gate.accept(frame,requireTranslation=true)){hint=gate.message;return}
         if(sectors[sector(frame)]>=sectorLimits[sector(frame)]) {
             hint="Góc này đã đủ ảnh. Đi tiếp sang mặt bên/mặt sau hoặc nâng camera để bổ sung góc cao."
-            return false
+            return
         }
         objectCenter?.let {center->
             val pose=frame.camera.pose
             val distance=kotlin.math.sqrt((pose.tx()-center[0])*(pose.tx()-center[0])+
                 (pose.ty()-center[1])*(pose.ty()-center[1])+(pose.tz()-center[2])*(pose.tz()-center[2]))
-            if(distance !in .2f..1.5f){hint="Khoảng cách ${(distance*100).toInt()} cm: giữ trọn vật ở khoảng 25–120 cm.";return false}
+            if(distance !in .2f..1.5f){hint="Khoảng cách ${(distance*100).toInt()} cm: giữ trọn vật ở khoảng 25–120 cm.";return}
         }
         try{
-            frame.acquireCameraImage().use {image->
-                if(kotlin.math.abs(image.timestamp-frame.timestamp)>15_000_000L){hint="Ảnh và pose chưa đồng bộ; đợi khung mới.";return false}
-                val luma=image.planes[0]
-                var sum=0.0;var squared=0.0;var samples=0;var clipped=0;var light=0.0;var lightSquared=0.0
-                fun luminance(x:Int,y:Int)=luma.buffer.get(y*luma.rowStride+x*luma.pixelStride).toInt() and 255
-                for(y in image.height/5 until image.height*4/5 step 3)
-                    for(x in image.width/5 until image.width*4/5 step 3) {
-                        val value=luminance(x,y)
-                        val lap=luminance(x-1,y)+luminance(x+1,y)+luminance(x,y-1)+luminance(x,y+1)-4*value
-                        sum+=lap;squared+=lap.toDouble()*lap;samples++
-                        light+=value;lightSquared+=value.toDouble()*value
-                        if(value<8 || value>247)clipped++
-                    }
-                val sharpness=squared/samples-(sum/samples)*(sum/samples)
-                val contrast=kotlin.math.sqrt((lightSquared/samples-(light/samples)*(light/samples)).coerceAtLeast(0.0))
-                // A plain pillow can have low Laplacian variance while in focus.
-                // Do not confuse a textureless surface with motion blur.
-                if((sharpness<18 && contrast>12) || clipped>samples*.35) {
-                    hint="Ảnh mờ, thiếu chi tiết hoặc cháy sáng: dừng tay, lấy nét và tăng ánh sáng tán xạ."
-                    return false
+            var timestamp=0L
+            val copied=frame.acquireCameraImage().use {image->
+                if(kotlin.math.abs(image.timestamp-frame.timestamp)>15_000_000L){hint="Ảnh và pose chưa đồng bộ; đợi khung mới.";return}
+                timestamp=image.timestamp
+                val planes=image.planes.map {ScanImagePlane.copy(it.buffer,it.rowStride,it.pixelStride)}
+                ScanCameraImage(image.width,image.height,planes[0],planes[1],planes[2])
+            } // Release camera resources BEFORE scheduling any expensive work.
+            lastAttemptTimestamp=frame.timestamp
+            val w=copied.outputWidth;val h=copied.outputHeight
+            val intrinsics=frame.camera.imageIntrinsics
+            val f=intrinsics.focalLength;val c=intrinsics.principalPoint;val size=intrinsics.imageDimensions
+            val cameraPose=frame.camera.pose
+            val pose=FloatArray(16);cameraPose.toMatrix(pose,0)
+            val info=JSONObject().put("name","frame_%04d.jpg".format(count))
+                .put("width",w).put("height",h)
+                .put("intrinsics",JSONArray(listOf(f[0]*w/size[0],f[1]*h/size[1],c[0]*w/size[0],c[1]*h/size[1])))
+                .put("pose",JSONArray(pose.toList())).put("timestamp",timestamp)
+                .put("tracking","TRACKING")
+            val raw=captureRaw(frame)
+            var center:FloatArray?=null
+            if(raw!=null) {
+                info.put("depth",raw.info)
+                if(objectCenter==null && raw.centerDistance!=null) {
+                    val d=raw.centerDistance
+                    val px=(size[0]*.5f-c[0])*d/f[0]
+                    val py=(c[1]-size[1]*.5f)*d/f[1]
+                    center=cameraPose.transformPoint(floatArrayOf(px,py,-d))
                 }
-                val factor=if(image.width>2048)2 else 1
-                val w=(image.width/factor)/2*2;val h=(image.height/factor)/2*2
-                val nv21=ByteArray(w*h*3/2)
-                val y=image.planes[0];val u=image.planes[1];val v=image.planes[2]
-                for(row in 0 until h)for(col in 0 until w)
-                    nv21[row*w+col]=y.buffer.get(row*factor*y.rowStride+col*factor*y.pixelStride)
-                for(row in 0 until h/2)for(col in 0 until w/2){
-                    val out=w*h+row*w+col*2
-                    nv21[out]=v.buffer.get(row*factor*v.rowStride+col*factor*v.pixelStride)
-                    nv21[out+1]=u.buffer.get(row*factor*u.rowStride+col*factor*u.pixelStride)
-                }
-                val bytes=ByteArrayOutputStream()
-                check(YuvImage(nv21,ImageFormat.NV21,w,h,null).compressToJpeg(Rect(0,0,w,h),95,bytes))
-                val intrinsics=frame.camera.imageIntrinsics
-                val f=intrinsics.focalLength;val c=intrinsics.principalPoint;val size=intrinsics.imageDimensions
-                val pose=FloatArray(16);frame.camera.pose.toMatrix(pose,0)
-                val info=JSONObject().put("name","frame_%04d.jpg".format(count))
-                    .put("width",w).put("height",h)
-                    .put("intrinsics",JSONArray(listOf(f[0]*w/size[0],f[1]*h/size[1],c[0]*w/size[0],c[1]*h/size[1])))
-                    .put("pose",JSONArray(pose.toList())).put("timestamp",image.timestamp)
-                    .put("sharpness",sharpness).put("tracking","TRACKING")
-                val raw=captureRaw(frame)
-                if(raw!=null) {
-                    info.put("depth",raw.info)
-                    lastDepthTimestamp=raw.info.getLong("timestamp")
-                    if(objectCenter==null && raw.centerDistance!=null) {
-                        val d=raw.centerDistance
-                        val px=(size[0]*.5f-c[0])*d/f[0]
-                        val py=(c[1]-size[1]*.5f)*d/f[1]
-                        objectCenter=frame.camera.pose.transformPoint(floatArrayOf(px,py,-d))
-                    }
-                }
-                val jpeg=bytes.toByteArray()
-                photos.add(Photo(jpeg,info,raw?.bytes,raw?.confidence));lastTimestamp=frame.timestamp
-                byteCount+=jpeg.size+(raw?.bytes?.size?:0)+(raw?.confidence?.size?:0)
-                gate.commit(frame.camera.pose)
-                sectors[sector(frame)]++
-                val low=(0..11).filter {sectors[it]<2}.joinToString {"${it*30}°"}
-                val highAngles=(0..11).filter {sectors[it+12]<2}.joinToString {"${it*30}°"}
-                hint="${if(objectCenter==null)"Độ phủ hướng nhìn ước lượng" else "Độ phủ quanh vật"}: $coverage%. ${if(raw!=null)"Có Raw Depth độc lập." else "Khung này chỉ có RGB/pose; PC sẽ dùng stereo."}\nThiếu góc thấp: $low\nThiếu góc cao: $highAngles"
-                return true
             }
-        }catch(_:NotYetAvailableException){return false}
+            encoder.submit {
+                val started=System.nanoTime()
+                val quality=copied.quality()
+                if(!quality.acceptable)EncodedPhoto(null,cameraPose,null,null)
+                else {
+                    val bytes=ByteArrayOutputStream()
+                    check(YuvImage(copied.nv21(),ImageFormat.NV21,w,h,null)
+                        .compressToJpeg(Rect(0,0,w,h),95,bytes))
+                    info.put("sharpness",quality.sharpness)
+                    android.util.Log.d("MeoSpatial","IMAGE_ENCODE_MS=${(System.nanoTime()-started)/1_000_000}")
+                    EncodedPhoto(Photo(bytes.toByteArray(),info,raw?.bytes,raw?.confidence),cameraPose,raw,center)
+                }
+            }
+        }catch(_:NotYetAvailableException){return}
+    }
+    private fun accept(result:EncodedPhoto) {
+        val photo=result.photo
+        if(photo==null) {
+            hint="Ảnh mờ, thiếu chi tiết hoặc cháy sáng: dừng tay, lấy nét và tăng ánh sáng tán xạ."
+            return
+        }
+        result.raw?.let {lastDepthTimestamp=it.info.getLong("timestamp")}
+        if(objectCenter==null)objectCenter=result.center
+        photos.add(photo)
+        byteCount+=photo.bytes.size+(photo.depth?.size?:0)+(photo.confidence?.size?:0)
+        gate.commit(result.pose)
+        sectors[sector(result.pose)]++
+        hint="Giữ vật thể đứng yên; tiếp tục đi vòng chậm để chụp các mặt còn thiếu."
     }
     private fun sector(frame:Frame):Int {
-        val axis=objectCenter?.let {center->floatArrayOf(frame.camera.pose.tx()-center[0],frame.camera.pose.ty()-center[1],frame.camera.pose.tz()-center[2])}?:frame.camera.pose.zAxis
+        return sector(frame.camera.pose)
+    }
+    private fun sector(pose:Pose):Int {
+        val axis=objectCenter?.let {center->floatArrayOf(pose.tx()-center[0],pose.ty()-center[1],pose.tz()-center[2])}?:pose.zAxis
         val angle=((kotlin.math.atan2(axis[2],axis[0])+Math.PI)/(2*Math.PI)*12).toInt().coerceIn(0,11)
         val high=kotlin.math.atan2(axis[1],kotlin.math.sqrt(axis[0]*axis[0]+axis[2]*axis[2]))>.4f
         return (if(high)12 else 0)+angle
@@ -162,6 +168,9 @@ class PhotoCapture(private val context:Context) {
         }
     }catch(_:NotYetAvailableException){null}catch(_:IllegalStateException){null}}
     fun reconstruct(cancelled:()->Boolean={false},progress:(Int,String)->Unit):PhotoResult {
+        // The render thread has stopped capture. Wait here, on the processing
+        // thread, so the last accepted image cannot disappear from the upload.
+        encoder.finishPending()?.let {accept(it)}
         require(count>=40){"Cần ít nhất 40 ảnh ở nhiều mặt. Tiếp tục đi quanh vật thể và bổ sung góc cao."}
         progress(0,"Đang kiểm tra kết nối USB / Wi-Fi với PC…")
         val network=server?:ScanServer.load(context).also {server=it}
@@ -183,7 +192,11 @@ class PhotoCapture(private val context:Context) {
             zip.write(JSONObject().put("version",5).put("frames",JSONArray(photos.map {it.info})).toString().toByteArray(Charsets.UTF_8));zip.closeEntry()
             for(photo in photos){
                 val name=photo.info.getString("name")
+                // JPEG is already compressed. Keep depth/manifest compression,
+                // but avoid spending CPU compressing the same photograph twice.
+                zip.setLevel(java.util.zip.Deflater.NO_COMPRESSION)
                 zip.putNextEntry(ZipEntry("images/$name"));zip.write(photo.bytes);zip.closeEntry()
+                zip.setLevel(java.util.zip.Deflater.DEFAULT_COMPRESSION)
                 if(photo.depth!=null && photo.confidence!=null) {
                     val stem=name.substringBeforeLast('.')
                     zip.putNextEntry(ZipEntry("depth/$stem.u16"));zip.write(photo.depth);zip.closeEntry()
@@ -263,6 +276,7 @@ class PhotoCapture(private val context:Context) {
         }
         error("Xử lý quá 90 phút. Bộ RGB/Depth vẫn được giữ trên máy tính để tiếp tục.")
     }
+    fun close() {encoder.close()}
     companion object {
         const val MAX_FRAMES=180
         fun importCompleted(activity:android.app.Activity):Int {

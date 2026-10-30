@@ -238,7 +238,6 @@ class _SpatialScreenState extends State<SpatialScreen>
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xff0b1222),
     appBar: AppBar(
       title: Text(_showModels ? 'Mô hình của tôi' : 'Quét 3D'),
       leading: _showModels && !widget.expedition
@@ -266,16 +265,16 @@ class _SpatialScreenState extends State<SpatialScreen>
         children: [
           if (!_showModels) ...[
             const SizedBox(height: 24),
-            const Icon(Icons.view_in_ar, size: 88, color: Color(0xff6ee7c5)),
+            Icon(
+              Icons.view_in_ar,
+              size: 80,
+              color: Theme.of(context).colorScheme.primary,
+            ),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               'Biến đồ vật thành mô hình 3D',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 24),
             const _ScanTip(
@@ -312,7 +311,7 @@ class _SpatialScreenState extends State<SpatialScreen>
                   ? 'Sẵn sàng quét'
                   : 'Chưa tìm thấy máy xử lý 3D',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70),
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
             if (!_connected && !_checking) ...[
               TextButton.icon(
@@ -328,23 +327,27 @@ class _SpatialScreenState extends State<SpatialScreen>
           ] else ...[
             if (_loading) const LinearProgressIndicator(),
             if (_error != null)
-              Text(_error!, style: const TextStyle(color: Colors.orange)),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             if (!_loading && _models.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(24),
+              Padding(
+                padding: const EdgeInsets.all(24),
                 child: Text(
                   'Chưa có mô hình. Hãy quét đồ vật đầu tiên!',
-                  style: TextStyle(color: Colors.white70),
+                  style: Theme.of(context).textTheme.bodyLarge,
                 ),
               ),
             if (_selected.isNotEmpty)
-              Row(
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  Expanded(
-                    child: Text(
-                      'Đã chọn ${_selected.length}',
-                      style: const TextStyle(color: Colors.white),
-                    ),
+                  Text(
+                    'Đã chọn ${_selected.length}',
+                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   TextButton(
                     onPressed: _deleting
@@ -488,13 +491,10 @@ class _ScanTip extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: 8),
     child: Row(
       children: [
-        Icon(icon, color: const Color(0xff6ee7c5)),
+        Icon(icon, color: Theme.of(context).colorScheme.primary),
         const SizedBox(width: 16),
         Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(color: Colors.white, fontSize: 17),
-          ),
+          child: Text(text, style: Theme.of(context).textTheme.bodyLarge),
         ),
       ],
     ),

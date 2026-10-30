@@ -55,4 +55,5 @@ flutter {
 dependencies {
     // Official ARCore runtime; reconstruction and rendering run locally.
     implementation("com.google.ar:core:1.57.0")
+    testImplementation("junit:junit:4.13.2")
 }

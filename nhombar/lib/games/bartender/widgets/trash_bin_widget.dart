@@ -1,3 +1,5 @@
+import '../../../settings/app_theme.dart';
+
 import 'package:flutter/material.dart';
 
 import '../models/game_item.dart';
@@ -43,15 +45,15 @@ class _TrashBinWidgetState extends State<TrashBinWidget>
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    _shakeAnimation = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 0, end: -8), weight: 1),
-      TweenSequenceItem(tween: Tween(begin: -8, end: 8), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: 8, end: -4), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: -4, end: 0), weight: 1),
-    ]).animate(CurvedAnimation(
-      parent: _shakeController,
-      curve: Curves.easeInOut,
-    ));
+    _shakeAnimation =
+        TweenSequence<double>([
+          TweenSequenceItem(tween: Tween(begin: 0, end: -8), weight: 1),
+          TweenSequenceItem(tween: Tween(begin: -8, end: 8), weight: 2),
+          TweenSequenceItem(tween: Tween(begin: 8, end: -4), weight: 2),
+          TweenSequenceItem(tween: Tween(begin: -4, end: 0), weight: 1),
+        ]).animate(
+          CurvedAnimation(parent: _shakeController, curve: Curves.easeInOut),
+        );
   }
 
   @override
@@ -100,7 +102,7 @@ class _TrashBinWidgetState extends State<TrashBinWidget>
             decoration: BoxDecoration(
               color: isAccepting || _isHovering
                   ? Colors.red.withValues(alpha: 0.3)
-                  : const Color(0xFF1E1E2C),
+                  : AppTheme.arenaSurface,
               borderRadius: BorderRadius.circular(widget.size * 0.25),
               border: Border.all(
                 color: isAccepting || _isHovering
@@ -174,9 +176,11 @@ class DraggableItemWrapper extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFF2A2A3A),
+              color: AppTheme.arenaRaised,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.amberAccent.withValues(alpha: 0.5)),
+              border: Border.all(
+                color: Colors.amberAccent.withValues(alpha: 0.5),
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.5),
@@ -191,10 +195,7 @@ class DraggableItemWrapper extends StatelessWidget {
           ),
         ),
       ),
-      childWhenDragging: Opacity(
-        opacity: 0.3,
-        child: child,
-      ),
+      childWhenDragging: Opacity(opacity: 0.3, child: child),
       child: child,
     );
   }

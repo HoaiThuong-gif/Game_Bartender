@@ -65,10 +65,8 @@ class _ManualInputScreenState extends State<ManualInputScreen> {
       final busy = _controller.busy;
       return RubikTheme(
         child: Scaffold(
-          backgroundColor: const Color(0xFFF3F5FA),
           appBar: AppBar(
             title: const Text('Nhập màu Rubik'),
-            backgroundColor: const Color(0xFFF3F5FA),
             actions: [
               IconButton(
                 tooltip: 'Cách sử dụng',

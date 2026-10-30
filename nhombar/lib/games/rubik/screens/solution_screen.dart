@@ -148,30 +148,36 @@ class _SolutionScreenState extends State<SolutionScreen> {
                                 vertical: 16,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: Theme.of(context).colorScheme.surface,
                                 borderRadius: BorderRadius.circular(24),
                                 border: Border.all(
-                                  color: const Color(0xFFDCE3ED),
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .outlineVariant,
                                 ),
                               ),
                               child: Column(
                                 children: [
                                   Text(
                                     move.toString(),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 60,
                                       height: 1.1,
                                       fontWeight: FontWeight.w800,
-                                      color: Color(0xFF1670D2),
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary,
                                     ),
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
                                     move.faceLabel.toUpperCase(),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.w700,
                                       fontSize: 16,
-                                      color: Color(0xFF17233D),
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface,
                                     ),
                                   ),
                                   const SizedBox(height: 14),
@@ -181,15 +187,19 @@ class _SolutionScreenState extends State<SolutionScreen> {
                                         : move.turn == RubikTurn.half
                                         ? Icons.sync
                                         : Icons.rotate_right,
-                                    color: const Color(0xFF1670D2),
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary,
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
                                     move.instruction,
                                     textAlign: TextAlign.center,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 16,
-                                      color: Color(0xFF475569),
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
                                     ),
                                   ),
                                 ],

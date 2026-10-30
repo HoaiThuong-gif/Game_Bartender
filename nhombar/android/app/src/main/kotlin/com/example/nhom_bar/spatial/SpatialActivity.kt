@@ -53,6 +53,8 @@ class SpatialActivity : Activity(), GLSurfaceView.Renderer, SensorEventListener 
     @Volatile private var busy = false
     @Volatile private var capturing = false
     private var retryProcessing = false
+    private var readyToSend = false
+    private var suggestionShown = false
     @Volatile private var tap: Pair<Float,Float>? = null
     @Volatile private var yaw = 0f
     @Volatile private var pitch = 18f
@@ -111,7 +113,7 @@ class SpatialActivity : Activity(), GLSurfaceView.Renderer, SensorEventListener 
         actions.addView(button("← Sảnh") { finish() },LinearLayout.LayoutParams(0,-2,1f))
         primary=button(if(mode=="scan")"Bắt đầu quét" else "Hướng dẫn") {
             when(mode){
-                "scan" -> if(retryProcessing || capturing || photoCapture?.atCapacity==true)finishPhotoScan() else surface.queueEvent {
+                "scan" -> if(retryProcessing || readyToSend || capturing || photoCapture?.atCapacity==true)finishPhotoScan() else surface.queueEvent {
                     if(photoCapture!=null){capturing=true;runOnUiThread {primary.text="Dừng & tạo mô hình"}}
                     else {startPhotoScan()}
                 }
@@ -173,6 +175,7 @@ class SpatialActivity : Activity(), GLSurfaceView.Renderer, SensorEventListener 
         when(mode){
             "scan" -> {
                 addControl("Chọn lại") {surface.queueEvent {resetScan()}}
+                if(readyToSend)addControl("Chụp thêm") {continuePhotoScan()}
             }
             "vr" -> {
                 addControl("←") {virtualX=(virtualX-.04f).coerceIn(-1.5f,1.5f)}
@@ -193,8 +196,9 @@ class SpatialActivity : Activity(), GLSurfaceView.Renderer, SensorEventListener 
     }
     private fun resetScan(){
         if(busy)return
-        capturing=false;photoCapture=null;retryProcessing=false
-        runOnUiThread {primary.text="Bắt đầu quét"}
+        capturing=false;photoCapture?.close();photoCapture=null;retryProcessing=false
+        readyToSend=false;suggestionShown=false
+        runOnUiThread {primary.text="Bắt đầu quét";primary.isEnabled=true;configureControls()}
         postStatus("1 · Đặt đồ vật vào giữa", "Để đồ vật đứng yên ở chỗ đủ sáng.",0)
     }
     private fun instructions(){
@@ -259,11 +263,11 @@ class SpatialActivity : Activity(), GLSurfaceView.Renderer, SensorEventListener 
     }
     override fun onPause(){
         capturing=false;stableSince=0
-        if(mode=="scan" && photoCapture!=null)primary.text="Tiếp tục quét"
+        if(mode=="scan" && photoCapture!=null)primary.text=if(readyToSend)"Tạo mô hình" else "Tiếp tục quét"
         sensorManager?.unregisterListener(this)
         surface.onPause();session?.pause();super.onPause()
     }
-    override fun onDestroy(){ModelStore.release(this);surface.queueEvent {targetAnchor?.detach();placementAnchor?.detach()};session?.close();super.onDestroy()}
+    override fun onDestroy(){photoCapture?.close();ModelStore.release(this);surface.queueEvent {targetAnchor?.detach();placementAnchor?.detach()};session?.close();super.onDestroy()}
     override fun onSurfaceCreated(gl:GL10?,config:EGLConfig?){
         try{renderer.initialize();sourceMesh?.let {renderer.setMesh(it)}}catch(e:Exception){runOnUiThread{showError("Lỗi bộ dựng hình",e)}}
     }
@@ -340,15 +344,27 @@ class SpatialActivity : Activity(), GLSurfaceView.Renderer, SensorEventListener 
         if(capturing && !busy){
             if(capture.add(frame) && capture.count%10==0)Log.i("MeoSpatial","REAL_PHOTOS_CAPTURED count=${capture.count}")
             if(capture.atCapacity)capturing=false
+            if(!suggestionShown && capture.suggestedComplete) {
+                suggestionShown=true;readyToSend=true;capturing=false
+                runOnUiThread {primary.text="Tạo mô hình";configureControls()}
+            }
         }
         val now=SystemClock.elapsedRealtime()
         if(!busy && now-lastUi>500){
             lastUi=now
-            val step=if(capture.coverage<50)"2 · Đi chậm quanh đồ vật" else "3 · Nâng máy để nhìn từ trên"
-            val hint=ScanMessages.captureHint(capture.hint)
+            val step=if(readyToSend)"Đã thu đủ góc nhìn gợi ý"
+                else if(capture.coverage<50)"2 · Đi chậm quanh đồ vật" else "3 · Nâng máy để nhìn từ trên"
+            val hint=if(readyToSend)"Bấm Tạo mô hình để máy tính xử lý bản quét."
+                else ScanMessages.captureHint(capture.hint)
             postStatus(step,"$hint\nĐã chụp ${capture.count} ảnh · ${capture.coverage}% góc nhìn",capture.coverage)
             runOnUiThread { if(!busy) primary.isEnabled=capture.count>=40 }
         }
+    }
+    private fun continuePhotoScan() {
+        if(busy)return
+        retryProcessing=false;readyToSend=false;capturing=true
+        primary.text="Tạo mô hình"
+        configureControls()
     }
     private fun finishPhotoScan(){
         if(busy || !saving.compareAndSet(false,true))return
@@ -394,7 +410,7 @@ class SpatialActivity : Activity(), GLSurfaceView.Renderer, SensorEventListener 
                             .setMessage("Kiểm tra máy xử lý còn mở và kết nối còn hoạt động. Bạn có thể thử lại với bản quét này hoặc chụp thêm các mặt còn thiếu.")
                             .setPositiveButton("Thử lại"){_,_->finishPhotoScan()}
                             .setNegativeButton("Chụp thêm"){_,_->
-                                retryProcessing=false;capturing=true;primary.text="Tạo mô hình"
+                                continuePhotoScan()
                             }.setNeutralButton("Đóng",null).show()
                     }}
                 }

@@ -59,3 +59,6 @@ nhombar/lib/firebase_options.dart
 nhombar/android/app/google-services.json
 nhombar/ios/Runner/GoogleService-Info.plist
 .scan-runtime/
+backend/.yolo-runtime/
+backend/vision/*.egg-info/
+backend/vision/**/__pycache__/

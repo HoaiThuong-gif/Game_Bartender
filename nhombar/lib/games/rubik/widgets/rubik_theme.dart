@@ -1,52 +1,11 @@
 import 'package:flutter/material.dart';
 
-/// Scoped to Rubik routes so other games retain their own styling.
+/// Rubik uses the app theme; cube face colors remain in their own models/widgets.
 class RubikTheme extends StatelessWidget {
   const RubikTheme({super.key, required this.child});
   final Widget child;
-
   @override
-  Widget build(BuildContext context) {
-    final scheme = ColorScheme.fromSeed(seedColor: const Color(0xFF1670D2));
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16),
-    );
-    return Theme(
-      data: Theme.of(context).copyWith(
-        colorScheme: scheme,
-        scaffoldBackgroundColor: const Color(0xFFF3F5FA),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFF3F5FA),
-          foregroundColor: Color(0xFF17233D),
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          titleTextStyle: TextStyle(
-            fontSize: 19,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF17233D),
-          ),
-        ),
-        filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFF1670D2),
-            foregroundColor: Colors.white,
-            minimumSize: const Size(48, 48),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            shape: shape,
-          ),
-        ),
-        outlinedButtonTheme: OutlinedButtonThemeData(
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF24466F),
-            minimumSize: const Size(48, 48),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            shape: shape,
-          ),
-        ),
-      ),
-      child: child,
-    );
-  }
+  Widget build(BuildContext context) => child;
 }
 
 class RubikModeTile extends StatelessWidget {
@@ -66,11 +25,15 @@ class RubikModeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: primary ? const Color(0xFF1670D2) : Colors.white,
+    color: primary
+        ? Theme.of(context).colorScheme.primary
+        : Theme.of(context).colorScheme.surface,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(20),
       side: BorderSide(
-        color: primary ? Colors.transparent : const Color(0xFFDCE3ED),
+        color: primary
+            ? Colors.transparent
+            : Theme.of(context).colorScheme.outlineVariant,
       ),
     ),
     clipBehavior: Clip.antiAlias,
@@ -83,7 +46,9 @@ class RubikModeTile extends StatelessWidget {
             Icon(
               icon,
               size: 30,
-              color: primary ? Colors.white : const Color(0xFF1670D2),
+              color: primary
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -95,7 +60,9 @@ class RubikModeTile extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 16,
-                      color: primary ? Colors.white : const Color(0xFF17233D),
+                      color: primary
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   if (subtitle != null) ...[
@@ -105,8 +72,8 @@ class RubikModeTile extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 13,
                         color: primary
-                            ? Colors.white70
-                            : const Color(0xFF64748B),
+                            ? Theme.of(context).colorScheme.onPrimary
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -116,7 +83,9 @@ class RubikModeTile extends StatelessWidget {
             if (onTap != null)
               Icon(
                 Icons.chevron_right,
-                color: primary ? Colors.white : const Color(0xFF64748B),
+                color: primary
+                    ? Theme.of(context).colorScheme.onPrimary
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
           ],
         ),

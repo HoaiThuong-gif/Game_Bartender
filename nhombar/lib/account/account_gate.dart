@@ -1,10 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../screens/home/lobby_screen.dart';
 import 'account_service.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
+import '../settings/app_settings.dart';
 
 class AccountGate extends StatefulWidget {
   const AccountGate({super.key, this.initialize, this.lobbyBuilder});
@@ -70,6 +72,8 @@ class _SessionGate extends StatefulWidget {
 
 class _SessionGateState extends State<_SessionGate> {
   late final _changes = widget.service.changes;
+  String? _appearanceAccount;
+  bool _appearanceLoaded = false;
   @override
   Widget build(BuildContext context) => StreamBuilder<User?>(
     stream: _changes,
@@ -78,6 +82,15 @@ class _SessionGateState extends State<_SessionGate> {
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       }
       final user = session.data;
+      final uid = user != null && !user.isAnonymous ? user.uid : null;
+      if (!_appearanceLoaded || _appearanceAccount != uid) {
+        _appearanceLoaded = true;
+        _appearanceAccount = uid;
+        final settings = AppSettingsScope.maybeOf(context);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) settings?.useAccount(uid);
+        });
+      }
       if (session.hasError || user == null || user.isAnonymous) {
         return LoginScreen(service: widget.service);
       }
@@ -89,7 +102,10 @@ class _SessionGateState extends State<_SessionGate> {
             widget.lobbyBuilder?.call(context) ??
             _ProfileBootstrap(
               user: user,
-              child: LobbyScreen(
+              builder: (name, photo) => LobbyScreen(
+                playerName: name,
+                avatarUrl: photo,
+                onLogout: widget.service.logout,
                 onAccountTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) =>
@@ -123,49 +139,63 @@ class _ProtectedNavigatorState extends State<_ProtectedNavigator> {
 }
 
 class _ProfileBootstrap extends StatefulWidget {
-  const _ProfileBootstrap({required this.user, required this.child});
+  const _ProfileBootstrap({required this.user, required this.builder});
   final User user;
-  final Widget child;
+  final Widget Function(String name, String? photo) builder;
   @override
   State<_ProfileBootstrap> createState() => _ProfileBootstrapState();
 }
 
 class _ProfileBootstrapState extends State<_ProfileBootstrap> {
   late Future<void> _ready;
+  late Stream<DocumentSnapshot<Map<String, dynamic>>> _profile;
   @override
   void initState() {
     super.initState();
     _ready = PlayerProfiles().ensure(widget.user);
+    _profile = PlayerProfiles().reference(widget.user.uid).snapshots();
   }
 
   @override
-  Widget build(BuildContext context) => Stack(
-    children: [
-      widget.child,
-      FutureBuilder<void>(
-        future: _ready,
-        builder: (context, snapshot) => snapshot.hasError
-            ? Positioned(
-                left: 12,
-                right: 12,
-                bottom: 12,
-                child: SafeArea(
-                  child: Material(
-                    borderRadius: BorderRadius.circular(16),
-                    child: ListTile(
-                      title: const Text('Chưa đồng bộ được hồ sơ'),
-                      trailing: TextButton(
-                        onPressed: () => setState(() {
-                          _ready = PlayerProfiles().ensure(widget.user);
-                        }),
-                        child: const Text('Thử lại'),
-                      ),
-                    ),
-                  ),
-                ),
-              )
-            : const SizedBox.shrink(),
-      ),
-    ],
-  );
+  Widget build(BuildContext context) =>
+      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: _profile,
+        builder: (context, snapshot) {
+          final data = snapshot.data?.data();
+          final name =
+              data?['displayName'] as String? ??
+              widget.user.displayName ??
+              'Người chơi';
+          final photo = data?['photoURL'] as String? ?? widget.user.photoURL;
+          return Stack(
+            children: [
+              widget.builder(name, photo),
+              FutureBuilder<void>(
+                future: _ready,
+                builder: (context, snapshot) => snapshot.hasError
+                    ? Positioned(
+                        left: 12,
+                        right: 12,
+                        bottom: 12,
+                        child: SafeArea(
+                          child: Material(
+                            borderRadius: BorderRadius.circular(16),
+                            child: ListTile(
+                              title: const Text('Chưa đồng bộ được hồ sơ'),
+                              trailing: TextButton(
+                                onPressed: () => setState(() {
+                                  _ready = PlayerProfiles().ensure(widget.user);
+                                }),
+                                child: const Text('Thử lại'),
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          );
+        },
+      );
 }

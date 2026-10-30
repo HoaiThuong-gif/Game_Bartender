@@ -1,3 +1,5 @@
+import '../../../settings/app_theme.dart';
+
 import 'package:flutter/material.dart';
 
 import '../models/player.dart';
@@ -35,7 +37,7 @@ class RingNeighborsWidget extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF262638),
+        color: AppTheme.arenaRaised,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.white10),
       ),

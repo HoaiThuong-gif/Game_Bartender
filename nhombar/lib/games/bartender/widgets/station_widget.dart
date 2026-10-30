@@ -84,7 +84,8 @@ class _StationWidgetState extends State<StationWidget> {
 
     if (!_sensorAvailable) return;
 
-    final stream = widget.accelerometerStream ??
+    final stream =
+        widget.accelerometerStream ??
         ShakeSensorConfig.customStream ??
         userAccelerometerEventStream();
 
@@ -92,12 +93,17 @@ class _StationWidgetState extends State<StationWidget> {
       (event) {
         if (!mounted || widget.isBusy) return;
         final nowMs = event.timestamp.millisecondsSinceEpoch;
-        final didShake =
-            _shakeDetector.addSample(event.x, event.y, event.z, nowMs);
+        final didShake = _shakeDetector.addSample(
+          event.x,
+          event.y,
+          event.z,
+          nowMs,
+        );
         if (didShake) {
           final processable = widget.items
-              .where((item) =>
-                  processItem(item.itemId, StationType.shaker) != null)
+              .where(
+                (item) => processItem(item.itemId, StationType.shaker) != null,
+              )
               .toList();
           if (processable.isNotEmpty) {
             widget.onProcessItem(processable.first);
@@ -250,7 +256,10 @@ class _StationWidgetState extends State<StationWidget> {
             if (currentStation == StationType.shaker && _sensorAvailable)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 16,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.deepPurple.shade900.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(10),

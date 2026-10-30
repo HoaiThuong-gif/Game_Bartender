@@ -1,3 +1,5 @@
+import '../../../settings/app_theme.dart';
+
 import 'package:flutter/material.dart';
 
 import '../controllers/bartender_controller.dart';
@@ -11,17 +13,14 @@ import '../controllers/bartender_controller.dart';
 /// - Nút "VỀ LOBBY" để dọn dẹp và quay về sảnh chính.
 /// - Đảm bảo không tràn bố cục ở 360x640 và 390x844.
 class BartenderResultsScreen extends StatelessWidget {
-  const BartenderResultsScreen({
-    super.key,
-    required this.controller,
-  });
+  const BartenderResultsScreen({super.key, required this.controller});
 
   final BartenderController controller;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F1A),
+      backgroundColor: AppTheme.arenaBackground,
       body: ListenableBuilder(
         listenable: controller,
         builder: (context, _) {
@@ -37,8 +36,9 @@ class BartenderResultsScreen extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const CircularProgressIndicator(
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.amberAccent),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Colors.amberAccent,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       const Text(
@@ -69,7 +69,8 @@ class BartenderResultsScreen extends StatelessWidget {
             );
           }
 
-          final isEarlyEndDueToDisconnect = controller.room != null &&
+          final isEarlyEndDueToDisconnect =
+              controller.room != null &&
               controller.room!.connectedPlayerCount < 2;
 
           return SafeArea(
@@ -115,7 +116,9 @@ class BartenderResultsScreen extends StatelessWidget {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.orange.shade900.withValues(alpha: 0.3),
+                            color: Colors.orange.shade900.withValues(
+                              alpha: 0.3,
+                            ),
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
                               color: Colors.orangeAccent.withValues(alpha: 0.5),
@@ -196,10 +199,10 @@ class BartenderResultsScreen extends StatelessWidget {
                             final medal = index == 0
                                 ? '🥇'
                                 : index == 1
-                                    ? '🥈'
-                                    : index == 2
-                                        ? '🥉'
-                                        : '#${index + 1}';
+                                ? '🥈'
+                                : index == 2
+                                ? '🥉'
+                                : '#${index + 1}';
 
                             return Container(
                               margin: const EdgeInsets.only(bottom: 6),
@@ -211,14 +214,16 @@ class BartenderResultsScreen extends StatelessWidget {
                                 gradient: isMe
                                     ? LinearGradient(
                                         colors: [
-                                          Colors.deepPurple
-                                              .withValues(alpha: 0.4),
-                                          Colors.deepPurple
-                                              .withValues(alpha: 0.2),
+                                          Colors.deepPurple.withValues(
+                                            alpha: 0.4,
+                                          ),
+                                          Colors.deepPurple.withValues(
+                                            alpha: 0.2,
+                                          ),
                                         ],
                                       )
                                     : null,
-                                color: isMe ? null : const Color(0xFF1E1E2C),
+                                color: isMe ? null : AppTheme.arenaSurface,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
                                   color: isMe
@@ -282,8 +287,9 @@ class BartenderResultsScreen extends StatelessWidget {
                                       vertical: 4,
                                     ),
                                     decoration: BoxDecoration(
-                                      color:
-                                          Colors.amber.withValues(alpha: 0.2),
+                                      color: Colors.amber.withValues(
+                                        alpha: 0.2,
+                                      ),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(
@@ -401,10 +407,7 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: isSmall ? 8 : 12,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: isSmall ? 8 : 12),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),

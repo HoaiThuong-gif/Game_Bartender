@@ -43,7 +43,7 @@ class _RubikScreenState extends State<RubikScreen> {
           ),
         ],
       ),
-      backgroundColor: const Color(0xFFDCEFFC),
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
       body: SafeArea(child: RubikInteractivePreview(active: _active)),
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(16, 10, 16, 14),
@@ -59,8 +59,10 @@ class _RubikScreenState extends State<RubikScreen> {
             Expanded(
               child: OutlinedButton(
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF155A91),
-                  side: const BorderSide(color: Color(0xFF75ADD4)),
+                  foregroundColor: Theme.of(context).colorScheme.primary,
+                  side: BorderSide(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
                 ),
                 onPressed: () => _open(const RubikChallengeLobbyScreen()),
                 child: const Text('THÁCH ĐẤU'),

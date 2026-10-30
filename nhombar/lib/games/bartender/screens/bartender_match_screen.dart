@@ -1,3 +1,5 @@
+import '../../../settings/app_theme.dart';
+
 import 'package:flutter/material.dart';
 
 import '../controllers/bartender_controller.dart';
@@ -20,17 +22,14 @@ import '../widgets/trash_bin_widget.dart';
 ///
 /// Xem PROJECT_SPEC.md toàn bộ mục "Vòng lặp trận đấu".
 class BartenderMatchScreen extends StatelessWidget {
-  const BartenderMatchScreen({
-    super.key,
-    required this.controller,
-  });
+  const BartenderMatchScreen({super.key, required this.controller});
 
   final BartenderController controller;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F1A),
+      backgroundColor: AppTheme.arenaBackground,
       body: ListenableBuilder(
         listenable: controller,
         builder: (context, _) {
@@ -40,9 +39,7 @@ class BartenderMatchScreen extends StatelessWidget {
 
           if (room == null || round == null) {
             return const Center(
-              child: CircularProgressIndicator(
-                color: Colors.amberAccent,
-              ),
+              child: CircularProgressIndicator(color: Colors.amberAccent),
             );
           }
 
@@ -115,7 +112,8 @@ class BartenderMatchScreen extends StatelessWidget {
                                   child: ItemCardWidget(
                                     item: item,
                                     onSwipeLeft: () => ctrl.swipeItemLeft(item),
-                                    onSwipeRight: () => ctrl.swipeItemRight(item),
+                                    onSwipeRight: () =>
+                                        ctrl.swipeItemRight(item),
                                     onTrash: () => ctrl.trashItem(item),
                                     onTap: () {
                                       if (ctrl.myStation != null) {
@@ -161,9 +159,7 @@ class BartenderMatchScreen extends StatelessWidget {
                     if (isSmall)
                       Expanded(
                         flex: 5,
-                        child: SingleChildScrollView(
-                          child: middleSection,
-                        ),
+                        child: SingleChildScrollView(child: middleSection),
                       )
                     else
                       Flexible(
@@ -175,10 +171,7 @@ class BartenderMatchScreen extends StatelessWidget {
                       ),
 
                     // 5. Danh sách vật phẩm trên tay + thùng rác
-                    Expanded(
-                      flex: isSmall ? 4 : 1,
-                      child: bottomSection,
-                    ),
+                    Expanded(flex: isSmall ? 4 : 1, child: bottomSection),
 
                     // Thông báo / lỗi
                     if (ctrl.noticeMessage != null)

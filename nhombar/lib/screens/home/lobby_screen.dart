@@ -5,12 +5,16 @@ import 'package:flutter/services.dart';
 import '../../games/bartender/screens/bartender_screen.dart';
 import '../../games/rubik/screens/rubik_screen.dart';
 import '../../games/spatial/spatial_screen.dart';
+import '../../detection/detection_screen.dart';
+import '../../settings/settings_screen.dart';
+import '../../account/account_validation.dart';
 import 'lobby_layout.dart';
 import 'lobby_furnishings.dart';
 import 'lobby_cats.dart';
 import 'widgets/lobby_panorama.dart';
 import 'widgets/lobby_object.dart';
 import 'widgets/lobby_cat_layer.dart';
+import 'widgets/lobby_account_menu.dart';
 
 class LobbyScreen extends StatefulWidget {
   const LobbyScreen({
@@ -20,6 +24,9 @@ class LobbyScreen extends StatefulWidget {
     this.arcadeBuilder,
     this.catPopulation,
     this.onAccountTap,
+    this.playerName = 'Người chơi',
+    this.avatarUrl,
+    this.onLogout,
   });
 
   final VoidCallback? onBartenderTap;
@@ -27,6 +34,9 @@ class LobbyScreen extends StatefulWidget {
   final WidgetBuilder? arcadeBuilder;
   final CatPopulation? catPopulation;
   final VoidCallback? onAccountTap;
+  final String playerName;
+  final String? avatarUrl;
+  final Future<void> Function()? onLogout;
 
   @override
   State<LobbyScreen> createState() => _LobbyScreenState();
@@ -202,11 +212,37 @@ class _LobbyScreenState extends State<LobbyScreen> {
           child: LobbyObject(
             asset: layer.placement.asset,
             placement: layer.placement,
-            label: layer.label,
-            onTap: null,
+            label: layer.id == 'camera' ? 'Nhận diện đồ vật' : layer.label,
+            onTap: layer.id == 'camera' ? _openDetection : null,
           ),
         ),
       );
+    }
+  }
+
+  Future<void> _openDetection() async {
+    if (_opening) return;
+    _opening = true;
+    setState(() => _active = false);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Nhận diện đồ vật'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    try {
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => const DetectionScreen()));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _opening = false;
+          _active = true;
+        });
+      }
     }
   }
 
@@ -277,7 +313,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
     return layers.map((layer) => layer.$2);
   }
 
-  void _inspect() {
+  Future<void> _inspect() async {
     const names = {
       LobbyGame.arcade: 'Tranh / 3D',
       LobbyGame.television: 'TV / AR VR',
@@ -290,7 +326,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
       LobbyGame.bartender: LobbyLayout.bartender,
       LobbyGame.rubik: LobbyLayout.rubik,
     };
-    showModalBottomSheet<void>(
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (sheetContext) => StatefulBuilder(
@@ -302,21 +338,25 @@ class _LobbyScreenState extends State<LobbyScreen> {
                 const Padding(
                   padding: EdgeInsets.all(12),
                   child: Text(
-                    'Layers',
+                    'Bố cục Lobby',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ),
-                Text(_view.imageInfo, style: const TextStyle(fontSize: 11)),
-                Text(_view.gpuInfo, style: const TextStyle(fontSize: 11)),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                if (kDebugMode)
+                  Text(_view.imageInfo, style: const TextStyle(fontSize: 11)),
+                if (kDebugMode)
+                  Text(_view.gpuInfo, style: const TextStyle(fontSize: 11)),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
                   children: [
                     for (final enabled in [false, true])
                       TextButton.icon(
                         icon: Icon(
                           enabled ? Icons.visibility : Icons.visibility_off,
                         ),
-                        label: Text(enabled ? 'Bat tat ca' : 'Phong trong'),
+                        label: Text(enabled ? 'Bật tất cả' : 'Phòng trống'),
                         onPressed: () {
                           setState(() {
                             for (final id in _shownFurniture.keys) {
@@ -412,44 +452,103 @@ class _LobbyScreenState extends State<LobbyScreen> {
     );
   }
 
+  Future<void> _accountMenu() async {
+    if (_opening) return;
+    setState(() {
+      _opening = true;
+      _active = false;
+    });
+    try {
+      final action = await showLobbyAccountMenu(
+        context,
+        name: widget.playerName,
+        photoUrl: widget.avatarUrl,
+        canLogout: widget.onLogout != null,
+      );
+      if (!mounted) return;
+      switch (action) {
+        case LobbyAccountAction.profile:
+          widget.onAccountTap?.call();
+          await WidgetsBinding.instance.endOfFrame;
+          if (mounted) _away = !(ModalRoute.isCurrentOf(context) ?? true);
+        case LobbyAccountAction.settings:
+          await Navigator.push(
+            context,
+            MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+          );
+        case LobbyAccountAction.appearance:
+          await Navigator.push(
+            context,
+            MaterialPageRoute<void>(builder: (_) => const AppearanceScreen()),
+          );
+        case LobbyAccountAction.layout:
+          await _inspect();
+        case LobbyAccountAction.logout:
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Đăng xuất?'),
+              content: const Text('Bạn có thể đăng nhập lại bất cứ lúc nào.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Ở lại'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Đăng xuất'),
+                ),
+              ],
+            ),
+          );
+          if (confirmed == true) await widget.onLogout?.call();
+        case null:
+          break;
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(accountError(error))));
+      }
+    } finally {
+      if (mounted && !_away) {
+        setState(() {
+          _opening = false;
+          _active = true;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
-    body: TickerMode(
-      enabled: _active,
-      child: LobbyCatHost(
-        active: _active,
-        population: widget.catPopulation,
-        child: LobbyPanorama(
-          controller: _view,
-          children: [
-            ..._scene(),
-            if (widget.onAccountTap != null)
-              Positioned(
-                top: 0,
-                left: 8,
-                child: SafeArea(
-                  child: IconButton.filledTonal(
-                    tooltip: 'Hồ sơ của tôi',
-                    icon: const Icon(Icons.account_circle),
-                    onPressed: widget.onAccountTap,
-                  ),
-                ),
-              ),
-            if (kDebugMode)
-              Positioned(
-                top: 0,
-                right: 8,
-                child: SafeArea(
-                  child: IconButton.filledTonal(
-                    tooltip: 'Layers',
-                    icon: const Icon(Icons.layers_outlined),
-                    onPressed: _inspect,
-                  ),
-                ),
-              ),
-          ],
+    body: Stack(
+      children: [
+        Positioned.fill(
+          child: TickerMode(
+            enabled: _active,
+            child: LobbyCatHost(
+              active: _active,
+              population: widget.catPopulation,
+              child: LobbyPanorama(controller: _view, children: [..._scene()]),
+            ),
+          ),
         ),
-      ),
+        Positioned(
+          top: 0,
+          left: 12,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: LobbyAccountButton(
+                name: widget.playerName,
+                photoUrl: widget.avatarUrl,
+                onPressed: _accountMenu,
+              ),
+            ),
+          ),
+        ),
+      ],
     ),
   );
 }

@@ -141,10 +141,10 @@ class _RoomState extends State<RubikChallengeRoomScreen>
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.extension_outlined,
                               size: 80,
-                              color: Color(0xFF1670D2),
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                             const SizedBox(height: 16),
                             Text(
@@ -305,10 +305,10 @@ class _RoomState extends State<RubikChallengeRoomScreen>
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
-        const Icon(
+        Icon(
           Icons.emoji_events_outlined,
           size: 80,
-          color: Color(0xFF1670D2),
+          color: Theme.of(context).colorScheme.primary,
         ),
         const SizedBox(height: 16),
         Text(

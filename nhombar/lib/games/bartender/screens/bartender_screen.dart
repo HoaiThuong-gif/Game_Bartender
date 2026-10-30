@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../settings/app_settings.dart';
+import '../../../settings/app_theme.dart';
+
 import '../controllers/bartender_controller.dart';
 import 'bartender_lobby_screen.dart';
 import 'bartender_match_screen.dart';
@@ -29,16 +32,22 @@ class _BartenderScreenState extends State<BartenderScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: _controller,
-    builder: (context, _) {
-      if (_controller.isMatchEnded) {
-        return BartenderResultsScreen(controller: _controller);
-      }
-      if (_controller.isMatchPlaying) {
-        return BartenderMatchScreen(controller: _controller);
-      }
-      return BartenderLobbyScreen(controller: _controller);
-    },
+  Widget build(BuildContext context) => Theme(
+    data: AppTheme.build(
+      AppSettingsScope.maybeOf(context)?.seedColor ?? const Color(0xFFA95C3B),
+      game: true,
+    ),
+    child: ListenableBuilder(
+      listenable: _controller,
+      builder: (context, _) {
+        if (_controller.isMatchEnded) {
+          return BartenderResultsScreen(controller: _controller);
+        }
+        if (_controller.isMatchPlaying) {
+          return BartenderMatchScreen(controller: _controller);
+        }
+        return BartenderLobbyScreen(controller: _controller);
+      },
+    ),
   );
 }

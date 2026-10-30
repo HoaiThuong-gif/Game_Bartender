@@ -89,10 +89,10 @@ class _LobbyState extends State<RubikChallengeLobbyScreen> {
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            const Icon(
+            Icon(
               Icons.sports_esports_outlined,
               size: 64,
-              color: Color(0xFF1670D2),
+              color: Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(height: 16),
             const Text(

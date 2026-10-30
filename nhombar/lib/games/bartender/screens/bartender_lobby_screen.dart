@@ -1,3 +1,5 @@
+import '../../../settings/app_theme.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -37,14 +39,14 @@ class _BartenderLobbyScreenState extends State<BartenderLobbyScreen> {
     final ctrl = widget.controller;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F1A),
+      backgroundColor: AppTheme.arenaBackground,
       appBar: AppBar(
         title: const Text(
           'QUẦY BARTENDER',
           style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 2),
         ),
         centerTitle: true,
-        backgroundColor: const Color(0xFF1A1A2E),
+        backgroundColor: AppTheme.arenaSurface,
         elevation: 0,
       ),
       body: ListenableBuilder(
@@ -100,7 +102,7 @@ class _BartenderLobbyScreenState extends State<BartenderLobbyScreen> {
                 labelStyle: const TextStyle(color: Colors.white54),
                 prefixIcon: const Icon(Icons.person, color: Colors.amberAccent),
                 filled: true,
-                fillColor: const Color(0xFF1E1E2C),
+                fillColor: AppTheme.arenaSurface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -125,7 +127,7 @@ class _BartenderLobbyScreenState extends State<BartenderLobbyScreen> {
                   vertical: 12,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E2C),
+                  color: AppTheme.arenaSurface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.white12),
                 ),
@@ -155,7 +157,7 @@ class _BartenderLobbyScreenState extends State<BartenderLobbyScreen> {
                             selected: isSelected,
                             onSelected: (_) => setState(() => _playerCount = n),
                             selectedColor: Colors.amberAccent,
-                            backgroundColor: const Color(0xFF2C2C40),
+                            backgroundColor: AppTheme.arenaRaised,
                             labelStyle: TextStyle(
                               color: isSelected ? Colors.black : Colors.white70,
                               fontWeight: FontWeight.bold,
@@ -321,7 +323,7 @@ class _BartenderLobbyScreenState extends State<BartenderLobbyScreen> {
                   decoration: BoxDecoration(
                     color: isMe
                         ? Colors.deepPurple.withValues(alpha: 0.3)
-                        : const Color(0xFF1E1E2C),
+                        : AppTheme.arenaSurface,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: isMe ? Colors.deepPurpleAccent : Colors.white12,

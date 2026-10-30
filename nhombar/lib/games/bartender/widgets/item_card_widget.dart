@@ -1,3 +1,5 @@
+import '../../../settings/app_theme.dart';
+
 import 'package:flutter/material.dart';
 
 import '../models/game_item.dart';
@@ -88,9 +90,7 @@ class ItemCardWidget extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: isProduct
-                ? const Color(0xFF2A3020)
-                : const Color(0xFF1E1E2C),
+            color: isProduct ? const Color(0xFF2A3020) : AppTheme.arenaSurface,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isProduct
@@ -101,10 +101,7 @@ class ItemCardWidget extends StatelessWidget {
           child: Row(
             children: [
               // Emoji / icon
-              Text(
-                _itemEmoji(item),
-                style: const TextStyle(fontSize: 22),
-              ),
+              Text(_itemEmoji(item), style: const TextStyle(fontSize: 22)),
               const SizedBox(width: 10),
 
               // Tên và loại
@@ -145,11 +142,7 @@ class ItemCardWidget extends StatelessWidget {
               ),
 
               // Hướng dẫn vuốt
-              const Icon(
-                Icons.swipe,
-                size: 16,
-                color: Colors.white24,
-              ),
+              const Icon(Icons.swipe, size: 16, color: Colors.white24),
             ],
           ),
         ),

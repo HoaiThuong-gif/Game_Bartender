@@ -67,7 +67,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(Icons.pets, size: 64),
+                    CircleAvatar(
+                      radius: 40,
+                      backgroundColor: Theme.of(context)
+                          .colorScheme
+                          .primaryContainer,
+                      child: Icon(
+                        Icons.pets,
+                        size: 44,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       _register ? 'Tạo tài khoản' : 'Chào bạn!',
@@ -85,6 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         validator: validatePlayerName,
                         autofillHints: const [AutofillHints.nickname],
                       ),
+                    if (_register) const SizedBox(height: 12),
                     TextFormField(
                       controller: _email,
                       enabled: !_busy,
@@ -94,6 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: const InputDecoration(labelText: 'Email'),
                       validator: validateEmail,
                     ),
+                    const SizedBox(height: 12),
                     TextFormField(
                       controller: _password,
                       enabled: !_busy,
@@ -116,6 +128,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       validator: validatePassword,
                       onFieldSubmitted: (_) => _submit(),
                     ),
+                    if (_register) const SizedBox(height: 12),
                     if (_register)
                       TextFormField(
                         controller: _confirm,
@@ -145,6 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: _busy ? null : _submit,
                       child: Text(_register ? 'Đăng ký' : 'Đăng nhập'),
                     ),
+                    const SizedBox(height: 10),
                     OutlinedButton.icon(
                       onPressed: _busy
                           ? null

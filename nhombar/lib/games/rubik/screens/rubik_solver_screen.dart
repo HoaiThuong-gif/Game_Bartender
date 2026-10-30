@@ -32,10 +32,10 @@ class RubikSolverScreen extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.view_in_ar,
                     size: 100,
-                    color: Color(0xFF1670D2),
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                   const SizedBox(height: 24),
                   const Text(

@@ -1,3 +1,5 @@
+import '../../../settings/app_theme.dart';
+
 import 'package:flutter/material.dart';
 
 import '../models/game_item.dart';
@@ -35,7 +37,7 @@ class OrderTrayWidget extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E2C),
+        color: AppTheme.arenaSurface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white12),
       ),
@@ -146,7 +148,7 @@ class _OrderCard extends StatelessWidget {
             ? Colors.green.shade900.withValues(alpha: 0.3)
             : isReadyToSubmit
             ? Colors.amber.shade900.withValues(alpha: 0.35)
-            : const Color(0xFF2C2C40),
+            : AppTheme.arenaRaised,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: order.isCompleted

@@ -1,3 +1,5 @@
+import '../../../settings/app_theme.dart';
+
 import 'package:flutter/material.dart';
 
 /// Thanh hiển thị đồng hồ chung, số round và tổng số đơn cả đội đã nộp.
@@ -28,8 +30,8 @@ class TimerBarWidget extends StatelessWidget {
     final timerColor = isCriticalTime
         ? Colors.redAccent
         : isLowTime
-            ? Colors.orangeAccent
-            : Colors.greenAccent.shade400;
+        ? Colors.orangeAccent
+        : Colors.greenAccent.shade400;
 
     final progress = (remainingSeconds / initialSeconds).clamp(0.0, 1.0);
 
@@ -37,7 +39,7 @@ class TimerBarWidget extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E2C),
+        color: AppTheme.arenaSurface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -62,7 +64,10 @@ class TimerBarWidget extends StatelessWidget {
             children: [
               // Badge Round
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.deepPurple.shade700,
                   borderRadius: BorderRadius.circular(12),
@@ -89,11 +94,7 @@ class TimerBarWidget extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.timer,
-                    size: 20,
-                    color: timerColor,
-                  ),
+                  Icon(Icons.timer, size: 20, color: timerColor),
                   const SizedBox(width: 6),
                   Text(
                     '${remainingSeconds}s',
@@ -109,7 +110,10 @@ class TimerBarWidget extends StatelessWidget {
 
               // Tổng đơn của đội
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.amber.shade900,
                   borderRadius: BorderRadius.circular(12),
