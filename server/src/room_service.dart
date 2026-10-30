@@ -620,7 +620,8 @@ class RoomService {
 
     final ring = player.ringIndex;
     final inbox = List<GameItem>.of(room.inbox[ring] ?? const []);
-    final itemIdx = inbox.indexWhere((it) => it.id == itemId);
+    final itemIdx =
+        inbox.indexWhere((it) => it.id == itemId || it.itemId == itemId);
     if (itemIdx == -1) {
       throw ApiException.itemNotFound(itemId);
     }
@@ -630,7 +631,9 @@ class RoomService {
         .where((r) => r.id == order.recipeId)
         .firstOrNull;
 
-    if (recipe == null || productItem.itemId != recipe.productId) {
+    if (recipe == null ||
+        (productItem.itemId != recipe.productId &&
+            productItem.itemId != order.recipeId)) {
       throw ApiException.orderMismatch(
         'Item ${productItem.itemId} does not match recipe product ${recipe?.productId}.',
       );

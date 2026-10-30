@@ -803,23 +803,33 @@ class FakeRoomRepository implements RoomRepository {
     );
     final expectedProductId = recipe?.productId as String? ?? order.recipeId;
 
-    // Cho phép nộp nếu productId khớp (hoặc dùng recipeId như fallback)
-    if (productId != expectedProductId && productId != order.recipeId) {
-      // Không khớp — không nộp
-      return;
-    }
-
     // Xoá sản phẩm hoàn thành khỏi inbox của người nộp
     final newInbox = Map<int, List<GameItem>>.from(
       room.inbox.map((k, v) => MapEntry(k, List<GameItem>.from(v))),
     );
     final playerItems = newInbox[player.ringIndex] ?? [];
-    playerItems.removeWhere(
+    final itemIndex = playerItems.indexWhere(
       (i) =>
           i.id == productId ||
           i.itemId == productId ||
           i.itemId == expectedProductId,
     );
+
+    if (itemIndex == -1) {
+      // Cho phép nộp nếu productId khớp trực tiếp (hỗ trợ test không nhét item sẵn)
+      if (productId != expectedProductId && productId != order.recipeId) {
+        return;
+      }
+    } else {
+      final matchedItem = playerItems[itemIndex];
+      if (matchedItem.itemId != expectedProductId &&
+          matchedItem.itemId != order.recipeId &&
+          productId != expectedProductId &&
+          productId != order.recipeId) {
+        return;
+      }
+      playerItems.removeAt(itemIndex);
+    }
     newInbox[player.ringIndex] = playerItems;
 
     // Cập nhật trạng thái đơn: submitted

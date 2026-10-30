@@ -43,6 +43,15 @@
 
 ## Đã xong / Done
 
+- **Sửa lỗi nộp đơn hàng sau khi chế biến (2026-10-30):**
+  - Khắc phục lỗi ITEM_NOT_FOUND khi nộp đơn: Server và Repository trước đây có sự không đồng nhất giữa it.id (instance id) và it.itemId (catalog id như 'orange_juice').
+  - Server RoomService.submitOrder: cho phép tìm vật phẩm trong inbox theo cả it.id == itemId lẫn it.itemId == itemId, đồng thời kiểm tra công thức linh hoạt.
+  - Client BartenderController.submitOrder: truyền đúng product.id.isNotEmpty ? product.id : product.itemId.
+  - Đồng bộ FakeRoomRepository và FirebaseRoomRepository xử lý an toàn cả 2 định dạng id.
+  - Bổ sung DragTarget<GameItem> vào OrderTrayWidget: hỗ trợ kéo thả trực tiếp ly nước vào đơn hàng bên cạnh nút bấm 'NỘP ĐƠN (+5s) ✨'.
+  - Bổ sung unit test nộp đơn trên server (
+oom_service_test.dart) và client (artender_api_room_repository_test.dart).
+
 - **Bước C.7: Tăng cường tính bền bỉ cho WebSocket trong ApiRoomRepository (2026-10-30):**
   - Tự động kết nối lại (auto-reconnect) khi socket bị ngắt hoặc lỗi giữa trận với exponential backoff (1s, 2s, 4s, tối đa 5s), tổng thời gian tối đa ~30s, giữ nguyên playerToken.
   - Sau mỗi lần nối lại thành công, tự động gọi GET /rooms/{code} một lần, thay thế hoàn toàn local room state bằng snapshot mới (không merge), rồi tiếp tục nhận snapshot qua WebSocket.

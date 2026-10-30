@@ -332,7 +332,7 @@ class BartenderController extends ChangeNotifier {
         code: code,
         playerId: pId,
         orderId: order.id,
-        productId: product.itemId,
+        productId: product.id.isNotEmpty ? product.id : product.itemId,
       );
       unawaited(BartenderHaptics.orderSubmitted());
       _showNotice('🎉 +5s! Đã hoàn thành đơn hàng!');

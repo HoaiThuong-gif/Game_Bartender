@@ -207,5 +207,38 @@ void main() {
       expect(after.currentRound!.progress[0], 1);
       expect(after.currentRound!.playerOrders['p_0']!.first.isCompleted, isTrue);
     });
+
+    test('submitOrder succeeds when passing product.itemId directly', () {
+      final host = service.createRoom(playerName: 'Host');
+      final code = host.room.code;
+      service.joinRoom(code: code, playerName: 'Guest');
+      service.startMatch(code: code, token: host.playerToken);
+
+      final room = service.getRoom(code: code, token: host.playerToken);
+      final hostOrders = room.currentRound!.playerOrders['p_0']!;
+      final firstOrder = hostOrders.first;
+      final productItemId = firstOrder.recipeId == 'lemonade' ? 'lemon_juice' : firstOrder.recipeId;
+
+      final testProduct = GameItem(
+        id: 'test_prod_item_id_fallback',
+        type: GameItemType.product,
+        itemId: productItemId,
+        fromRingIndex: 0,
+      );
+
+      room.inbox[0]!.add(testProduct);
+
+      // Caller sends productItemId (e.g. orange_juice) instead of instance id
+      service.submitOrder(
+        code: code,
+        token: host.playerToken,
+        orderId: firstOrder.id,
+        itemId: productItemId,
+      );
+
+      final after = service.getRoom(code: code, token: host.playerToken);
+      expect(after.players['p_0']!.completedOrders, 1);
+      expect(after.currentRound!.progress[0], 1);
+    });
   });
 }

@@ -247,6 +247,56 @@ void main() {
       repo.dispose();
     });
 
+    test('submitOrder sends POST /rooms/<code>/orders/submit with orderId and itemId', () async {
+      String? submittedOrderId;
+      String? submittedItemId;
+
+      final mockHttp = MockClient((request) async {
+        if (request.url.path == '/rooms' && request.method == 'POST') {
+          return http.Response(
+            jsonEncode({
+              'playerId': 'p_0',
+              'playerToken': 'tok_submit',
+              'room': {
+                'code': '2222',
+                'status': 'playing',
+                'players': {},
+              }
+            }),
+            201,
+          );
+        }
+
+        if (request.url.path == '/rooms/2222/orders/submit' && request.method == 'POST') {
+          expect(request.headers['authorization'], 'Bearer tok_submit');
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          submittedOrderId = body['orderId'] as String?;
+          submittedItemId = body['itemId'] as String?;
+          return http.Response('', 204);
+        }
+
+        return http.Response('Not Found', 404);
+      });
+
+      final repo = ApiRoomRepository(
+        baseUrl: 'http://localhost:8080',
+        httpClient: mockHttp,
+        wsFactory: fakeWsFactory,
+      );
+
+      await repo.createRoom(hostPlayerName: 'Submitter');
+      await repo.submitOrder(
+        code: '2222',
+        playerId: 'p_0',
+        orderId: 'ord_1',
+        productId: 'item_product_123',
+      );
+
+      expect(submittedOrderId, 'ord_1');
+      expect(submittedItemId, 'item_product_123');
+      repo.dispose();
+    });
+
     test('drop and restore connection recovers stream with full snapshot and emits correct state sequence', () async {
       final ws1ServerToClient = StreamController<dynamic>.broadcast();
       final ws1ClientToServer = StreamController<dynamic>.broadcast();
