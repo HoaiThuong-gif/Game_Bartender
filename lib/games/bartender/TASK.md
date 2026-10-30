@@ -4,7 +4,7 @@
 
 ## Đang làm / In progress
 
-- Chờ kiểm tra thủ công trên 2–4 thiết bị thật (xem mục 'Cần kiểm tra thủ công').
+- Tạm dừng phát triển giao diện theo yêu cầu. Bản tích hợp UI vào logic Zhoufen đã hoàn tất kiểm tra và được chốt bằng merge local; chờ kiểm tra trên hai máy thật với server/API. Chưa push.
 
 ## Cần kiểm tra thủ công (2–4 thiết bị thật với Backend Server Local / VPS)
 
@@ -42,6 +42,17 @@
    - File `lib/games/bartender/services/firebase_room_repository.dart` và cấu hình Firebase trong `pubspec.yaml` hiện không còn là backend mặc định. Toàn bộ mã này được giữ nguyên an toàn, có thể chuyển đổi kích hoạt lại bất kỳ lúc nào qua `BartenderConfig.backend = BartenderBackend.firebase` mà không ảnh hưởng đến server API mới.
 
 ## Đã xong / Done
+
+- **Merge UI vào logic Zhoufen (2026-10-30):** local `dev/Zhoufen`, logic nguồn `2b50690`, UI nguồn `aac84ce`. Ba conflict được người dùng duyệt riêng: readiness theo Room, host bấm SẴN SÀNG khi mọi người trở lại; 3D dùng submitOrder mới và banner reconnect; kết quả QUAY LẠI PHÒNG/THOÁT theo controller Zhoufen. Giữ nguyên controller/model/repository/server/config/lockfile. 131 test Flutter Bartender, 11 test server, WebGL và build APK debug qua. Chưa push, chưa kiểm chứng hai máy Android online.
+
+
+
+- **Phóng lớn và làm sống động quầy (2026-10-30):** camera theo chiều rộng, mesh trái cây 1.25/trạm 1.35, 8 món/trang; bỏ hướng dẫn và hàng đồng đội, HUD lớn. Vật phẩm mới rơi/nảy/lăn 1.25 giây rồi dừng, bắt kéo được; không đồng bộ vị trí. Kết quả đổi sang gỗ/kem, hai cột khi ngang và chữ lớn. WebGL qua kiểm tra spawn/idle/tương tác/phân trang/dispose, 6 test kết quả và ảnh bố cục 800×360 qua. Cần kiểm tra lại bản này bằng Hot Restart trên Android và đo máy thật. Không merge hoặc thay controller/repository/schema.
+
+- **Sửa tương tác 3D theo phản hồi (2026-10-30):** bỏ nhãn vật phẩm và nút chuyền/nộp; đơn phía trên; kéo lên nộp, xuống bỏ, hai bên chuyền. Máy ép/xay cần 4 nhấn sau khi đặt nguyên liệu; thớt cần 4 đường rạch, tap không tính. WebGL test qua các ngưỡng và thao tác; chưa kiểm chứng bản sửa trên Android thật/máy ảo. Không merge, không đổi controller/repository/schema.
+
+- **Gameplay 3D đầu tiên (2026-10-30, chưa commit):** renderer Three.js offline, quầy góc chéo màu ấm, bốn model trạm, nguyên liệu/thành phẩm 3D, kéo/chuyền/chế biến/nộp đúng dữ liệu controller, cảm biến shaker, phân trang 12 món, nút hình nhẹ, pause/dispose và màn dự phòng. Tách file mới; giữ nguyên model/controller/repository/schema. 90 test Dart qua; file mới analyze sạch; WebGL Chrome kiểm tra chức năng qua; build bundle và APK debug qua. Máy ảo Android xác nhận kéo chanh → ép → nộp (+5s, 1/3) → kết quả bằng hot restart. Lỗi Java loopback được xử lý bằng thư mục tạm ngắn/heap 2 GB trong tiến trình, không sửa Gradle. Chưa đo hiệu năng máy thật. Đã fetch và đối chiếu `dev/Zhoufen` tại `5994178`, KHÔNG merge/checkout/rebase/stash/commit/push. Xem `scene3d/README.md` cho điểm nối và lưu ý xung đột.
+
 
 - **Sửa lỗi nộp đơn hàng sau khi chế biến (2026-10-30):**
   - Khắc phục lỗi ITEM_NOT_FOUND khi nộp đơn: Server và Repository trước đây có sự không đồng nhất giữa it.id (instance id) và it.itemId (catalog id như 'orange_juice').
@@ -235,3 +246,21 @@ _(chưa có)_
 - `RoundSetup.generate()` là hàm thuần (models/) dùng chung cho Fake và Firebase (D15).
 - `_roomsRoot = 'bartender/rooms'` — tất cả đường dẫn Firebase đều bắt đầu từ đây (D18).
 - `sensors_plus` thêm như dependency riêng; shake detection tách thành class thuần `ShakeDetector` để test được.
+
+## Tích hợp UI vào logic — 2026-10-30
+
+- Logic: `2b50690979039741ca651380269089199595223e` từ `origin/dev/Zhoufen`; đã xác nhận remote vẫn ở commit này khi chốt.
+- UI: `aac84ce` trên `dev/Abu.ui`, snapshot lưu mọi thay đổi UI trước khi merge. Không rebase/reset/stash hoặc làm mất UI trước đó.
+- Merge local trên `dev/Zhoufen`; không push remote.
+- Người dùng yêu cầu duyệt riêng conflict logic, đã lần lượt đồng ý:
+  1. Lobby đọc `readyInLobby`, `readyPlayerCount`, `room.canStart`; bỏ `bartender_ready` Firebase riêng. Mọi player quay lại phòng cũ, chỉ host bấm SẴN SÀNG để mở trận mới.
+  2. Giữ UI/thao tác 3D; gọi controller.submitOrder mới theo ID instance; banner nối lại/mất kết nối trong 3D và fallback; fallback cuộn khi màn hẹp, sửa tràn chữ.
+  3. Giữ kết quả gỗ–kem; QUAY LẠI PHÒNG gọi returnToLobby và giữ mã; THOÁT rời phòng về menu.
+- Đối chiếu controller, model, RoomRepository/API/Firebase/Fake, server, backend config và lockfile: không khác Zhoufen. Không sửa backend để thích nghi UI.
+- `pub get --enforce-lockfile` cho app và server; không nâng dependency.
+- **131 test Flutter Bartender qua**, gồm API/WebSocket, controller, models/JSON, processing/round/shake, results, reconnect/scroll, bridge và hai test entry hiện tại (900×400, 390×844). Log: `build/merge-verify/flutter-tests.log` (không commit).
+- Test navigation cũ mô tả entry Home/lobby chung và nhãn UI cũ, không nằm trong bộ 131. Không sửa entry hiện tại để khớp test cũ; test thay thế trong module kiểm tra tạo phòng → trận → kết quả → quay về cùng mã phòng → host chờ peers → trận mới → thoát menu.
+- **11 test server HTTP/WebSocket qua**, gồm E2E hai client giả lập. WebGL offline drag/4 thao tác/cut/pass/submit/spawn/paging/idle/pause/dispose qua.
+- Analyze module/main: không error/warning; còn lint info trong UI/snapshot và script chụp ảnh bỏ qua Git. Diff whitespace authored source sạch; bundle Three.js sinh tự động giữ whitespace trong shader strings.
+- **APK debug build thành công** (`build/app/outputs/flutter-apk/app-debug.apk`, 195.8 giây). Dùng thư mục Java tạm ngắn/heap 2 GB trong tiến trình như trước; không sửa Gradle/cấu hình hệ thống.
+- Chưa cài/chạy lại APK tích hợp lên máy thật hay kiểm tra hai máy Android online. Backend mặc định vẫn `fake`; API cần server và dart-define theo `scene3d/README.md`.
